@@ -1,0 +1,19 @@
+# Generated benchmark and test reports
+reports/
+
+# Logs
+*.log
+
+# Windows
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local benchmark exports (regenerated from reports import)
+ollama-benchmark-results.csv
