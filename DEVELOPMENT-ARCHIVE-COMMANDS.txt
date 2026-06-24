@@ -1,0 +1,50 @@
+# Ollama AMD Vulkan — Agent Shell Command Log
+# Session: 019ef98d-ebd9-7ea0-b305-ee7496b813b8
+# Generated: 2026-06-24
+# Source: updates.jsonl Shell tool calls (unique commands)
+
+# --- GIT ---
+cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git log --oneline -10 2>&1; git status --short 2>&1
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --oneline -10; git status --short
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git status --short; git branch -a
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git checkout -b pre-csharp-greenfield-backup 2>&1; git checkout master; git checkout -b csharp-wpf-greenfield 2>&1
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add OllamaToolkit.sln src/ launchers/ BUILD.md Ollama-Mode-GUI.cmd .gitignore; git status --short; git commit -m "feat: initial C# WPF greenfield scaffold (Core, Cli, App shell)"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git status; git branch --show-current
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/ BUILD.md; git commit -m "Phase 3: Model Library, Test Results, AI Settings, catalog libraries"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --oneline --all -20
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --format="=== %h %s (%ci) ===" --stat pre-csharp-greenfield-backup..HEAD 2>&1 | Select-Object -First 200
+
+# --- .NET SDK ---
+dotnet --version
+where.exe dotnet 2>$null; Get-Command dotnet -ErrorAction SilentlyContinue | Format-List; winget search "Microsoft.DotNet.SDK.8" 2>$null | Select-Object -First 5
+& "C:\Program Files\dotnet\dotnet.exe" --list-sdks
+& "C:\Program Files\dotnet\dotnet.exe" --list-runtimes
+winget install Microsoft.DotNet.SDK.8 --accept-package-agreements --accept-source-agreements
+
+# --- SOLUTION SCAFFOLD ---
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; New-Item -ItemType Directory -Path src -Force | Out-Null; dotnet new sln -n OllamaToolkit -o . --force; dotnet new classlib -n OllamaToolkit.Core -o src/OllamaToolkit.Core -f net8.0 --force; dotnet new classlib -n OllamaToolkit.BenchmarkStore -o src/OllamaToolkit.BenchmarkStore -f net8.0 --force; dotnet new classlib -n OllamaToolkit.ModelCatalog -o src/OllamaToolkit.ModelCatalog -f net8.0 --force; dotnet new classlib -n OllamaToolkit.ModelCategory -o src/OllamaToolkit.ModelCategory -f net8.0 --force; dotnet new classlib -n OllamaToolkit.AiAssist -o src/OllamaToolkit.AiAssist -f net8.0 --force; dotnet new classlib -n OllamaToolkit.ModelRegistry -o src/OllamaToolkit.ModelRegistry -f net8.0 --force; dotnet new classlib -n OllamaToolkit.BenchmarkRunner -o src/OllamaToolkit.BenchmarkRunner -f net8.0 --force; dotnet new console -n OllamaToolkit.Cli -o src/OllamaToolkit.Cli -f net8.0 --force; dotnet new wpf -n OllamaToolkit.App -o src/OllamaToolkit.App -f net8.0-windows --force
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet new wpf -n OllamaToolkit.App -o src/OllamaToolkit.App -f net8.0 --force; dotnet sln add src/OllamaToolkit.Core/OllamaToolkit.Core.csproj src/OllamaToolkit.BenchmarkStore/OllamaToolkit.BenchmarkStore.csproj src/OllamaToolkit.ModelCatalog/OllamaToolkit.ModelCatalog.csproj src/OllamaToolkit.ModelCategory/OllamaToolkit.ModelCategory.csproj src/OllamaToolkit.AiAssist/OllamaToolkit.AiAssist.csproj src/OllamaToolkit.ModelRegistry/OllamaToolkit.ModelRegistry.csproj src/OllamaToolkit.BenchmarkRunner/OllamaToolkit.BenchmarkRunner.csproj src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj src/OllamaToolkit.App/OllamaToolkit.App.csproj
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; foreach ($p in @('BenchmarkStore','ModelCatalog','ModelCategory','AiAssist','ModelRegistry','BenchmarkRunner')) { Remove-Item "src\OllamaToolkit.$p\Class1.cs" -ErrorAction SilentlyContinue; @"
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OllamaToolkit.Core\OllamaToolkit.Core.csproj" />
+  </ItemGroup>
+</Project>
+"@ | Set-Content "src\OllamaToolkit.$p\OllamaToolkit.$p.csproj" }; dotnet build OllamaToolkit.sln -c Release
+
+# --- BUILD / RUN / PUBLISH ---
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- vulkan-devices
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- status; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- help
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release -v q; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- status
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 --self-contained false -o publish/OllamaToolkit.App; dotnet publish src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -r win-x64 --self-contained false -o publish/OllamaToolkit.Cli
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release -v q; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- import-reports; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App -v q
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build 2>&1
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1; dotnet publish src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -r win-x64 -o publish/OllamaToolkit.Cli 2>&1
