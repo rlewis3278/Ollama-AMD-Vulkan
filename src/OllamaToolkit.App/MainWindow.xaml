@@ -53,15 +53,19 @@
                     </Grid.RowDefinitions>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                         <Button Content="Launch (Best Mode)" Style="{StaticResource ToolkitButton}" Click="LaunchBestMode_Click" />
+                        <Button x:Name="AskAiModelsBtn" Content="Ask AI" Style="{StaticResource ToolkitButton}" Click="AskAiModels_Click" />
+                        <Button x:Name="CompareModelsBtn" Content="Compare with AI" Style="{StaticResource ToolkitButton}" Click="CompareModels_Click" />
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModels_Click" />
                         <Button Content="Import Reports" Style="{StaticResource ToolkitButton}" Click="ImportReports_Click" />
                     </StackPanel>
                     <DataGrid x:Name="ModelsGrid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
                               Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
                               HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
+                              SelectionMode="Extended"
                               EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*" />
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="100" />
                             <DataGridTextColumn Header="Size GB" Binding="{Binding SizeGB}" Width="70" />
                             <DataGridTextColumn Header="Best Mode" Binding="{Binding BestMode}" Width="80" />
                             <DataGridTextColumn Header="tok/s" Binding="{Binding BestTps}" Width="60" />
@@ -76,17 +80,26 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <StackPanel Orientation="Horizontal">
-                        <ComboBox x:Name="TestModelCombo" Width="280" Margin="0,0,8,8" />
+                        <ComboBox x:Name="TestModelCombo" Width="280" Margin="0,0,8,8" SelectionChanged="TestModelCombo_SelectionChanged" />
+                        <TextBlock Text="num_ctx:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,8" />
+                        <TextBox x:Name="TestNumCtxBox" Width="64" Margin="0,0,8,8" Text="8192"
+                                 Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
+                                 BorderBrush="{StaticResource Brush.PanelBorder}" />
+                        <TextBlock Text="num_predict:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,8" />
+                        <TextBox x:Name="TestNumPredictBox" Width="48" Margin="0,0,8,8" Text="32"
+                                 Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
+                                 BorderBrush="{StaticResource Brush.PanelBorder}" />
                         <Button Content="Test Selected" Style="{StaticResource ToolkitButton}" Click="TestSelected_Click" />
                         <Button Content="Test Untested" Style="{StaticResource ToolkitButton}" Click="TestUntested_Click" />
                         <Button Content="Stop" Style="{StaticResource ToolkitButton}" Click="StopTest_Click" />
                     </StackPanel>
-                    <TextBlock x:Name="TestStatusLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
-                    <TextBox x:Name="TestLogBox" Grid.Row="2" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                    <TextBlock x:Name="TestSettingsLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,4" TextWrapping="Wrap" />
+                    <TextBlock x:Name="TestStatusLabel" Grid.Row="2" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" TextWrapping="Wrap" />
+                    <TextBox x:Name="TestLogBox" Grid.Row="3" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
                              VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.LogBg}"
                              Foreground="{StaticResource Brush.Text}" />
                 </Grid>
@@ -131,6 +144,7 @@
                         <Button x:Name="StopChatBtn" Content="Stop" Style="{StaticResource ToolkitButton}" Click="StopChat_Click" />
                     </StackPanel>
                     <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button x:Name="AskAiRunBtn" Content="Ask AI" Style="{StaticResource ToolkitButton}" Click="AskAiRun_Click" />
                         <Button Content="Open in PowerShell" Style="{StaticResource ToolkitButton}" Click="OpenPowerShell_Click" />
                         <Button Content="Clear Chat" Style="{StaticResource ToolkitButton}" Click="ClearChat_Click" />
                     </StackPanel>
@@ -152,10 +166,12 @@
                         <Button Content="Refresh Catalog" Style="{StaticResource ToolkitButton}" Click="RefreshCatalog_Click" />
                         <Button Content="Categorize All" Style="{StaticResource ToolkitButton}" Click="CategorizeAll_Click" />
                         <Button Content="Download Selected" Style="{StaticResource ToolkitButton}" Click="DownloadCatalogModel_Click" />
+                        <Button x:Name="CompareCatalogBtn" Content="Compare with AI" Style="{StaticResource ToolkitButton}" Click="CompareCatalog_Click" />
                     </StackPanel>
                     <TextBlock x:Name="CatalogStatusLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
                     <DataGrid x:Name="CatalogGrid" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True"
                               Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
+                              SelectionMode="Extended"
                               EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Model" Binding="{Binding Name}" Width="120" />
@@ -223,6 +239,17 @@
                 </ScrollViewer>
             </TabItem>
         </TabControl>
+
+        <Popup x:Name="AiFlyoutPopup" Placement="Center" AllowsTransparency="True" StaysOpen="False">
+            <Border Background="{StaticResource Brush.Panel}" BorderBrush="{StaticResource Brush.PanelBorder}"
+                    BorderThickness="1" Padding="16" MaxWidth="520">
+                <StackPanel>
+                    <TextBlock x:Name="AiFlyoutTitle" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
+                    <TextBlock x:Name="AiFlyoutBody" TextWrapping="Wrap" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,12" />
+                    <Button Content="Close" Style="{StaticResource ToolkitButton}" HorizontalAlignment="Right" Click="CloseAiFlyout_Click" />
+                </StackPanel>
+            </Border>
+        </Popup>
 
         <Border Grid.Row="2" Background="{StaticResource Brush.Panel}"
                 BorderBrush="{StaticResource Brush.PanelBorder}" BorderThickness="0,1,0,0" Padding="12,8">

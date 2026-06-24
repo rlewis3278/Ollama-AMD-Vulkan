@@ -78,6 +78,7 @@ This syncs new shell commands and tool events from `updates.jsonl` into the sess
 | 6 | **"continue build autonomously"** (resumed after context compaction) | Fixed CLI; implemented ModelCatalog/ModelCategory/ModelRegistry; wired Model Library, Test Results, AI Settings tabs; committed `ce23914` |
 | 7 | **"add a file to archive every command and thought process"** | Created this `DEVELOPMENT-ARCHIVE.md` |
 | 8 | **"make sure this log is updated with everything you do"** | Added `DEVELOPMENT-ARCHIVE-SESSION.log`, `scripts/Update-DevelopmentArchive.ps1`, Section 0 maintenance protocol |
+| 9 | **"make sure this log is updated with everything you do"** (resumed) | Enforced Section 0 on every action; implemented AI functions 5–9 |
 
 ---
 
@@ -523,14 +524,32 @@ Ensure a complete record of agent commands and reasoning from planning through b
 
 ---
 
+## Phase 5 — AI functions 5–9 (pending commit)
+
+**User request:** Keep `DEVELOPMENT-ARCHIVE-SESSION.log` updated with every agent action; continue autonomous build.
+
+### Deliverables
+- `NaturalLanguageSearchService` — NL catalog ranking, `nl-search-cache.json`
+- `ModelAdvisorService` — Ask AI installed-model recommendations
+- `BenchmarkSettingsAdvisorService` — `num_ctx`/`num_predict` suggestions
+- `BenchmarkQueueAdvisorService` — Test Untested queue ordering
+- `ModelComparisonService` — two-model comparison flyout
+- Models & Launch: Category column, Ask AI, Compare with AI
+- Model Library: Compare with AI, NL search merge
+- Model Run: Ask AI button
+- Testing Suite: benchmark setting spinners + AI advisor
+- `ThrottledUpdater` wired to chat stream and test log (~30 fps)
+
+---
+
 ## 11. Remaining plan items
 
-From `plan.md` — not yet implemented as of `ce23914`:
+From `plan.md` — not yet implemented:
 
-- [ ] AI functions 5–9: NL search, model advisor, benchmark settings advisor, queue prioritization, model comparison
-- [ ] Category column on Models & Launch grid
-- [ ] Ask AI / Compare with AI toolbar buttons
-- [ ] Full 30 fps throttling on all streams (partial: chat uses marker-based update; `ThrottledUpdater` created but not fully wired)
+- [x] AI functions 5–9: NL search, model advisor, benchmark settings advisor, queue prioritization, model comparison
+- [x] Category column on Models & Launch grid
+- [x] Ask AI / Compare with AI toolbar buttons
+- [x] Full 30 fps throttling on chat and test log streams
 - [ ] Remove PowerShell sources
 - [ ] Merge `csharp-wpf-greenfield` → `master`
 - [ ] Full README rewrite
@@ -577,7 +596,8 @@ bad4770  Fix GUI startup freeze (PowerShell)
 790e3a5  C# greenfield scaffold
 ce23914  Phase 3: catalog libraries + remaining tabs
 25292a1  docs: agent development archive (markdown + commands)
-         (pending) docs: session log + sync script + maintenance protocol
+7f6331e  docs: session log + sync script + maintenance protocol
+         (pending) feat: AI functions 5-9, Ask AI, Compare, category column, throttling
 ```
 
 ### Archive files

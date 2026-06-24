@@ -34,6 +34,11 @@ public sealed class AppServices : IDisposable
         Summarizer = new SummarizerModelResolver(AiSettings, ApiClient);
         BenchmarkInsights = new BenchmarkInsightService(AiSettings, ApiClient, Summarizer);
         LogAnomalies = new LogAnomalyService(AiSettings, ApiClient, Summarizer);
+        NlSearch = new NaturalLanguageSearchService(AiSettings, ApiClient, Summarizer);
+        ModelAdvisor = new ModelAdvisorService(AiSettings, ApiClient, Summarizer);
+        BenchmarkSettingsAdvisor = new BenchmarkSettingsAdvisorService(AiSettings, ApiClient, Summarizer);
+        QueueAdvisor = new BenchmarkQueueAdvisorService(AiSettings, ApiClient, Summarizer);
+        ModelComparison = new ModelComparisonService(AiSettings, ApiClient, Summarizer);
     }
 
     public BackgroundWorkQueue WorkQueue { get; }
@@ -55,6 +60,11 @@ public sealed class AppServices : IDisposable
     public SummarizerModelResolver Summarizer { get; }
     public BenchmarkInsightService BenchmarkInsights { get; }
     public LogAnomalyService LogAnomalies { get; }
+    public NaturalLanguageSearchService NlSearch { get; }
+    public ModelAdvisorService ModelAdvisor { get; }
+    public BenchmarkSettingsAdvisorService BenchmarkSettingsAdvisor { get; }
+    public BenchmarkQueueAdvisorService QueueAdvisor { get; }
+    public ModelComparisonService ModelComparison { get; }
 
     public void Dispose() => ApiClient.Dispose();
 }

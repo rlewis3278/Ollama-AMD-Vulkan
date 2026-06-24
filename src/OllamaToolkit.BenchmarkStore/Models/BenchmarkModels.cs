@@ -106,5 +106,6 @@ public sealed class ModelProfileSummary
     public string LastTested { get; init; } = string.Empty;
     public bool NeedsRetest { get; init; } = true;
     public int RecommendedCtx { get; init; }
+    public string Category { get; init; } = string.Empty;
     public Dictionary<string, ModeResultEntry>? Results { get; init; }
 }

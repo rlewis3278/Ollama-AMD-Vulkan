@@ -457,3 +457,121 @@ EOF
 [2026-06-24 16:36:54] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 2>&1 | Select-Object -Last 3
 [2026-06-24 16:36:54] [SYNC] Processed updates.jsonl lines 0..1739
 [2026-06-24 16:36:54] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:37:02] [GIT] pending commit - session log sync script and maintenance protocol
+[2026-06-24 16:37:02] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "GIT|pending commit - session log sync script and maintenance protocol"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Update-DevelopmentArchive.ps1 sync OK - processed 1740 updates.jsonl lines"
+[2026-06-24 16:37:02] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add DEVELOPMENT-ARCHIVE.md DEVELOPMENT-ARCHIVE-SESSION.log DEVELOPMENT-ARCHIVE-COMMANDS.txt scripts/Update-DevelopmentArchive.ps1 .gitignore; git commit -m "docs: live session log, sync script, mandatory archive maintenance protocol"
+[2026-06-24 16:37:02] [SYNC] Processed updates.jsonl lines 1740..1769
+[2026-06-24 16:37:02] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:37:02] [BUILD] Update-DevelopmentArchive.ps1 sync OK - processed 1740 updates.jsonl lines
+[2026-06-24 16:37:02] [SYNC] Processed updates.jsonl lines 1770..1771
+[2026-06-24 16:37:02] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:37:22] [USER] make sure this log is updated with everything you do
+[2026-06-24 16:37:23] [TOOL] Read - Read
+[2026-06-24 16:37:23] [TOOL] Read - Read
+[2026-06-24 16:37:23] [TOOL] Read - Read
+[2026-06-24 16:37:23] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "USER|make sure this log is updated with everything you do"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "REASONING|Resuming after context compaction; enforcing Section 0 protocol on every action this turn"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "TOOL|Read DEVELOPMENT-ARCHIVE.md, Update-DevelopmentArchive.ps1, DEVELOPMENT-ARCHIVE-SESSION.log tail"
+[2026-06-24 16:37:23] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git status --short; git log --oneline -3
+[2026-06-24 16:37:23] [TOOL] Read - Read
+[2026-06-24 16:37:23] [SYNC] Processed updates.jsonl lines 1772..1803
+[2026-06-24 16:37:23] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:37:23] [REASONING] Resuming after context compaction; enforcing Section 0 protocol on every action this turn
+[2026-06-24 16:37:23] [SYNC] Processed updates.jsonl lines 1804..1806
+[2026-06-24 16:37:23] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:37:23] [TOOL] Read DEVELOPMENT-ARCHIVE.md, Update-DevelopmentArchive.ps1, DEVELOPMENT-ARCHIVE-SESSION.log tail
+[2026-06-24 16:37:23] [SYNC] Processed updates.jsonl lines 1807..1806
+[2026-06-24 16:37:23] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:37:51] [REASONING] Implementing AI functions 5-9 per plan.md while logging every file change
+[2026-06-24 16:37:52] [TOOL] Grep - Grep
+[2026-06-24 16:37:52] [TOOL] Glob - Glob
+[2026-06-24 16:37:52] [TOOL] Grep - Grep
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Grep - Grep
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Grep - Grep
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Grep - Grep
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Grep - Grep
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [TOOL] Read - Read
+[2026-06-24 16:37:52] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "REASONING|Implementing AI functions 5-9 per plan.md while logging every file change"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "TOOL|Grep/Read project structure for AiAssist, MainWindow, plan.md"
+[2026-06-24 16:37:52] [SYNC] Processed updates.jsonl lines 1807..1906
+[2026-06-24 16:37:52] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:37:52] [TOOL] Grep/Read project structure for AiAssist, MainWindow, plan.md
+[2026-06-24 16:37:53] [SYNC] Processed updates.jsonl lines 1907..1910
+[2026-06-24 16:37:53] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:38:29] [FILE] AiAssist: AiAssistCacheModels, NaturalLanguageSearch, ModelAdvisor, BenchmarkSettingsAdvisor, BenchmarkQueueAdvisor, ModelComparison services
+[2026-06-24 16:38:29] [TOOL] Write - Write
+[2026-06-24 16:38:29] [TOOL] Write - Write
+[2026-06-24 16:38:29] [TOOL] Write - Write
+[2026-06-24 16:38:29] [TOOL] Write - Write
+[2026-06-24 16:38:29] [TOOL] Write - Write
+[2026-06-24 16:38:29] [TOOL] Write - Write
+[2026-06-24 16:38:29] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:38:29] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:38:29] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:38:29] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|AiAssist: AiAssistCacheModels, NaturalLanguageSearch, ModelAdvisor, BenchmarkSettingsAdvisor, BenchmarkQueueAdvisor, ModelComparison services"
+[2026-06-24 16:38:29] [SYNC] Processed updates.jsonl lines 1911..1949
+[2026-06-24 16:38:29] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:39:09] [FILE] MainWindow.xaml/cs - Ask AI, Compare, Category column, NL search, throttled streams, benchmark settings
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] Read - Read
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:10] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-24 16:39:10] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|MainWindow.xaml/cs - Ask AI, Compare, Category column, NL search, throttled streams, benchmark settings"
+[2026-06-24 16:39:10] [SYNC] Processed updates.jsonl lines 1950..2041
+[2026-06-24 16:39:10] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:39:42] [BUILD] dotnet build OllamaToolkit.sln -c Release: 0 errors
+[2026-06-24 16:39:42] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-24 16:39:42] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:42] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-24 16:39:42] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-24 16:39:42] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:42] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:42] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:42] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:42] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-24 16:39:42] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:42] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:42] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:39:42] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|dotnet build OllamaToolkit.sln -c Release: 0 errors"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|DEVELOPMENT-ARCHIVE.md Phase 5 section and checklist updates"; git add -A; git status --short
+[2026-06-24 16:39:42] [SYNC] Processed updates.jsonl lines 2042..2123
+[2026-06-24 16:39:42] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:39:42] [FILE] DEVELOPMENT-ARCHIVE.md Phase 5 section and checklist updates
+[2026-06-24 16:39:43] [SYNC] Processed updates.jsonl lines 2124..2126
+[2026-06-24 16:39:43] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

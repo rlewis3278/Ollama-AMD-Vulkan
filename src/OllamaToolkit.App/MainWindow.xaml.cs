@@ -5,6 +5,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using OllamaToolkit.AiAssist;
+using OllamaToolkit.AiAssist.Models;
 using OllamaToolkit.App.Services;
 using OllamaToolkit.BenchmarkStore.Models;
 using OllamaToolkit.Core.Modes;
@@ -26,6 +28,10 @@ public partial class MainWindow : Window
     private readonly List<ChatMessage> _chatMessages = new();
     private readonly DispatcherTimer _activityTimer;
     private readonly DispatcherTimer _catalogSearchTimer;
+    private readonly DispatcherTimer _testSettingsTimer;
+    private readonly ThrottledUpdater _chatUpdater;
+    private readonly ThrottledUpdater _testLogUpdater;
+    private List<string> _nlRankedCatalog = new();
     public MainWindow()
     {
         InitializeComponent();
@@ -42,11 +48,20 @@ public partial class MainWindow : Window
             _catalogSearchTimer.Stop();
             await RefreshCatalogUiAsync().ConfigureAwait(true);
         };
+        _testSettingsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _testSettingsTimer.Tick += async (_, _) =>
+        {
+            _testSettingsTimer.Stop();
+            await SuggestBenchmarkSettingsAsync().ConfigureAwait(true);
+        };
+        _chatUpdater = new ThrottledUpdater(TimeSpan.FromMilliseconds(33));
+        _testLogUpdater = new ThrottledUpdater(TimeSpan.FromMilliseconds(33));
         Loaded += OnLoadedAsync;
         Closed += (_, _) =>
         {
             _activityTimer.Stop();
             _catalogSearchTimer.Stop();
+            _testSettingsTimer.Stop();
         };
     }
 
@@ -180,17 +195,51 @@ public partial class MainWindow : Window
             snapshot.OrderBy(k => k.Key).Select(e => $"{e.Key} = {e.Value ?? "(not set)"}"));
     }
 
+    private async Task<Dictionary<string, string>> GetCategoryMapAsync()
+    {
+        var doc = await _svc.CategoryStore.LoadAsync().ConfigureAwait(true);
+        return doc.Models.ToDictionary(
+            k => k.Key,
+            v => v.Value.Category,
+            StringComparer.OrdinalIgnoreCase);
+    }
+
     private async Task RefreshModelsUiAsync()
     {
         var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
-        ModelsGrid.ItemsSource = summaries;
-        TestModelCombo.ItemsSource = summaries.Select(s => s.Model).ToList();
+        var categories = await GetCategoryMapAsync().ConfigureAwait(true);
+        var enriched = summaries.Select(s =>
+        {
+            var lib = s.Model.Split(':')[0];
+            var category = categories.TryGetValue(lib, out var c)
+                ? c
+                : CategoryNormalizer.HeuristicCategory(lib, string.Empty, string.Empty);
+            return new ModelProfileSummary
+            {
+                Model = s.Model,
+                SizeGB = s.SizeGB,
+                Quantization = s.Quantization,
+                ParameterSize = s.ParameterSize,
+                Digest = s.Digest,
+                Status = s.Status,
+                BestMode = s.BestMode,
+                BestTps = s.BestTps,
+                LastTested = s.LastTested,
+                NeedsRetest = s.NeedsRetest,
+                RecommendedCtx = s.RecommendedCtx,
+                Category = category,
+                Results = s.Results
+            };
+        }).ToList();
+        ModelsGrid.ItemsSource = enriched;
+        TestModelCombo.ItemsSource = enriched.Select(s => s.Model).ToList();
         if (TestModelCombo.Items.Count > 0)
         {
             TestModelCombo.SelectedIndex = 0;
         }
 
-        var untested = summaries.Where(s => s.NeedsRetest).Select(s => s.Model).ToList();
+        var untested = enriched.Where(s => s.NeedsRetest).Select(s => s.Model).ToList();
+        await UpdateAiButtonStatesAsync().ConfigureAwait(true);
         if (untested.Count > 0)
         {
             AlertBar.Visibility = Visibility.Visible;
@@ -222,6 +271,20 @@ public partial class MainWindow : Window
         {
             AiStatusButton.Content = "AI Inactive";
         }
+
+        await UpdateAiButtonStatesAsync().ConfigureAwait(true);
+    }
+
+    private async Task UpdateAiButtonStatesAsync()
+    {
+        var settings = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
+        var ready = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
+        var enabled = settings.ToolkitAiEnabled && ready
+            && !string.IsNullOrWhiteSpace(settings.PreferredSummarizerModel);
+        AskAiModelsBtn.IsEnabled = enabled;
+        AskAiRunBtn.IsEnabled = enabled;
+        CompareModelsBtn.IsEnabled = enabled;
+        CompareCatalogBtn.IsEnabled = enabled;
     }
 
     private void RefreshActivityLog() => AiActivityLog.Text = _svc.ActivityLog.ReadTail();
@@ -361,7 +424,49 @@ public partial class MainWindow : Window
             return;
         }
 
-        await RunBenchmarkQueueAsync(names).ConfigureAwait(true);
+        var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
+        var queue = await _svc.QueueAdvisor.PrioritizeAsync(names, summaries).ConfigureAwait(true);
+        TestStatusLabel.Text = $"AI ordered queue: {string.Join(" -> ", queue.Models)}";
+        _svc.ActivityLog.Write("AI", queue.Rationale);
+        await RunBenchmarkQueueAsync(queue.Models).ConfigureAwait(true);
+    }
+
+    private void TestModelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        _testSettingsTimer.Stop();
+        _testSettingsTimer.Start();
+    }
+
+    private async Task SuggestBenchmarkSettingsAsync()
+    {
+        var model = TestModelCombo.SelectedItem as string;
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            TestSettingsLabel.Text = string.Empty;
+            return;
+        }
+
+        var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
+        var summary = summaries.FirstOrDefault(s => s.Model.Equals(model, StringComparison.OrdinalIgnoreCase));
+        if (summary is null)
+        {
+            return;
+        }
+
+        var categories = await GetCategoryMapAsync().ConfigureAwait(true);
+        var lib = model.Split(':')[0];
+        var category = categories.TryGetValue(lib, out var c) ? c : string.Empty;
+        var settings = await _svc.BenchmarkSettingsAdvisor.SuggestAsync(summary, category).ConfigureAwait(true);
+        TestNumCtxBox.Text = settings.NumCtx.ToString();
+        TestNumPredictBox.Text = settings.NumPredict.ToString();
+        TestSettingsLabel.Text = settings.Rationale ?? string.Empty;
+    }
+
+    private static (int NumCtx, int NumPredict) ParseBenchmarkSpinners(string ctxText, string predictText)
+    {
+        var ctx = int.TryParse(ctxText, out var c) && c > 0 ? c : 8192;
+        var pred = int.TryParse(predictText, out var p) && p > 0 ? p : 32;
+        return (ctx, pred);
     }
 
     private async Task RunBenchmarkQueueAsync(IReadOnlyList<string> models)
@@ -369,6 +474,7 @@ public partial class MainWindow : Window
         _benchmarkCts?.Cancel();
         _benchmarkCts = new CancellationTokenSource();
         var ct = _benchmarkCts.Token;
+        var (numCtx, numPredict) = ParseBenchmarkSpinners(TestNumCtxBox.Text, TestNumPredictBox.Text);
 
         await _svc.WorkQueue.EnqueueAsync(async token =>
         {
@@ -382,17 +488,18 @@ public partial class MainWindow : Window
                 await UiDispatcher.InvokeAsync(() => TestStatusLabel.Text = $"Testing {model}...").ConfigureAwait(false);
                 var progress = new Progress<string>(line =>
                 {
-                    UiDispatcher.InvokeAsync(() =>
+                    _testLogUpdater.Append(line + Environment.NewLine, appended =>
                     {
-                        TestLogBox.Text += line + Environment.NewLine;
+                        TestLogBox.Text += appended;
                         TestLogBox.CaretIndex = TestLogBox.Text.Length;
                         TestLogBox.ScrollToEnd();
-                    });
+                    }, () => TestLogBox.Text, v => TestLogBox.Text = v);
                 });
 
                 try
                 {
-                    await _svc.BenchmarkRunner.RunAsync(model, log: progress, cancellationToken: ct)
+                    await _svc.BenchmarkRunner.RunAsync(
+                        model, numPredict: numPredict, numCtx: numCtx, log: progress, cancellationToken: ct)
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
@@ -469,13 +576,16 @@ public partial class MainWindow : Window
                     var captured = streamBuffer;
                     await UiDispatcher.InvokeAsync(() =>
                     {
-                        var prefix = ChatHistory.Text;
-                        var marker = "Assistant: ";
-                        var idx = prefix.LastIndexOf(marker, StringComparison.Ordinal);
-                        if (idx >= 0)
+                        _chatUpdater.Append(chunk, _ =>
                         {
-                            ChatHistory.Text = prefix[..(idx + marker.Length)] + captured;
-                        }
+                            var prefix = ChatHistory.Text;
+                            var marker = "Assistant: ";
+                            var idx = prefix.LastIndexOf(marker, StringComparison.Ordinal);
+                            if (idx >= 0)
+                            {
+                                ChatHistory.Text = prefix[..(idx + marker.Length)] + captured;
+                            }
+                        }, () => ChatHistory.Text, v => ChatHistory.Text = v);
                     }).ConfigureAwait(false);
                 }
 
@@ -564,7 +674,24 @@ public partial class MainWindow : Window
     {
         var search = CatalogSearchBox.Text;
         var category = CategoryFilterCombo.SelectedItem as string;
-        var rows = await _svc.Registry.GetCatalogRowsAsync(search, category).ConfigureAwait(true);
+        var rows = (await _svc.Registry.GetCatalogRowsAsync(search, category).ConfigureAwait(true)).ToList();
+        if (NaturalLanguageSearchService.LooksNaturalLanguage(search) && rows.Count > 1)
+        {
+            var candidates = rows.Select(r => new NlSearchCandidate(r.Name, r.Category, r.ParameterSize, r.ListDescription))
+                .ToList();
+            var ranked = await _svc.NlSearch.RankModelsAsync(search, candidates).ConfigureAwait(true);
+            if (ranked.Count > 0)
+            {
+                _nlRankedCatalog = ranked.ToList();
+                var rankMap = ranked.Select((name, i) => (name, i))
+                    .ToDictionary(x => x.name, x => x.i, StringComparer.OrdinalIgnoreCase);
+                rows = rows.OrderBy(r => rankMap.TryGetValue(r.Name, out var i) ? i : 999).ThenBy(r => r.Name).ToList();
+                CatalogStatusLabel.Text = $"NL-ranked {ranked.Count} model(s); showing {rows.Count}.";
+                CatalogGrid.ItemsSource = rows;
+                return;
+            }
+        }
+
         CatalogGrid.ItemsSource = rows;
         CatalogStatusLabel.Text = $"Showing {rows.Count} catalog model(s).";
     }
@@ -882,6 +1009,148 @@ public partial class MainWindow : Window
                 RefreshActivityLog();
             }).ConfigureAwait(false);
         }).ConfigureAwait(true);
+    }
+
+    private async void AskAiModels_Click(object sender, RoutedEventArgs e) =>
+        await RunAskAiAsync(fromModelRun: false).ConfigureAwait(true);
+
+    private async void AskAiRun_Click(object sender, RoutedEventArgs e) =>
+        await RunAskAiAsync(fromModelRun: true).ConfigureAwait(true);
+
+    private async Task RunAskAiAsync(bool fromModelRun)
+    {
+        var intent = PromptForIntent("What do you want to do?");
+        if (string.IsNullOrWhiteSpace(intent))
+        {
+            return;
+        }
+
+        var summaries = (ModelsGrid.ItemsSource as IEnumerable<ModelProfileSummary>)?.ToList()
+            ?? await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
+        var categories = await GetCategoryMapAsync().ConfigureAwait(true);
+        AiFlyoutTitle.Text = $"Recommended for \"{intent}\"";
+        AiFlyoutBody.Text = "Thinking...";
+        AiFlyoutPopup.IsOpen = true;
+
+        await _svc.WorkQueue.EnqueueAsync(async ct =>
+        {
+            var recs = await _svc.ModelAdvisor.RecommendInstalledAsync(intent, summaries, categories, ct)
+                .ConfigureAwait(false);
+            var body = recs.Count == 0
+                ? "No installed models matched."
+                : string.Join(Environment.NewLine, recs.Select(r =>
+                    $"{r.Rank}. {r.Model}  {r.BestMode}  {r.BestTps:F1} tok/s  ({r.Category})"));
+            _svc.ActivityLog.Write("AI", $"Advisor: {intent} -> {recs.Count} model(s)");
+            await UiDispatcher.InvokeAsync(() =>
+            {
+                AiFlyoutBody.Text = body;
+                if (fromModelRun && recs.Count > 0)
+                {
+                    ModelRunStatus.Text = $"Top pick: {recs[0].Model}";
+                }
+            }).ConfigureAwait(false);
+        }).ConfigureAwait(true);
+    }
+
+    private async void CompareModels_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = ModelsGrid.SelectedItems.Cast<ModelProfileSummary>().Take(2).ToList();
+        if (selected.Count < 2)
+        {
+            MessageBox.Show("Select exactly two models (Ctrl+click).", "Compare", MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        await RunCompareAsync(selected[0], selected[1]).ConfigureAwait(true);
+    }
+
+    private async void CompareCatalog_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = CatalogGrid.SelectedItems.Cast<CatalogRowViewModel>().Take(2).ToList();
+        if (selected.Count < 2)
+        {
+            MessageBox.Show("Select exactly two catalog models (Ctrl+click).", "Compare", MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
+        var a = summaries.FirstOrDefault(s =>
+            s.Model.StartsWith($"{selected[0].Name}:", StringComparison.OrdinalIgnoreCase)
+            || s.Model.Equals(selected[0].Name, StringComparison.OrdinalIgnoreCase));
+        var b = summaries.FirstOrDefault(s =>
+            s.Model.StartsWith($"{selected[1].Name}:", StringComparison.OrdinalIgnoreCase)
+            || s.Model.Equals(selected[1].Name, StringComparison.OrdinalIgnoreCase));
+        await RunCompareAsync(
+            a ?? new ModelProfileSummary { Model = selected[0].Name, Category = selected[0].Category },
+            b ?? new ModelProfileSummary { Model = selected[1].Name, Category = selected[1].Category },
+            selected[0].Category,
+            selected[1].Category).ConfigureAwait(true);
+    }
+
+    private async Task RunCompareAsync(
+        ModelProfileSummary modelA,
+        ModelProfileSummary modelB,
+        string? categoryA = null,
+        string? categoryB = null)
+    {
+        categoryA ??= modelA.Category;
+        categoryB ??= modelB.Category;
+        AiFlyoutTitle.Text = $"{modelA.Model} vs {modelB.Model}";
+        AiFlyoutBody.Text = "Comparing...";
+        AiFlyoutPopup.IsOpen = true;
+
+        await _svc.WorkQueue.EnqueueAsync(async ct =>
+        {
+            var text = await _svc.ModelComparison.CompareAsync(
+                modelA.Model, modelB.Model, modelA, modelB, categoryA, categoryB, ct).ConfigureAwait(false);
+            _svc.ActivityLog.Write("AI", $"Compared {modelA.Model} vs {modelB.Model}");
+            await UiDispatcher.InvokeAsync(() => AiFlyoutBody.Text = text).ConfigureAwait(false);
+        }).ConfigureAwait(true);
+    }
+
+    private void CloseAiFlyout_Click(object sender, RoutedEventArgs e) => AiFlyoutPopup.IsOpen = false;
+
+    private static string? PromptForIntent(string title)
+    {
+        var dialog = new Window
+        {
+            Title = title,
+            Width = 420,
+            Height = 160,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.NoResize,
+            Background = new SolidColorBrush(Color.FromRgb(30, 30, 30))
+        };
+        var box = new TextBox
+        {
+            Margin = new Thickness(12),
+            Padding = new Thickness(8, 6, 8, 6),
+            VerticalAlignment = VerticalAlignment.Top,
+            Height = 32
+        };
+        var ok = new Button { Content = "OK", Width = 80, Margin = new Thickness(0, 0, 12, 12), HorizontalAlignment = HorizontalAlignment.Right };
+        var panel = new Grid();
+        panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        Grid.SetRow(box, 0);
+        Grid.SetRow(ok, 1);
+        panel.Children.Add(box);
+        panel.Children.Add(ok);
+        dialog.Content = panel;
+        string? result = null;
+        ok.Click += (_, _) => { result = box.Text; dialog.DialogResult = true; };
+        box.KeyDown += (_, e) =>
+        {
+            if (e.Key == Key.Enter)
+            {
+                result = box.Text;
+                dialog.DialogResult = true;
+            }
+        };
+        dialog.ShowDialog();
+        return result?.Trim();
     }
 
     private async Task ScheduleLogScanAsync()
