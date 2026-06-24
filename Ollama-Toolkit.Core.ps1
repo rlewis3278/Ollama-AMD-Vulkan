@@ -467,7 +467,11 @@ function Restart-Ollama {
 }
 
 function Get-OllamaToolkitStatus {
-    param([switch]$UseCachedApi)
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipeline = $false)]
+        [switch]$UseCachedApi
+    )
 
     $processes = @(Get-OllamaProcesses)
     $detected = Get-DetectedMode

@@ -17,3 +17,14 @@ ehthumbs.db
 
 # Local benchmark exports (regenerated from reports import)
 ollama-benchmark-results.csv
+
+# Local diagnostics (not part of the toolkit)
+_startup-test*.ps1
+_gui-startup-test.ps1
+_catalog-load-test.ps1
+_parse-check.ps1
+_Ollama-Mode-GUI-testhost.ps1
+startup-debug*.log
+catalog-load-test.log
+gui-startup-error.log
+gui-run.log

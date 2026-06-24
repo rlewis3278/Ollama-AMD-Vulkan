@@ -25,6 +25,21 @@ $Script:ToolkitRoot = $PSScriptRoot
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
+[System.Windows.Forms.Application]::add_ThreadException({
+    param($sender, $e)
+    if ($Script:GuiShuttingDown) { return }
+    $msg = "Unhandled UI error: $($e.Exception.Message)"
+    try {
+        if (Get-Command Add-GuiLog -ErrorAction SilentlyContinue) {
+            Add-GuiLog -Message $msg
+        }
+        if (Get-Command Write-GuiAiActivity -ErrorAction SilentlyContinue) {
+            Write-GuiAiActivity -Message $msg -Category 'Error'
+        }
+    }
+    catch { }
+    $e.ExceptionHandled = $true
+})
 
 $Script:ApiTimeoutSec = 90
 Ensure-ConfigDirectory
@@ -1350,7 +1365,6 @@ function Stop-AllGuiBackgroundActivity {
             $registryTabInitTimer,
             $Script:GuiPostShowTimer,
             $Script:GuiDeferredRefreshTimer,
-            $Script:GuiFullRefreshTimer,
             $Script:RegistryCatalogLoadTimer,
             $Script:DescriptionBackgroundTimer,
             $Script:RegistryBackgroundTimer,
@@ -1387,7 +1401,6 @@ function Dispose-AllGuiTimers {
             $registryTabInitTimer,
             $Script:GuiPostShowTimer,
             $Script:GuiDeferredRefreshTimer,
-            $Script:GuiFullRefreshTimer,
             $Script:RegistryCatalogLoadTimer,
             $Script:DescriptionBackgroundTimer,
             $Script:RegistryBackgroundTimer,
@@ -1697,7 +1710,11 @@ function Resize-ModelsListColumns {
 }
 
 function Refresh-ModelsUi {
-    param([switch]$Fast)
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipeline = $false)]
+        [switch]$Fast
+    )
 
     if ($Script:GuiShuttingDown) { return }
 
@@ -1899,8 +1916,9 @@ function New-RegistryCatalogListItem {
     if ($null -eq $Entry) { return $null }
 
     $libraryName = [string](Get-LibraryCatalogEntryValue -Entry $Entry -Name 'Name')
-    if ([string]::IsNullOrWhiteSpace($libraryName) -and $Entry.Name) {
-        $libraryName = [string]$Entry.Name
+    if ([string]::IsNullOrWhiteSpace($libraryName)) {
+        $legacyName = Get-LibraryCatalogEntryValue -Entry $Entry -Name 'name'
+        if ($legacyName) { $libraryName = [string]$legacyName }
     }
     if ([string]::IsNullOrWhiteSpace($libraryName)) { $libraryName = '-' }
 
@@ -1928,7 +1946,61 @@ function New-RegistryCatalogListItem {
     return $item
 }
 
+function Complete-RegistryCatalogListLoad {
+    param([int]$EntryCount)
+
+    Reapply-ListViewSort -List $registryCatalogList
+    Resize-RegistryListColumns
+    Update-RegistryHeaderLabels
+    Update-RegistryInstalledSplitHeight
+    Set-RegistryStatus "Showing $EntryCount catalog model(s)."
+}
+
+function Step-RegistryCatalogListLoad {
+    $state = $Script:RegistryCatalogLoadState
+    if (-not $state -or -not $state.Active) {
+        Stop-RegistryCatalogListLoad
+        return
+    }
+
+    $batchSize = 35
+    $end = [math]::Min($state.Index + $batchSize, $state.Total)
+
+    $registryCatalogList.BeginUpdate()
+    try {
+        for ($i = $state.Index; $i -lt $end; $i++) {
+            $entry = $state.Entries[$i]
+            $item = New-RegistryCatalogListItem -Entry $entry -InstalledSet $state.InstalledSet -Fast:([bool]$state.Fast)
+            if ($item) {
+                [void]$registryCatalogList.Items.Add($item)
+            }
+        }
+    }
+    finally {
+        $registryCatalogList.EndUpdate()
+    }
+
+    $state.Index = $end
+    if ($state.Index -ge $state.Total) {
+        $total = $state.Total
+        Stop-RegistryCatalogListLoad
+        Complete-RegistryCatalogListLoad -EntryCount $total
+        return
+    }
+
+    Set-RegistryStatus "Loading catalog list ($($state.Index)/$($state.Total))..."
+}
+
 function Load-RegistryCatalogList {
+    param(
+        [object[]]$Entries,
+        [switch]$Fast
+    )
+
+    Start-RegistryCatalogListLoad -Entries $Entries -Fast:$Fast
+}
+
+function Start-RegistryCatalogListLoad {
     param(
         [object[]]$Entries,
         [switch]$Fast
@@ -1940,44 +2012,54 @@ function Load-RegistryCatalogList {
         $entriesCopy = @($Entries)
         $fastCopy = $Fast.IsPresent
         $form.Invoke([Action] {
-            Load-RegistryCatalogList -Entries $entriesCopy -Fast:$fastCopy
+            Start-RegistryCatalogListLoad -Entries $entriesCopy -Fast:$fastCopy
         }) | Out-Null
         return
     }
 
     $entries = @($Entries | Where-Object { $null -ne $_ })
-    $registryCatalogList.Items.Clear()
     $entryCount = Get-SafeCollectionCount $entries
+    $registryCatalogList.Items.Clear()
     if ($entryCount -eq 0) { return }
 
-    $installedSet = Get-InstalledModelNameSet
-    $registryCatalogList.BeginUpdate()
-    try {
-        foreach ($entry in $entries) {
-            $item = New-RegistryCatalogListItem -Entry $entry -InstalledSet $installedSet -Fast:$Fast
-            if ($item) {
-                [void]$registryCatalogList.Items.Add($item)
+    if ($entryCount -le 40) {
+        $installedSet = Get-InstalledModelNameSet
+        $registryCatalogList.BeginUpdate()
+        try {
+            foreach ($entry in $entries) {
+                $item = New-RegistryCatalogListItem -Entry $entry -InstalledSet $installedSet -Fast:$Fast
+                if ($item) {
+                    [void]$registryCatalogList.Items.Add($item)
+                }
             }
         }
+        finally {
+            $registryCatalogList.EndUpdate()
+        }
+        Complete-RegistryCatalogListLoad -EntryCount $entryCount
+        return
     }
-    finally {
-        $registryCatalogList.EndUpdate()
+
+    $Script:RegistryCatalogLoadState = @{
+        Active       = $true
+        Entries      = $entries
+        Index        = 0
+        Total        = $entryCount
+        Fast         = $Fast.IsPresent
+        InstalledSet = Get-InstalledModelNameSet
     }
 
-    Reapply-ListViewSort -List $registryCatalogList
-    Resize-RegistryListColumns
-    Update-RegistryHeaderLabels
-    Update-RegistryInstalledSplitHeight
-    Set-RegistryStatus "Showing $entryCount catalog model(s)."
-}
+    if (-not $Script:RegistryCatalogLoadTimer) {
+        $Script:RegistryCatalogLoadTimer = New-Object System.Windows.Forms.Timer
+        $Script:RegistryCatalogLoadTimer.Interval = 40
+        $Script:RegistryCatalogLoadTimer.Add_Tick({
+            Invoke-SafeTimerTick -Context 'Catalog list load' -Action { Step-RegistryCatalogListLoad }
+        })
+    }
 
-function Start-RegistryCatalogListLoad {
-    param(
-        [object[]]$Entries,
-        [switch]$Fast
-    )
-
-    Load-RegistryCatalogList -Entries $Entries -Fast:$Fast
+    Set-RegistryStatus "Loading catalog list (0/$entryCount)..."
+    $Script:RegistryCatalogLoadTimer.Start()
+    Step-RegistryCatalogListLoad
 }
 
 function Get-RegistryInstalledModelsCached {
@@ -2699,19 +2781,23 @@ function Show-ModelDescriptionDialog {
 }
 
 function Refresh-GuiStatus {
+    [CmdletBinding()]
     param(
+        [Parameter(ValueFromPipeline = $false)]
         [switch]$Fast,
+        [Parameter(ValueFromPipeline = $false)]
         [switch]$ForceApiRefresh
     )
 
     if ($Script:GuiShuttingDown) { return }
 
     try {
-        if ($ForceApiRefresh) {
+        if ($ForceApiRefresh.IsPresent) {
             Clear-OllamaToolkitRuntimeCaches
         }
-        Update-StatusPanel -Status (Get-OllamaToolkitStatus -UseCachedApi:$Fast)
-        Refresh-ModelsUi -Fast:$Fast
+        $useCachedApi = $Fast.IsPresent -and -not $ForceApiRefresh.IsPresent
+        Update-StatusPanel -Status (Get-OllamaToolkitStatus -UseCachedApi:$useCachedApi)
+        Refresh-ModelsUi -Fast:$Fast.IsPresent
     }
     catch {
         Add-GuiLog -Message "Status refresh failed: $($_.Exception.Message)"
@@ -2768,10 +2854,9 @@ function Start-PostShowGuiInitialization {
     $descStartupTimer.Start()
 
     Update-AiStatusButton
-    Refresh-GuiStatus -ForceApiRefresh
+    Refresh-GuiStatus -Fast
     Start-DeferredBenchmarkImport
     $Script:GuiDeferredRefreshTimer.Start()
-    $Script:GuiFullRefreshTimer.Start()
 }
 
 function Invoke-GuiOperation {
@@ -3667,27 +3752,17 @@ $Script:GuiDeferredRefreshTimer.Add_Tick({
     Invoke-SafeTimerTick -Context 'Deferred refresh' -Action {
         if (-not (Complete-DeferredBenchmarkImport)) { return }
         $Script:GuiDeferredRefreshTimer.Stop()
-        Refresh-GuiStatus -ForceApiRefresh
-    }
-})
-
-$Script:GuiFullRefreshTimer = New-Object System.Windows.Forms.Timer
-$Script:GuiFullRefreshTimer.Interval = 5000
-$Script:GuiFullRefreshTimer.Add_Tick({
-    Invoke-SafeTimerTick -Context 'Full refresh' -Action {
-        $Script:GuiFullRefreshTimer.Stop()
-        if (-not $Script:BenchmarkImportJob) {
-            Complete-DeferredBenchmarkImport | Out-Null
-        }
-        Refresh-GuiStatus -ForceApiRefresh
+        Refresh-GuiStatus -ForceApiRefresh | Out-Null
     }
 })
 
 $form.Add_Shown({
-    Initialize-ModesSplitLayout
-    Initialize-RegistrySplitLayout
-    Set-RegistryStatus 'Open Model Library tab to load the catalog.'
-    $Script:GuiPostShowTimer.Start()
+    Invoke-SafeTimerTick -Context 'Form shown' -Action {
+        Initialize-ModesSplitLayout
+        Initialize-RegistrySplitLayout
+        Set-RegistryStatus 'Open Model Library tab to load the catalog.'
+        $Script:GuiPostShowTimer.Start()
+    }
 })
 
 $form.Add_Resize({

@@ -19,8 +19,13 @@ function Get-ToolkitLocalOllamaModels {
     return @(
         $models |
             Where-Object {
-                -not $_.PSObject.Properties['remote_host'] -and
-                $_.details.format -eq 'gguf' -and
+                if ($_.PSObject.Properties['remote_host'] -and $_.remote_host) { return $false }
+                $details = $null
+                if ($_.PSObject.Properties['details']) { $details = $_.details }
+                if (-not $details) { return $false }
+                $format = $null
+                if ($details.PSObject.Properties['format']) { $format = $details.format }
+                if ($format -ne 'gguf') { return $false }
                 $_.size -gt 1MB
             } |
             Sort-Object -Property size, name
@@ -273,11 +278,18 @@ function Get-AllModelProfileSummaries {
             }
         }
 
+        $quantization = '-'
+        $parameterSize = '-'
+        if ($model.details) {
+            if ($model.details.quantization_level) { $quantization = [string]$model.details.quantization_level }
+            if ($model.details.parameter_size) { $parameterSize = [string]$model.details.parameter_size }
+        }
+
         $summaries += [pscustomobject]@{
             Model          = $name
             SizeGB         = $sizeGb
-            Quantization   = $model.details.quantization_level
-            ParameterSize  = $model.details.parameter_size
+            Quantization   = $quantization
+            ParameterSize  = $parameterSize
             Digest         = $digest
             Status         = $status
             BestMode       = $bestMode
