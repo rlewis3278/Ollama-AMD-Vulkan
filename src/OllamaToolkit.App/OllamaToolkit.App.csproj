@@ -6,12 +6,17 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <ApplicationIcon></ApplicationIcon>
     <AssemblyName>OllamaToolkit.App</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\OllamaToolkit.Core\OllamaToolkit.Core.csproj" />
+    <ProjectReference Include="..\OllamaToolkit.BenchmarkStore\OllamaToolkit.BenchmarkStore.csproj" />
+    <ProjectReference Include="..\OllamaToolkit.BenchmarkRunner\OllamaToolkit.BenchmarkRunner.csproj" />
+    <ProjectReference Include="..\OllamaToolkit.AiAssist\OllamaToolkit.AiAssist.csproj" />
+    <ProjectReference Include="..\OllamaToolkit.ModelRegistry\OllamaToolkit.ModelRegistry.csproj" />
+    <ProjectReference Include="..\OllamaToolkit.ModelCatalog\OllamaToolkit.ModelCatalog.csproj" />
+    <ProjectReference Include="..\OllamaToolkit.ModelCategory\OllamaToolkit.ModelCategory.csproj" />
   </ItemGroup>
 
 </Project>

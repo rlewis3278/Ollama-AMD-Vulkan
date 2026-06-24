@@ -83,6 +83,36 @@ public sealed class OllamaApiClient : IDisposable
         return _tagsCache;
     }
 
+    public async Task<BenchmarkGenerateResult> BenchmarkGenerateAsync(
+        string model,
+        string prompt,
+        int numPredict = 32,
+        int numCtx = 8192,
+        bool warmup = true,
+        CancellationToken cancellationToken = default)
+    {
+        if (warmup)
+        {
+            await GenerateRawAsync(model, "ok", 8, numCtx, cancellationToken).ConfigureAwait(false);
+        }
+
+        var raw = await GenerateRawAsync(model, prompt, numPredict, numCtx, cancellationToken).ConfigureAwait(false);
+        var evalSeconds = raw.EvalDurationNs / 1_000_000_000.0;
+        var promptSeconds = raw.PromptEvalDurationNs / 1_000_000_000.0;
+        var generationTps = evalSeconds > 0 ? raw.EvalCount / evalSeconds : 0;
+        var promptTps = promptSeconds > 0 ? raw.PromptEvalCount / promptSeconds : 0;
+        var ttftMs = raw.PromptEvalDurationNs / 1_000_000.0;
+
+        return new BenchmarkGenerateResult
+        {
+            Response = raw.Response,
+            GenerationTps = Math.Round(generationTps, 2),
+            PromptEvalTps = Math.Round(promptTps, 2),
+            TtftMs = Math.Round(ttftMs, 2),
+            EvalCount = raw.EvalCount
+        };
+    }
+
     public async Task<string> GenerateAsync(
         string model,
         string prompt,
@@ -98,12 +128,31 @@ public sealed class OllamaApiClient : IDisposable
             options = new { num_predict = maxPredict, num_ctx = numCtx, temperature = 0.2 }
         };
 
+        var raw = await GenerateRawAsync(model, prompt, maxPredict, numCtx, cancellationToken).ConfigureAwait(false);
+        return raw.Response;
+    }
+
+    private async Task<GenerateRawResponse> GenerateRawAsync(
+        string model,
+        string prompt,
+        int maxPredict,
+        int numCtx,
+        CancellationToken cancellationToken)
+    {
+        var body = new
+        {
+            model,
+            prompt,
+            stream = false,
+            options = new { num_predict = maxPredict, num_ctx = numCtx, temperature = 0.2 }
+        };
+
         using var response = await _httpClient.PostAsJsonAsync($"{_host}/api/generate", body, cancellationToken)
             .ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
-        var payload = await response.Content.ReadFromJsonAsync<GenerateResponse>(JsonFileHelper.Options, cancellationToken)
+        var payload = await response.Content.ReadFromJsonAsync<GenerateRawResponse>(JsonFileHelper.Options, cancellationToken)
             .ConfigureAwait(false);
-        return payload?.Response ?? string.Empty;
+        return payload ?? new GenerateRawResponse();
     }
 
     public async IAsyncEnumerable<string> ChatStreamAsync(
@@ -153,6 +202,59 @@ public sealed class OllamaApiClient : IDisposable
         }
     }
 
+    public async Task PullAsync(
+        string model,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var body = new { name = model, stream = true };
+        var json = JsonSerializer.Serialize(body, JsonFileHelper.Options);
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_host}/api/pull") { Content = content };
+        using var response = await _httpClient.SendAsync(
+            request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var reader = new StreamReader(stream);
+
+        while (!reader.EndOfStream)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            PullChunk? chunk;
+            try
+            {
+                chunk = JsonSerializer.Deserialize<PullChunk>(line, JsonFileHelper.Options);
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(chunk?.Error))
+            {
+                throw new InvalidOperationException(chunk.Error);
+            }
+
+            if (!string.IsNullOrEmpty(chunk?.Status))
+            {
+                progress?.Report(chunk.Status);
+            }
+
+            if (chunk?.Completed == true)
+            {
+                _tagsCache = null;
+                return;
+            }
+        }
+    }
+
     public void Dispose() => _httpClient.Dispose();
 
     private sealed class TagsResponse
@@ -161,10 +263,22 @@ public sealed class OllamaApiClient : IDisposable
         public List<OllamaModelTag>? Models { get; set; }
     }
 
-    private sealed class GenerateResponse
+    private sealed class GenerateRawResponse
     {
         [JsonPropertyName("response")]
-        public string? Response { get; set; }
+        public string Response { get; set; } = string.Empty;
+
+        [JsonPropertyName("eval_count")]
+        public int EvalCount { get; set; }
+
+        [JsonPropertyName("eval_duration")]
+        public long EvalDurationNs { get; set; }
+
+        [JsonPropertyName("prompt_eval_count")]
+        public int PromptEvalCount { get; set; }
+
+        [JsonPropertyName("prompt_eval_duration")]
+        public long PromptEvalDurationNs { get; set; }
     }
 
     private sealed class ChatStreamChunk
@@ -174,6 +288,18 @@ public sealed class OllamaApiClient : IDisposable
 
         [JsonPropertyName("done")]
         public bool Done { get; set; }
+    }
+
+    private sealed class PullChunk
+    {
+        [JsonPropertyName("status")]
+        public string? Status { get; set; }
+
+        [JsonPropertyName("error")]
+        public string? Error { get; set; }
+
+        [JsonPropertyName("completed")]
+        public bool? Completed { get; set; }
     }
 }
 
@@ -197,8 +323,23 @@ public sealed class OllamaModelDetails
     [JsonPropertyName("parameter_size")]
     public string? ParameterSize { get; set; }
 
+    [JsonPropertyName("quantization_level")]
+    public string? QuantizationLevel { get; set; }
+
+    [JsonPropertyName("format")]
+    public string? Format { get; set; }
+
     [JsonPropertyName("family")]
     public string? Family { get; set; }
+}
+
+public sealed class BenchmarkGenerateResult
+{
+    public string Response { get; init; } = string.Empty;
+    public double GenerationTps { get; init; }
+    public double PromptEvalTps { get; init; }
+    public double TtftMs { get; init; }
+    public int EvalCount { get; init; }
 }
 
 public sealed class ChatMessage

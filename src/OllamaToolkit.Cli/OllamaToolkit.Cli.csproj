@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\OllamaToolkit.Core\OllamaToolkit.Core.csproj" />
+    <ProjectReference Include="..\OllamaToolkit.BenchmarkStore\OllamaToolkit.BenchmarkStore.csproj" />
   </ItemGroup>
 
 </Project>

@@ -42,7 +42,19 @@ dotnet publish src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -r win-
 |---------|------|
 | `OllamaToolkit.Core` | Modes, env vars, Ollama API, Vulkan discovery |
 | `OllamaToolkit.Cli` | `set-mode`, `vulkan-devices`, `status` |
-| `OllamaToolkit.App` | WPF GUI shell (9 tabs, initial placeholders) |
-| Other libraries | Stubs for upcoming phases |
+| `OllamaToolkit.BenchmarkStore` | Model profiles, report import |
+| `OllamaToolkit.BenchmarkRunner` | 4-mode automated benchmark |
+| `OllamaToolkit.AiAssist` | Plain-language errors, AI feature keys |
+| `OllamaToolkit.App` | WPF GUI — Compute Modes, Models & Launch, Testing, Model Run chat, AI Features toggles |
+| Other libraries | Stubs for catalog/registry/category (next phase) |
+
+## Functional GUI tabs (current build)
+
+- **Compute Modes** — mode cards, env display, apply + restart
+- **Models & Launch** — profile grid, launch in best mode, import reports
+- **Testing Suite** — benchmark queue (selected / untested)
+- **Model Run** — streaming chat + Open in PowerShell
+- **AI Activity** — activity log tail
+- **AI Features** — per-function on/off toggles
 
 PowerShell scripts remain on disk until later phases remove them. User data in `%USERPROFILE%\.ollama-amd-vulkan\` is unchanged.

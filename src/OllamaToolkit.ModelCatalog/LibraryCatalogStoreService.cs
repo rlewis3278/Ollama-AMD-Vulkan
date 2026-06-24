@@ -1,0 +1,101 @@
+using OllamaToolkit.Core;
+using OllamaToolkit.ModelCatalog.Models;
+
+namespace OllamaToolkit.ModelCatalog;
+
+public sealed class LibraryCatalogStoreService
+{
+    private const string CatalogUrl = "https://ollama.com/library";
+    private static readonly TimeSpan StoreMaxAge = TimeSpan.FromDays(7);
+
+    private readonly HttpClient _httpClient;
+    private LibraryCatalogStoreDocument? _cache;
+
+    public LibraryCatalogStoreService(HttpClient? httpClient = null)
+    {
+        _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+    }
+
+    public void ClearCache() => _cache = null;
+
+    public async Task<LibraryCatalogStoreDocument> LoadAsync(CancellationToken cancellationToken = default)
+    {
+        if (_cache is not null)
+        {
+            return _cache;
+        }
+
+        ConfigPaths.EnsureConfigDirectory();
+        _cache = await JsonFileHelper.ReadAsync<LibraryCatalogStoreDocument>(
+            ConfigPaths.LibraryCatalogStoreFile, cancellationToken).ConfigureAwait(false)
+            ?? new LibraryCatalogStoreDocument();
+
+        _cache.Items ??= new List<LibraryCatalogEntry>();
+        return _cache;
+    }
+
+    public async Task SaveAsync(LibraryCatalogStoreDocument store, CancellationToken cancellationToken = default)
+    {
+        store.LastUpdated = DateTimeOffset.Now.ToString("o");
+        ConfigPaths.EnsureConfigDirectory();
+        _cache = store;
+        await JsonFileHelper.WriteAsync(ConfigPaths.LibraryCatalogStoreFile, store, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<bool> IsStaleAsync(CancellationToken cancellationToken = default)
+    {
+        var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        if (store.Items.Count == 0 || string.IsNullOrEmpty(store.CatalogFetchedAt))
+        {
+            return true;
+        }
+
+        if (!DateTimeOffset.TryParse(store.CatalogFetchedAt, out var fetched))
+        {
+            return true;
+        }
+
+        return DateTimeOffset.UtcNow - fetched > StoreMaxAge;
+    }
+
+    public async Task<IReadOnlyList<LibraryCatalogEntry>> RefreshFromWebAsync(
+        string? search = null,
+        CancellationToken cancellationToken = default)
+    {
+        var url = CatalogUrl;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            url = $"{CatalogUrl}?q={Uri.EscapeDataString(search.Trim())}";
+        }
+
+        using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var items = OllamaLibraryHtmlParser.ParseListingHtml(html).ToList();
+
+        var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(search))
+        {
+            store.Items = items;
+            store.CatalogFetchedAt = DateTimeOffset.Now.ToString("o");
+        }
+
+        await SaveAsync(store, cancellationToken).ConfigureAwait(false);
+        return items;
+    }
+
+    public async Task<IReadOnlyList<LibraryCatalogEntry>> GetEntriesAsync(
+        bool refreshIfStale = false,
+        CancellationToken cancellationToken = default)
+    {
+        var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        if (refreshIfStale && await IsStaleAsync(cancellationToken).ConfigureAwait(false))
+        {
+            await RefreshFromWebAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return store.Items;
+    }
+}

@@ -18,34 +18,98 @@
             <TextBlock x:Name="AlertText" Foreground="{StaticResource Brush.Warning}" TextWrapping="Wrap" />
         </Border>
 
-        <TabControl x:Name="MainTabs" Grid.Row="1" Margin="8">
+        <TabControl x:Name="MainTabs" Grid.Row="1" Margin="8" SelectionChanged="MainTabs_SelectionChanged">
             <TabItem Header="Compute Modes">
-                <TextBlock Style="{StaticResource PlaceholderText}"
-                           Text="Compute mode cards, env vars, and Vulkan status — coming in next build phase." />
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock x:Name="VulkanLabel" Grid.Row="0" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
+                    <TextBlock x:Name="ModeStatusLabel" Grid.Row="1" Margin="0,0,0,8" TextWrapping="Wrap" />
+                    <UniformGrid Grid.Row="2" Columns="2" Rows="2" Margin="0,0,0,8">
+                        <Button x:Name="CpuCard" Margin="4" Padding="16" Style="{StaticResource ToolkitButton}" Click="ModeCard_Click" Tag="CPU" />
+                        <Button x:Name="ApuCard" Margin="4" Padding="16" Style="{StaticResource ToolkitButton}" Click="ModeCard_Click" Tag="APU" />
+                        <Button x:Name="GpuCard" Margin="4" Padding="16" Style="{StaticResource ToolkitButton}" Click="ModeCard_Click" Tag="GPU" />
+                        <Button x:Name="HybridCard" Margin="4" Padding="16" Style="{StaticResource ToolkitButton}" Click="ModeCard_Click" Tag="Hybrid" />
+                    </UniformGrid>
+                    <TextBox x:Name="EnvBox" Grid.Row="3" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.LogBg}"
+                             Foreground="{StaticResource Brush.Text}" BorderBrush="{StaticResource Brush.PanelBorder}" />
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0">
+                        <CheckBox x:Name="RestartCheck" Content="Restart Ollama after applying mode" IsChecked="True" Foreground="{StaticResource Brush.Text}" />
+                        <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModes_Click" />
+                    </StackPanel>
+                </Grid>
             </TabItem>
             <TabItem Header="Models &amp; Launch">
-                <TextBlock Style="{StaticResource PlaceholderText}"
-                           Text="Installed models, benchmarks, launch actions — coming in next build phase." />
-            </TabItem>
-            <TabItem Header="Model Library">
-                <TextBlock Style="{StaticResource PlaceholderText}"
-                           Text="Catalog browse, download, category filter — coming in next build phase." />
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="Launch (Best Mode)" Style="{StaticResource ToolkitButton}" Click="LaunchBestMode_Click" />
+                        <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModels_Click" />
+                        <Button Content="Import Reports" Style="{StaticResource ToolkitButton}" Click="ImportReports_Click" />
+                    </StackPanel>
+                    <DataGrid x:Name="ModelsGrid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
+                              Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
+                              HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
+                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*" />
+                            <DataGridTextColumn Header="Size GB" Binding="{Binding SizeGB}" Width="70" />
+                            <DataGridTextColumn Header="Best Mode" Binding="{Binding BestMode}" Width="80" />
+                            <DataGridTextColumn Header="tok/s" Binding="{Binding BestTps}" Width="60" />
+                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
+                            <DataGridTextColumn Header="Last Tested" Binding="{Binding LastTested}" Width="130" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
             </TabItem>
             <TabItem Header="Testing Suite">
-                <TextBlock Style="{StaticResource PlaceholderText}"
-                           Text="4-mode benchmark queue and live log — coming in next build phase." />
-            </TabItem>
-            <TabItem Header="Test Results">
-                <TextBlock Style="{StaticResource PlaceholderText}"
-                           Text="Benchmark grid with AI insights — coming in next build phase." />
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal">
+                        <ComboBox x:Name="TestModelCombo" Width="280" Margin="0,0,8,8" />
+                        <Button Content="Test Selected" Style="{StaticResource ToolkitButton}" Click="TestSelected_Click" />
+                        <Button Content="Test Untested" Style="{StaticResource ToolkitButton}" Click="TestUntested_Click" />
+                        <Button Content="Stop" Style="{StaticResource ToolkitButton}" Click="StopTest_Click" />
+                    </StackPanel>
+                    <TextBlock x:Name="TestStatusLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
+                    <TextBox x:Name="TestLogBox" Grid.Row="2" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.LogBg}"
+                             Foreground="{StaticResource Brush.Text}" />
+                </Grid>
             </TabItem>
             <TabItem Header="AI Activity">
-                <TextBlock Style="{StaticResource PlaceholderText}"
-                           Text="Background task log and anomaly panel — coming in next build phase." />
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="Scan Logs" Style="{StaticResource ToolkitButton}" Click="ScanLogs_Click" />
+                        <TextBlock x:Name="AnomalySummary" Foreground="{StaticResource Brush.Warning}" Margin="12,6,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <TextBox x:Name="AiActivityLog" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.LogBg}"
+                             Foreground="{StaticResource Brush.Text}" />
+                </Grid>
             </TabItem>
-            <TabItem Header="AI Settings">
-                <TextBlock Style="{StaticResource PlaceholderText}"
-                           Text="Summarizer model selection and download — coming in next build phase." />
+            <TabItem Header="AI Features">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12">
+                    <StackPanel x:Name="AiFeaturesPanel" />
+                </ScrollViewer>
             </TabItem>
             <TabItem x:Name="ModelRunTab" Header="Model Run">
                 <Grid Margin="16">
@@ -55,33 +119,108 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock x:Name="ModelRunStatus" Grid.Row="0" Margin="0,0,0,8"
-                               Foreground="{StaticResource Brush.Muted}"
-                               Text="Select Launch from Models &amp; Launch to open a model here." />
-                    <Border Grid.Row="1" Background="{StaticResource Brush.LogBg}"
-                            BorderBrush="{StaticResource Brush.PanelBorder}" BorderThickness="1">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <TextBlock x:Name="ChatHistory" Margin="12" TextWrapping="Wrap"
-                                       Foreground="{StaticResource Brush.Text}" />
-                        </ScrollViewer>
-                    </Border>
+                    <TextBlock x:Name="ModelRunStatus" Grid.Row="0" Margin="0,0,0,8" Foreground="{StaticResource Brush.Muted}" />
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <TextBlock x:Name="ChatHistory" Margin="12" TextWrapping="Wrap" Foreground="{StaticResource Brush.Text}" />
+                    </ScrollViewer>
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBox x:Name="ChatInput" Width="520" Padding="8,6"
-                                 Background="{StaticResource Brush.Panel}"
-                                 Foreground="{StaticResource Brush.Text}"
+                        <TextBox x:Name="ChatInput" Width="520" Padding="8,6" KeyDown="ChatInput_KeyDown"
+                                 Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
                                  BorderBrush="{StaticResource Brush.PanelBorder}" />
-                        <Button Content="Send" Style="{StaticResource ToolkitButton}" Margin="8,0,0,0" IsEnabled="False" />
-                        <Button Content="Stop" Style="{StaticResource ToolkitButton}" IsEnabled="False" />
+                        <Button Content="Send" Style="{StaticResource ToolkitButton}" Margin="8,0,0,0" Click="SendChat_Click" />
+                        <Button x:Name="StopChatBtn" Content="Stop" Style="{StaticResource ToolkitButton}" Click="StopChat_Click" />
                     </StackPanel>
                     <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
-                        <Button Content="Open in PowerShell" Style="{StaticResource ToolkitButton}" IsEnabled="False" />
-                        <Button Content="Clear Chat" Style="{StaticResource ToolkitButton}" IsEnabled="False" />
+                        <Button Content="Open in PowerShell" Style="{StaticResource ToolkitButton}" Click="OpenPowerShell_Click" />
+                        <Button Content="Clear Chat" Style="{StaticResource ToolkitButton}" Click="ClearChat_Click" />
                     </StackPanel>
                 </Grid>
             </TabItem>
-            <TabItem Header="AI Features">
-                <TextBlock Style="{StaticResource PlaceholderText}"
-                           Text="Per-function AI enable/disable toggles — coming in next build phase." />
+            <TabItem x:Name="ModelLibraryTab" Header="Model Library">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBox x:Name="CatalogSearchBox" Width="220" Padding="6,4" KeyUp="CatalogSearchBox_KeyUp"
+                                 Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
+                                 BorderBrush="{StaticResource Brush.PanelBorder}" />
+                        <ComboBox x:Name="CategoryFilterCombo" Width="140" Margin="8,0,0,0" SelectionChanged="CategoryFilterCombo_SelectionChanged" />
+                        <Button Content="Refresh Catalog" Style="{StaticResource ToolkitButton}" Click="RefreshCatalog_Click" />
+                        <Button Content="Categorize All" Style="{StaticResource ToolkitButton}" Click="CategorizeAll_Click" />
+                        <Button Content="Download Selected" Style="{StaticResource ToolkitButton}" Click="DownloadCatalogModel_Click" />
+                    </StackPanel>
+                    <TextBlock x:Name="CatalogStatusLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
+                    <DataGrid x:Name="CatalogGrid" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True"
+                              Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
+                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Model" Binding="{Binding Name}" Width="120" />
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
+                            <DataGridTextColumn Header="Description" Binding="{Binding ListDescription}" Width="*" />
+                            <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
+                            <DataGridTextColumn Header="Installed" Binding="{Binding Installed}" Width="70" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+            <TabItem x:Name="TestResultsTab" Header="Test Results">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshTestResults_Click" />
+                        <Button Content="Launch Selected" Style="{StaticResource ToolkitButton}" Click="LaunchFromResults_Click" />
+                    </StackPanel>
+                    <DataGrid x:Name="TestResultsGrid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
+                              Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
+                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True"
+                              SelectionChanged="TestResultsGrid_SelectionChanged">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*" />
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="100" />
+                            <DataGridTextColumn Header="Best" Binding="{Binding BestMode}" Width="60" />
+                            <DataGridTextColumn Header="tok/s" Binding="{Binding BestTps}" Width="55" />
+                            <DataGridTextColumn Header="CPU" Binding="{Binding CpuResult}" Width="55" />
+                            <DataGridTextColumn Header="APU" Binding="{Binding ApuResult}" Width="55" />
+                            <DataGridTextColumn Header="GPU" Binding="{Binding GpuResult}" Width="55" />
+                            <DataGridTextColumn Header="Hybrid" Binding="{Binding HybridResult}" Width="55" />
+                            <DataGridTextColumn Header="Insight" Binding="{Binding Insight}" Width="180" />
+                            <DataGridTextColumn Header="Tested" Binding="{Binding LastTested}" Width="120" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock x:Name="TestResultDetail" Grid.Row="2" Margin="0,8,0,0" TextWrapping="Wrap"
+                               Foreground="{StaticResource Brush.Muted}" />
+                </Grid>
+            </TabItem>
+            <TabItem x:Name="AiSettingsTab" Header="AI Settings">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12">
+                    <StackPanel>
+                        <TextBlock x:Name="AiSettingsStatus" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBlock Text="Summarizer model:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" />
+                            <ComboBox x:Name="SummarizerCombo" Width="240" Margin="8,0,0,0" SelectionChanged="SummarizerCombo_SelectionChanged" />
+                            <Button Content="Refresh List" Style="{StaticResource ToolkitButton}" Click="RefreshSummarizerList_Click" />
+                            <Button Content="Download Selected" Style="{StaticResource ToolkitButton}" Click="DownloadSummarizer_Click" />
+                            <Button Content="Test Summarizer" Style="{StaticResource ToolkitButton}" Click="TestSummarizer_Click" />
+                        </StackPanel>
+                        <TextBlock x:Name="SummarizerTestResult" TextWrapping="Wrap" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,16" />
+                        <TextBlock Text="Suggested models (not installed):" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,4" />
+                        <ListBox x:Name="SuggestedModelsList" Height="120" Margin="0,0,0,16"
+                                 Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}" />
+                        <TextBlock x:Name="CategoryStatusLabel" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Categorize All" Style="{StaticResource ToolkitButton}" Click="CategorizeAll_Click" />
+                            <Button Content="Recategorize All" Style="{StaticResource ToolkitButton}" Click="RecategorizeAll_Click" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
         </TabControl>
 
@@ -90,7 +229,7 @@
             <Grid>
                 <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center"
                            Foreground="{StaticResource Brush.Muted}" FontSize="12"
-                           Text="Model lists load from Ollama API and cached ollama.com catalog. Start Ollama if lists are empty." />
+                           Text="Model lists load from Ollama API and cached profiles. Start Ollama if lists are empty." />
                 <Button x:Name="AiStatusButton" HorizontalAlignment="Right" Style="{StaticResource ToolkitButton}"
                         Content="AI Inactive" Click="AiStatusButton_Click" />
             </Grid>

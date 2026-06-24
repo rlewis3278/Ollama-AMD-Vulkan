@@ -6,5 +6,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\OllamaToolkit.Core\OllamaToolkit.Core.csproj" />
+    <ProjectReference Include="..\OllamaToolkit.ModelCatalog\OllamaToolkit.ModelCatalog.csproj" />
   </ItemGroup>
 </Project>

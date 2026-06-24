@@ -1,4 +1,5 @@
 using OllamaToolkit.Core;
+using OllamaToolkit.BenchmarkStore;
 using OllamaToolkit.Core.EnvBackup;
 using OllamaToolkit.Core.Modes;
 using OllamaToolkit.Core.Ollama;
@@ -20,6 +21,7 @@ try
         "set-mode" => await RunSetModeAsync(commandArgs),
         "vulkan-devices" => RunVulkanDevices(commandArgs),
         "status" => await RunStatusAsync(),
+        "import-reports" => await RunImportReportsAsync(),
         "help" or "--help" or "-h" => PrintUsage(),
         _ => Unknown(command)
     };
@@ -45,6 +47,7 @@ static int PrintUsage()
     Console.WriteLine("  set-mode <CPU|APU|GPU|Hybrid> [--no-restart]");
     Console.WriteLine("  vulkan-devices [--json]");
     Console.WriteLine("  status");
+    Console.WriteLine("  import-reports");
     Console.WriteLine("  help");
     return 0;
 }
@@ -107,5 +110,13 @@ static async Task<int> RunStatusAsync()
         Console.WriteLine($"  {entry.Key} = {entry.Value ?? "(not set)"}");
     }
 
+    return 0;
+}
+
+static async Task<int> RunImportReportsAsync()
+{
+    var importer = new ReportImporter();
+    var count = await importer.ImportReportsAsync().ConfigureAwait(false);
+    Console.WriteLine($"Imported {count} report(s).");
     return 0;
 }

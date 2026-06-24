@@ -7,6 +7,14 @@ public static class ConfigPaths
 
     public static string EnvBackupFile => Path.Combine(ConfigDirectory, "env-backup.json");
     public static string AiSettingsFile => Path.Combine(ConfigDirectory, "ai-settings.json");
+    public static string LibraryCatalogStoreFile => Path.Combine(ConfigDirectory, "library-catalog-store.json");
+    public static string ModelDescriptionsFile => Path.Combine(ConfigDirectory, "model-descriptions.json");
+    public static string ModelUsageCategoriesFile => Path.Combine(ConfigDirectory, "model-usage-categories.json");
+    public static string ModelBenchmarkInsightsFile => Path.Combine(ConfigDirectory, "model-benchmark-insights.json");
+    public static string ModelBenchmarkSettingsFile => Path.Combine(ConfigDirectory, "model-benchmark-settings.json");
+    public static string ModelComparisonCacheFile => Path.Combine(ConfigDirectory, "model-comparison-cache.json");
+    public static string NlSearchCacheFile => Path.Combine(ConfigDirectory, "nl-search-cache.json");
+    public static string LogAnomaliesFile => Path.Combine(ConfigDirectory, "log-anomalies.json");
     public static string VulkanWorkaroundFile => Path.Combine(ConfigDirectory, "vulkan-workaround.json");
     public static string GuiAiActivityLog => Path.Combine(ConfigDirectory, "gui-ai-activity.log");
 
