@@ -1,2 +1,2 @@
 @echo off
-powershell.exe -STA -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "%~dp0Ollama-Mode-GUI.ps1"
+call "%~dp0launchers\Ollama-Mode-GUI.cmd" %*

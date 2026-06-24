@@ -1,0 +1,83 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{4855BC8C-3CEF-4F46-88AA-2318905C1710}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OllamaToolkit.Core", "src\OllamaToolkit.Core\OllamaToolkit.Core.csproj", "{78CD51A9-96CF-43D8-B334-87E894AA81E3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OllamaToolkit.BenchmarkStore", "src\OllamaToolkit.BenchmarkStore\OllamaToolkit.BenchmarkStore.csproj", "{94FC38F5-4472-421A-A84D-E7781BE3B26E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OllamaToolkit.ModelCatalog", "src\OllamaToolkit.ModelCatalog\OllamaToolkit.ModelCatalog.csproj", "{DEB6C085-57D8-49B3-ACFB-1CE5C5685CF5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OllamaToolkit.ModelCategory", "src\OllamaToolkit.ModelCategory\OllamaToolkit.ModelCategory.csproj", "{E14FC032-2440-403F-9089-6B06FF917D5A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OllamaToolkit.AiAssist", "src\OllamaToolkit.AiAssist\OllamaToolkit.AiAssist.csproj", "{BFA54803-3390-4D48-A715-870090EBE952}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OllamaToolkit.ModelRegistry", "src\OllamaToolkit.ModelRegistry\OllamaToolkit.ModelRegistry.csproj", "{D28EE00A-F90F-4332-AB24-43CC0783E301}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OllamaToolkit.BenchmarkRunner", "src\OllamaToolkit.BenchmarkRunner\OllamaToolkit.BenchmarkRunner.csproj", "{4E4480D8-4924-4908-89CB-D060FC587723}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OllamaToolkit.Cli", "src\OllamaToolkit.Cli\OllamaToolkit.Cli.csproj", "{72EFEFDA-158F-4567-BAFF-0896EF0459F4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OllamaToolkit.App", "src\OllamaToolkit.App\OllamaToolkit.App.csproj", "{429D1198-E523-41EC-BD3C-FCEBCDB1A0CB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{78CD51A9-96CF-43D8-B334-87E894AA81E3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{78CD51A9-96CF-43D8-B334-87E894AA81E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{78CD51A9-96CF-43D8-B334-87E894AA81E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{78CD51A9-96CF-43D8-B334-87E894AA81E3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{94FC38F5-4472-421A-A84D-E7781BE3B26E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94FC38F5-4472-421A-A84D-E7781BE3B26E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94FC38F5-4472-421A-A84D-E7781BE3B26E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94FC38F5-4472-421A-A84D-E7781BE3B26E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DEB6C085-57D8-49B3-ACFB-1CE5C5685CF5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DEB6C085-57D8-49B3-ACFB-1CE5C5685CF5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DEB6C085-57D8-49B3-ACFB-1CE5C5685CF5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DEB6C085-57D8-49B3-ACFB-1CE5C5685CF5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E14FC032-2440-403F-9089-6B06FF917D5A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E14FC032-2440-403F-9089-6B06FF917D5A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E14FC032-2440-403F-9089-6B06FF917D5A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E14FC032-2440-403F-9089-6B06FF917D5A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BFA54803-3390-4D48-A715-870090EBE952}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BFA54803-3390-4D48-A715-870090EBE952}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BFA54803-3390-4D48-A715-870090EBE952}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BFA54803-3390-4D48-A715-870090EBE952}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D28EE00A-F90F-4332-AB24-43CC0783E301}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D28EE00A-F90F-4332-AB24-43CC0783E301}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D28EE00A-F90F-4332-AB24-43CC0783E301}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D28EE00A-F90F-4332-AB24-43CC0783E301}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4E4480D8-4924-4908-89CB-D060FC587723}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4E4480D8-4924-4908-89CB-D060FC587723}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4E4480D8-4924-4908-89CB-D060FC587723}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4E4480D8-4924-4908-89CB-D060FC587723}.Release|Any CPU.Build.0 = Release|Any CPU
+		{72EFEFDA-158F-4567-BAFF-0896EF0459F4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72EFEFDA-158F-4567-BAFF-0896EF0459F4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{72EFEFDA-158F-4567-BAFF-0896EF0459F4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{72EFEFDA-158F-4567-BAFF-0896EF0459F4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{429D1198-E523-41EC-BD3C-FCEBCDB1A0CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{429D1198-E523-41EC-BD3C-FCEBCDB1A0CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{429D1198-E523-41EC-BD3C-FCEBCDB1A0CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{429D1198-E523-41EC-BD3C-FCEBCDB1A0CB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{78CD51A9-96CF-43D8-B334-87E894AA81E3} = {4855BC8C-3CEF-4F46-88AA-2318905C1710}
+		{94FC38F5-4472-421A-A84D-E7781BE3B26E} = {4855BC8C-3CEF-4F46-88AA-2318905C1710}
+		{DEB6C085-57D8-49B3-ACFB-1CE5C5685CF5} = {4855BC8C-3CEF-4F46-88AA-2318905C1710}
+		{E14FC032-2440-403F-9089-6B06FF917D5A} = {4855BC8C-3CEF-4F46-88AA-2318905C1710}
+		{BFA54803-3390-4D48-A715-870090EBE952} = {4855BC8C-3CEF-4F46-88AA-2318905C1710}
+		{D28EE00A-F90F-4332-AB24-43CC0783E301} = {4855BC8C-3CEF-4F46-88AA-2318905C1710}
+		{4E4480D8-4924-4908-89CB-D060FC587723} = {4855BC8C-3CEF-4F46-88AA-2318905C1710}
+		{72EFEFDA-158F-4567-BAFF-0896EF0459F4} = {4855BC8C-3CEF-4F46-88AA-2318905C1710}
+		{429D1198-E523-41EC-BD3C-FCEBCDB1A0CB} = {4855BC8C-3CEF-4F46-88AA-2318905C1710}
+	EndGlobalSection
+EndGlobal

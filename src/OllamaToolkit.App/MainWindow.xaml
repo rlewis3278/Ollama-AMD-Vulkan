@@ -1,0 +1,99 @@
+<Window x:Class="OllamaToolkit.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ollama AMD Vulkan Manager"
+        Height="820" Width="1180"
+        MinHeight="640" MinWidth="960"
+        WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Border x:Name="AlertBar" Grid.Row="0" Background="{StaticResource Brush.WarningBg}"
+                BorderBrush="{StaticResource Brush.Warning}" BorderThickness="0,0,0,1"
+                Padding="12,8" Visibility="Collapsed">
+            <TextBlock x:Name="AlertText" Foreground="{StaticResource Brush.Warning}" TextWrapping="Wrap" />
+        </Border>
+
+        <TabControl x:Name="MainTabs" Grid.Row="1" Margin="8">
+            <TabItem Header="Compute Modes">
+                <TextBlock Style="{StaticResource PlaceholderText}"
+                           Text="Compute mode cards, env vars, and Vulkan status — coming in next build phase." />
+            </TabItem>
+            <TabItem Header="Models &amp; Launch">
+                <TextBlock Style="{StaticResource PlaceholderText}"
+                           Text="Installed models, benchmarks, launch actions — coming in next build phase." />
+            </TabItem>
+            <TabItem Header="Model Library">
+                <TextBlock Style="{StaticResource PlaceholderText}"
+                           Text="Catalog browse, download, category filter — coming in next build phase." />
+            </TabItem>
+            <TabItem Header="Testing Suite">
+                <TextBlock Style="{StaticResource PlaceholderText}"
+                           Text="4-mode benchmark queue and live log — coming in next build phase." />
+            </TabItem>
+            <TabItem Header="Test Results">
+                <TextBlock Style="{StaticResource PlaceholderText}"
+                           Text="Benchmark grid with AI insights — coming in next build phase." />
+            </TabItem>
+            <TabItem Header="AI Activity">
+                <TextBlock Style="{StaticResource PlaceholderText}"
+                           Text="Background task log and anomaly panel — coming in next build phase." />
+            </TabItem>
+            <TabItem Header="AI Settings">
+                <TextBlock Style="{StaticResource PlaceholderText}"
+                           Text="Summarizer model selection and download — coming in next build phase." />
+            </TabItem>
+            <TabItem x:Name="ModelRunTab" Header="Model Run">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock x:Name="ModelRunStatus" Grid.Row="0" Margin="0,0,0,8"
+                               Foreground="{StaticResource Brush.Muted}"
+                               Text="Select Launch from Models &amp; Launch to open a model here." />
+                    <Border Grid.Row="1" Background="{StaticResource Brush.LogBg}"
+                            BorderBrush="{StaticResource Brush.PanelBorder}" BorderThickness="1">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="ChatHistory" Margin="12" TextWrapping="Wrap"
+                                       Foreground="{StaticResource Brush.Text}" />
+                        </ScrollViewer>
+                    </Border>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBox x:Name="ChatInput" Width="520" Padding="8,6"
+                                 Background="{StaticResource Brush.Panel}"
+                                 Foreground="{StaticResource Brush.Text}"
+                                 BorderBrush="{StaticResource Brush.PanelBorder}" />
+                        <Button Content="Send" Style="{StaticResource ToolkitButton}" Margin="8,0,0,0" IsEnabled="False" />
+                        <Button Content="Stop" Style="{StaticResource ToolkitButton}" IsEnabled="False" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Open in PowerShell" Style="{StaticResource ToolkitButton}" IsEnabled="False" />
+                        <Button Content="Clear Chat" Style="{StaticResource ToolkitButton}" IsEnabled="False" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+            <TabItem Header="AI Features">
+                <TextBlock Style="{StaticResource PlaceholderText}"
+                           Text="Per-function AI enable/disable toggles — coming in next build phase." />
+            </TabItem>
+        </TabControl>
+
+        <Border Grid.Row="2" Background="{StaticResource Brush.Panel}"
+                BorderBrush="{StaticResource Brush.PanelBorder}" BorderThickness="0,1,0,0" Padding="12,8">
+            <Grid>
+                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center"
+                           Foreground="{StaticResource Brush.Muted}" FontSize="12"
+                           Text="Model lists load from Ollama API and cached ollama.com catalog. Start Ollama if lists are empty." />
+                <Button x:Name="AiStatusButton" HorizontalAlignment="Right" Style="{StaticResource ToolkitButton}"
+                        Content="AI Inactive" Click="AiStatusButton_Click" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

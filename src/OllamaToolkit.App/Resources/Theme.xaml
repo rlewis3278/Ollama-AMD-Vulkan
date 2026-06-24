@@ -1,0 +1,79 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Color x:Key="Color.Bg">#FF1C1E26</Color>
+    <Color x:Key="Color.Panel">#FF262934</Color>
+    <Color x:Key="Color.PanelBorder">#FF3A3E4E</Color>
+    <Color x:Key="Color.Text">#FFE8EAF0</Color>
+    <Color x:Key="Color.Muted">#FF9CA3AF</Color>
+    <Color x:Key="Color.Accent">#FFED1C24</Color>
+    <Color x:Key="Color.AccentHover">#FFFF3A42</Color>
+    <Color x:Key="Color.Active">#FF22C55E</Color>
+    <Color x:Key="Color.ActiveBg">#FF163A26</Color>
+    <Color x:Key="Color.Warning">#FFFACC15</Color>
+    <Color x:Key="Color.WarningBg">#FF3A3012</Color>
+    <Color x:Key="Color.Button">#FF343846</Color>
+    <Color x:Key="Color.ButtonHover">#FF444858</Color>
+    <Color x:Key="Color.LogBg">#FF14161C</Color>
+
+    <SolidColorBrush x:Key="Brush.Bg" Color="{StaticResource Color.Bg}" />
+    <SolidColorBrush x:Key="Brush.Panel" Color="{StaticResource Color.Panel}" />
+    <SolidColorBrush x:Key="Brush.PanelBorder" Color="{StaticResource Color.PanelBorder}" />
+    <SolidColorBrush x:Key="Brush.Text" Color="{StaticResource Color.Text}" />
+    <SolidColorBrush x:Key="Brush.Muted" Color="{StaticResource Color.Muted}" />
+    <SolidColorBrush x:Key="Brush.Accent" Color="{StaticResource Color.Accent}" />
+    <SolidColorBrush x:Key="Brush.Active" Color="{StaticResource Color.Active}" />
+    <SolidColorBrush x:Key="Brush.Warning" Color="{StaticResource Color.Warning}" />
+    <SolidColorBrush x:Key="Brush.WarningBg" Color="{StaticResource Color.WarningBg}" />
+    <SolidColorBrush x:Key="Brush.Button" Color="{StaticResource Color.Button}" />
+    <SolidColorBrush x:Key="Brush.LogBg" Color="{StaticResource Color.LogBg}" />
+
+    <Style TargetType="Window">
+        <Setter Property="Background" Value="{StaticResource Brush.Bg}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="FontFamily" Value="Segoe UI" />
+        <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <Style TargetType="TabControl">
+        <Setter Property="Background" Value="{StaticResource Brush.Bg}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}" />
+    </Style>
+
+    <Style TargetType="TabItem">
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Border x:Name="Border" Background="{StaticResource Brush.Panel}"
+                            BorderBrush="{StaticResource Brush.PanelBorder}" BorderThickness="1,1,1,0"
+                            Margin="0,0,4,0" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="{StaticResource Brush.Bg}" />
+                            <Setter Property="Foreground" Value="{StaticResource Brush.Accent}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ToolkitButton" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource Brush.Button}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}" />
+        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="Margin" Value="0,0,8,0" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style x:Key="PlaceholderText" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource Brush.Muted}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Margin" Value="16" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+</ResourceDictionary>
