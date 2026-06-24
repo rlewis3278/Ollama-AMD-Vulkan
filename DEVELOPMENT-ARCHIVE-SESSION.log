@@ -575,3 +575,10 @@ EOF
 [2026-06-24 16:39:42] [FILE] DEVELOPMENT-ARCHIVE.md Phase 5 section and checklist updates
 [2026-06-24 16:39:43] [SYNC] Processed updates.jsonl lines 2124..2126
 [2026-06-24 16:39:43] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:39:49] [GIT] commit feat AI functions 5-9
+[2026-06-24 16:39:50] [TOOL] Read - Read
+[2026-06-24 16:39:50] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git reset HEAD _build-gui-doc.ps1; git commit -m "feat: AI functions 5-9, Ask AI, Compare, category column, stream throttling"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "GIT|commit feat AI functions 5-9"; .\scripts\Update-DevelopmentArchive.ps1
+[2026-06-24 16:39:50] [SYNC] Processed updates.jsonl lines 2127..2141
+[2026-06-24 16:39:50] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:39:50] [SYNC] Processed updates.jsonl lines 2142..2143
+[2026-06-24 16:39:50] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
