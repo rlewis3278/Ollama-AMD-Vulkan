@@ -1,0 +1,459 @@
+# Append-only agent activity log — one line per action
+# Format: [YYYY-MM-DD HH:mm:ss] [CATEGORY] detail
+# Categories: USER, REASONING, TOOL, SHELL, SHELL_FAIL, FILE, BUILD, GIT, SYNC, NOTE
+
+[2026-06-24 06:00:00] [USER] Requested greenfield C# + WPF rebuild plan from PowerShell toolkit reference
+[2026-06-24 06:05:00] [REASONING] Chose .NET 8 WPF; 9-project solution; BackgroundWorkQueue for UI responsiveness; preserve %USERPROFILE%\.ollama-amd-vulkan\ data paths
+[2026-06-24 06:10:00] [SHELL] winget install Microsoft.DotNet.SDK.8 --accept-package-agreements --accept-source-agreements
+[2026-06-24 06:12:00] [GIT] Created branches pre-csharp-greenfield-backup and csharp-wpf-greenfield
+[2026-06-24 06:15:00] [SHELL] dotnet new sln/classlib/console/wpf — scaffolded OllamaToolkit.sln (9 projects)
+[2026-06-24 06:20:00] [BUILD] Phase 1 scaffold: Core, Cli, App shell — commit 790e3a5
+[2026-06-24 06:30:00] [FILE] Implemented BenchmarkStore, BenchmarkRunner, AiAssist (partial), 6 WPF tabs
+[2026-06-24 06:45:00] [BUILD] Phase 2 work; CLI import-reports switch added but RunImportReportsAsync missing — CS0103
+[2026-06-24 06:50:00] [USER] continue build autonomously (session resumed after compaction)
+[2026-06-24 06:52:00] [REASONING] Fix CLI first; port PS catalog HTML parser; implement ModelCatalog/Category/Registry; wire 3 placeholder tabs
+[2026-06-24 06:55:00] [FILE] Added RunImportReportsAsync to Program.cs; extended ConfigPaths, OllamaApiClient.PullAsync
+[2026-06-24 06:58:00] [FILE] Created ModelCatalog (5), ModelCategory (4), ModelRegistry (2), AiAssist insight services
+[2026-06-24 07:00:00] [FILE] MainWindow.xaml(.cs) — Model Library, Test Results, AI Settings, Scan Logs
+[2026-06-24 07:05:00] [BUILD] dotnet build OllamaToolkit.sln -c Release — 0 errors
+[2026-06-24 07:10:00] [SHELL] dotnet publish App + Cli to publish/OllamaToolkit.*
+[2026-06-24 07:16:00] [GIT] commit ce23914 Phase 3: Model Library, Test Results, AI Settings, catalog libraries
+[2026-06-24 07:20:00] [USER] add a file to archive every command and thought process from planning
+[2026-06-24 07:22:00] [REASONING] Mine updates.jsonl, chat_history, git log; write DEVELOPMENT-ARCHIVE.md + COMMANDS.txt
+[2026-06-24 07:25:00] [FILE] Created DEVELOPMENT-ARCHIVE.md (559 lines), DEVELOPMENT-ARCHIVE-COMMANDS.txt
+[2026-06-24 07:26:00] [GIT] commit 25292a1 docs: add agent development archive
+[2026-06-24 07:28:00] [USER] make sure this log is updated with everything you do
+[2026-06-24 07:29:00] [REASONING] Add append-only SESSION.log, Update-DevelopmentArchive.ps1 sync script, mandatory agent maintenance protocol in archive[2026-06-24 16:36:29] [FILE] scripts/Update-DevelopmentArchive.ps1 - fixed parse errors
+[2026-06-24 16:36:36] [TOOL] Glob - Glob
+[2026-06-24 16:36:45] [TOOL] Glob - Glob
+[2026-06-24 16:36:45] [TOOL] Glob - Glob
+[2026-06-24 16:36:45] [TOOL] Glob - Glob
+[2026-06-24 16:36:45] [TOOL] Glob - Glob
+[2026-06-24 16:36:45] [TOOL] Read - Read
+[2026-06-24 16:36:45] [TOOL] Grep - Grep
+[2026-06-24 16:36:45] [TOOL] Read - Read
+[2026-06-24 16:36:45] [TOOL] Read - Read
+[2026-06-24 16:36:45] [TOOL] Grep - Grep
+[2026-06-24 16:36:45] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git log --oneline -10 2>&1; git status --short 2>&1
+[2026-06-24 16:36:45] [TOOL] Grep - Grep
+[2026-06-24 16:36:45] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git log --oneline -10 2>&1; git status --short 2>&1
+[2026-06-24 16:36:45] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --oneline -10; git status --short
+[2026-06-24 16:36:45] [TOOL] Grep - Grep
+[2026-06-24 16:36:45] [TOOL] Grep - Grep
+[2026-06-24 16:36:45] [TOOL] Glob - Glob
+[2026-06-24 16:36:45] [TOOL] AskQuestion - AskQuestion
+[2026-06-24 16:36:45] [TOOL] Grep - Grep
+[2026-06-24 16:36:45] [TOOL] Grep - Grep
+[2026-06-24 16:36:45] [TOOL] Grep - Grep
+[2026-06-24 16:36:45] [TOOL] Grep - Grep
+[2026-06-24 16:36:45] [TOOL] AskQuestion - AskQuestion
+[2026-06-24 16:36:45] [TOOL] Glob - Glob
+[2026-06-24 16:36:45] [TOOL] Grep - Grep
+[2026-06-24 16:36:45] [TOOL] Grep - Grep
+[2026-06-24 16:36:45] [TOOL] Read - Read
+[2026-06-24 16:36:45] [TOOL] Read - Read
+[2026-06-24 16:36:45] [TOOL] Read - Read
+[2026-06-24 16:36:45] [TOOL] CreatePlan - CreatePlan
+[2026-06-24 16:36:53] [TOOL] Glob - Glob
+[2026-06-24 16:36:53] [TOOL] Glob - Glob
+[2026-06-24 16:36:53] [TOOL] Glob - Glob
+[2026-06-24 16:36:53] [TOOL] Glob - Glob
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git log --oneline -10 2>&1; git status --short 2>&1
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git log --oneline -10 2>&1; git status --short 2>&1
+[2026-06-24 16:36:53] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --oneline -10; git status --short
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] Glob - Glob
+[2026-06-24 16:36:53] [TOOL] AskQuestion - AskQuestion
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] AskQuestion - AskQuestion
+[2026-06-24 16:36:53] [TOOL] Glob - Glob
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] CreatePlan - CreatePlan
+[2026-06-24 16:36:53] [TOOL] AskQuestion - AskQuestion
+[2026-06-24 16:36:53] [TOOL] CreatePlan - CreatePlan
+[2026-06-24 16:36:53] [TOOL] Glob - Glob
+[2026-06-24 16:36:53] [TOOL] Glob - Glob
+[2026-06-24 16:36:53] [TOOL] Glob - Glob
+[2026-06-24 16:36:53] [TOOL] Glob - Glob
+[2026-06-24 16:36:53] [TOOL] CreatePlan - CreatePlan
+[2026-06-24 16:36:53] [TOOL] CreatePlan - CreatePlan
+[2026-06-24 16:36:53] [TOOL] CreatePlan - CreatePlan
+[2026-06-24 16:36:53] [TOOL] CreatePlan - CreatePlan
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] CreatePlan - CreatePlan
+[2026-06-24 16:36:53] [TOOL] CreatePlan - CreatePlan
+[2026-06-24 16:36:53] [TOOL] CreatePlan - CreatePlan
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] AskQuestion - AskQuestion
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git status --short; git branch -a
+[2026-06-24 16:36:53] [SHELL] dotnet --version
+[2026-06-24 16:36:53] [SHELL_FAIL] exit=1 dotnet --version
+[2026-06-24 16:36:53] [SHELL] where.exe dotnet 2>$null; Get-Command dotnet -ErrorAction SilentlyContinue | Format-List; winget search "Microsoft.DotNet.SDK.8" 2>$null | Select-Object -First 5
+[2026-06-24 16:36:53] [TOOL] TodoWrite - TodoWrite
+[2026-06-24 16:36:53] [SHELL_FAIL] exit=1 where.exe dotnet 2>$null; Get-Command dotnet -ErrorAction SilentlyContinue | Format-List; winget search "Microsoft.DotNet.SDK.8" 2>$null | Select-Object -First 5
+[2026-06-24 16:36:53] [SHELL] & "C:\Program Files\dotnet\dotnet.exe" --list-sdks; & "C:\Program Files\dotnet\dotnet.exe" --list-runtimes
+[2026-06-24 16:36:53] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git checkout -b pre-csharp-greenfield-backup 2>&1; git checkout master; git checkout -b csharp-wpf-greenfield 2>&1
+[2026-06-24 16:36:53] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git checkout -b pre-csharp-greenfield-backup 2>&1; git checkout master; git checkout -b csharp-wpf-greenfield 2>&1
+[2026-06-24 16:36:53] [SHELL] winget install Microsoft.DotNet.SDK.8 --accept-package-agreements --accept-source-agreements
+[2026-06-24 16:36:53] [SHELL] & "C:\Program Files\dotnet\dotnet.exe" --list-sdks
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; New-Item -ItemType Directory -Path src -Force | Out-Null; dotnet new sln -n OllamaToolkit -o . --force; dotnet new classlib -n OllamaToolkit.Core -o src/OllamaToolkit.Core -f net8.0 --force; dotnet new classlib -n OllamaToolkit.BenchmarkStore -o src/OllamaToolkit.BenchmarkStore -f net8.0 --force; dotnet new classlib -n OllamaToolkit.ModelCatalog -o src/OllamaToolkit.ModelCatalog -f net8.0 --force; dotnet new classlib -n OllamaToolkit.ModelCategory -o src/OllamaToolkit.ModelCategory -f net8.0 --force; dotnet new classlib -n OllamaToolkit.AiAssist -o src/OllamaToolkit.AiAssist -f net8.0 --force; dotnet new classlib -n OllamaToolkit.ModelRegistry -o src/OllamaToolkit.ModelRegistry -f net8.0 --force; dotnet new classlib -n OllamaToolkit.BenchmarkRunner -o src/OllamaToolkit.BenchmarkRunner -f net8.0 --force; dotnet new console -n OllamaToolkit.Cli -o src/OllamaToolkit.Cli -f net8.0 --force; dotnet new wpf -n OllamaToolkit.App -o src/OllamaToolkit.App -f net8.0-windows --force
+[2026-06-24 16:36:53] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; New-Item -ItemType Directory -Path src -Force | Out-Null; dotnet new sln -n OllamaToolkit -o . --force; dotnet new classlib -n OllamaToolkit.Core -o src/OllamaToolkit.Core -f net8.0 --force; dotnet new classlib -n OllamaToolkit.BenchmarkStore -o src/OllamaToolkit.BenchmarkStore -f net8.0 --force; dotnet new classlib -n OllamaToolkit.ModelCatalog -o src/OllamaToolkit.ModelCatalog -f net8.0 --force; dotnet new classlib -n OllamaToolkit.ModelCategory -o src/OllamaToolkit.ModelCategory -f net8.0 --force; dotnet new classlib -n OllamaToolkit.AiAssist -o src/OllamaToolkit.AiAssist -f net8.0 --force; dotnet new classlib -n OllamaToolkit.ModelRegistry -o src/OllamaToolkit.ModelRegistry -f net8.0 --force; dotnet new classlib -n OllamaToolkit.BenchmarkRunner -o src/OllamaToolkit.BenchmarkRunner -f net8.0 --force; dotnet new console -n OllamaToolkit.Cli -o src/OllamaToolkit.Cli -f net8.0 --force; dotnet new wpf -n OllamaToolkit.App -o src/OllamaToolkit.App -f net8.0-windows --force
+[2026-06-24 16:36:53] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet new wpf -n OllamaToolkit.App -o src/OllamaToolkit.App -f net8.0 --force; dotnet sln add src/OllamaToolkit.Core/OllamaToolkit.Core.csproj src/OllamaToolkit.BenchmarkStore/OllamaToolkit.BenchmarkStore.csproj src/OllamaToolkit.ModelCatalog/OllamaToolkit.ModelCatalog.csproj src/OllamaToolkit.ModelCategory/OllamaToolkit.ModelCategory.csproj src/OllamaToolkit.AiAssist/OllamaToolkit.AiAssist.csproj src/OllamaToolkit.ModelRegistry/OllamaToolkit.ModelRegistry.csproj src/OllamaToolkit.BenchmarkRunner/OllamaToolkit.BenchmarkRunner.csproj src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj src/OllamaToolkit.App/OllamaToolkit.App.csproj
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Delete - Delete
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Delete - Delete
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Glob - Glob
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; foreach ($p in @('BenchmarkStore','ModelCatalog','ModelCategory','AiAssist','ModelRegistry','BenchmarkRunner')) { Remove-Item "src\OllamaToolkit.$p\Class1.cs" -ErrorAction SilentlyContinue; @"
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OllamaToolkit.Core\OllamaToolkit.Core.csproj" />
+  </ItemGroup>
+</Project>
+"@ | Set-Content "src\OllamaToolkit.$p\OllamaToolkit.$p.csproj" }; dotnet build OllamaToolkit.sln -c Release
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; foreach ($p in @('BenchmarkStore','ModelCatalog','ModelCategory','AiAssist','ModelRegistry','BenchmarkRunner')) { Remove-Item "src\OllamaToolkit.$p\Class1.cs" -ErrorAction SilentlyContinue; @"
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OllamaToolkit.Core\OllamaToolkit.Core.csproj" />
+  </ItemGroup>
+</Project>
+"@ | Set-Content "src\OllamaToolkit.$p\OllamaToolkit.$p.csproj" }; dotnet build OllamaToolkit.sln -c Release
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- vulkan-devices
+[2026-06-24 16:36:53] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- vulkan-devices
+[2026-06-24 16:36:53] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- status; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- help
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release -v q; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- status
+[2026-06-24 16:36:53] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 --self-contained false -o publish/OllamaToolkit.App; dotnet publish src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -r win-x64 --self-contained false -o publish/OllamaToolkit.Cli
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add OllamaToolkit.sln src/ launchers/ BUILD.md Ollama-Mode-GUI.cmd .gitignore; git status --short; git commit -m "feat: initial C# WPF greenfield scaffold (Core, Cli, App shell)"
+[2026-06-24 16:36:53] [TOOL] TodoWrite - TodoWrite
+[2026-06-24 16:36:53] [TOOL] TodoWrite - TodoWrite
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Grep - Grep
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Read - Read
+[2026-06-24 16:36:53] [TOOL] Glob - Glob
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:53] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-24 16:36:54] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release -v q; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- import-reports; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App -v q
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Glob - Glob
+[2026-06-24 16:36:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan" && dotnet build 2>&1
+[2026-06-24 16:36:54] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan" && dotnet build 2>&1
+[2026-06-24 16:36:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build 2>&1
+[2026-06-24 16:36:54] [TOOL] Grep - Grep
+[2026-06-24 16:36:54] [TOOL] Glob - Glob
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build 2>&1
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Glob - Glob
+[2026-06-24 16:36:54] [TOOL] Glob - Glob
+[2026-06-24 16:36:54] [TOOL] Grep - Grep
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Glob - Glob
+[2026-06-24 16:36:54] [TOOL] Glob - Glob
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] TodoWrite - TodoWrite
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Grep - Grep
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Grep - Grep
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Grep - Grep
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Grep - Grep
+[2026-06-24 16:36:54] [TOOL] Grep - Grep
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Grep - Grep
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-24 16:36:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git status; git branch --show-current
+[2026-06-24 16:36:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1; dotnet publish src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -r win-x64 -o publish/OllamaToolkit.Cli 2>&1
+[2026-06-24 16:36:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/ BUILD.md; git commit -m "$(cat <<'EOF'
+Phase 3: Model Library, Test Results, AI Settings, and catalog libraries
+
+- Fix CLI import-reports command
+- Implement ModelCatalog, ModelCategory, ModelRegistry libraries
+- Add catalog fetch, categorization, benchmark insights, log anomaly scan
+- Wire Model Library, Test Results, and AI Settings tabs in WPF
+- Add model pull API and publish win-x64 builds
+EOF
+)"
+[2026-06-24 16:36:54] [TOOL] TodoWrite - TodoWrite
+[2026-06-24 16:36:54] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/ BUILD.md; git commit -m "$(cat <<'EOF'
+Phase 3: Model Library, Test Results, AI Settings, and catalog libraries
+
+- Fix CLI import-reports command
+- Implement ModelCatalog, ModelCategory, ModelRegistry libraries
+- Add catalog fetch, categorization, benchmark insights, log anomaly scan
+- Wire Model Library, Test Results, and AI Settings tabs in WPF
+- Add model pull API and publish win-x64 builds
+EOF
+)"
+[2026-06-24 16:36:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/ BUILD.md; git commit -m "Phase 3: Model Library, Test Results, AI Settings, catalog libraries"
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Glob - Glob
+[2026-06-24 16:36:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --oneline --all -20
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Grep - Grep
+[2026-06-24 16:36:54] [SHELL] Get-ChildItem "C:\Users\lewis\.grok\sessions\C%3A%5CUsers%5Clewis\019ef98d-ebd9-7ea0-b305-ee7496b813b8\terminal\*.log" | Sort-Object LastWriteTime | ForEach-Object { $_.Name }
+[2026-06-24 16:36:54] [TOOL] Grep - Grep
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [SHELL] $updates = "C:\Users\lewis\.grok\sessions\C%3A%5CUsers%5Clewis\019ef98d-ebd9-7ea0-b305-ee7496b813b8\updates.jsonl"; $cmds = @(); Get-Content $updates | ForEach-Object { if ($_ -match '"title":"Shell"') { try { $j = $_ | ConvertFrom-Json; $cmd = $j.params.update.rawInput.command; if ($cmd) { $cmds += $cmd } } catch {} } }; $cmds | Select-Object -Unique | Measure-Object; $cmds | Select-Object -Unique
+[2026-06-24 16:36:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --format="=== %h %s (%ci) ===" --stat pre-csharp-greenfield-backup..HEAD 2>&1 | Select-Object -First 200
+[2026-06-24 16:36:54] [TOOL] Grep - Grep
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add DEVELOPMENT-ARCHIVE.md DEVELOPMENT-ARCHIVE-COMMANDS.txt; git commit -m "docs: add agent development archive with commands and reasoning log"
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] Glob - Glob
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] Write - Write
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|scripts/Update-DevelopmentArchive.ps1 â€” sync script for session log"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|.gitignore â€” allow DEVELOPMENT-ARCHIVE-SESSION.log, ignore .archive-state.json"; .\scripts\Update-DevelopmentArchive.ps1
+[2026-06-24 16:36:54] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|scripts/Update-DevelopmentArchive.ps1 â€” sync script for session log"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|.gitignore â€” allow DEVELOPMENT-ARCHIVE-SESSION.log, ignore .archive-state.json"; .\scripts\Update-DevelopmentArchive.ps1
+[2026-06-24 16:36:54] [TOOL] Read - Read
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|scripts/Update-DevelopmentArchive.ps1 - fixed parse errors"; .\scripts\Update-DevelopmentArchive.ps1
+[2026-06-24 16:36:54] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|scripts/Update-DevelopmentArchive.ps1 - fixed parse errors"; .\scripts\Update-DevelopmentArchive.ps1
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 2>&1 | Select-Object -Last 15
+[2026-06-24 16:36:54] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 2>&1 | Select-Object -Last 15
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 2>&1 | Select-Object -Last 5
+[2026-06-24 16:36:54] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 2>&1 | Select-Object -Last 5
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [TOOL] StrReplace - StrReplace
+[2026-06-24 16:36:54] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 2>&1 | Select-Object -Last 3
+[2026-06-24 16:36:54] [SYNC] Processed updates.jsonl lines 0..1739
+[2026-06-24 16:36:54] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

@@ -47,4 +47,35 @@ Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln 
 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release -v q; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- import-reports; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App -v q
 cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build 2>&1
 cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
-cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1; dotnet publish src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -r win-x64 -o publish/OllamaToolkit.Cli 2>&1
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1; dotnet publish src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -r win-x64 -o publish/OllamaToolkit.Cli 2>&1& "C:\Program Files\dotnet\dotnet.exe" --list-sdks; & "C:\Program Files\dotnet\dotnet.exe" --list-runtimes
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; foreach ($p in @('BenchmarkStore','ModelCatalog','ModelCategory','AiAssist','ModelRegistry','BenchmarkRunner')) { Remove-Item "src\OllamaToolkit.$p\Class1.cs" -ErrorAction SilentlyContinue; @"
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\OllamaToolkit.Core\OllamaToolkit.Core.csproj" />
+  </ItemGroup>
+</Project>
+"@ | Set-Content "src\OllamaToolkit.$p\OllamaToolkit.$p.csproj" }; dotnet build OllamaToolkit.sln -c Release
+cd "C:\Users\lewis\Ollama-AMD-Vulkan" && dotnet build 2>&1
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/ BUILD.md; git commit -m "$(cat <<'EOF'
+Phase 3: Model Library, Test Results, AI Settings, and catalog libraries
+
+- Fix CLI import-reports command
+- Implement ModelCatalog, ModelCategory, ModelRegistry libraries
+- Add catalog fetch, categorization, benchmark insights, log anomaly scan
+- Wire Model Library, Test Results, and AI Settings tabs in WPF
+- Add model pull API and publish win-x64 builds
+EOF
+)"
+Get-ChildItem "C:\Users\lewis\.grok\sessions\C%3A%5CUsers%5Clewis\019ef98d-ebd9-7ea0-b305-ee7496b813b8\terminal\*.log" | Sort-Object LastWriteTime | ForEach-Object { $_.Name }
+$updates = "C:\Users\lewis\.grok\sessions\C%3A%5CUsers%5Clewis\019ef98d-ebd9-7ea0-b305-ee7496b813b8\updates.jsonl"; $cmds = @(); Get-Content $updates | ForEach-Object { if ($_ -match '"title":"Shell"') { try { $j = $_ | ConvertFrom-Json; $cmd = $j.params.update.rawInput.command; if ($cmd) { $cmds += $cmd } } catch {} } }; $cmds | Select-Object -Unique | Measure-Object; $cmds | Select-Object -Unique
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add DEVELOPMENT-ARCHIVE.md DEVELOPMENT-ARCHIVE-COMMANDS.txt; git commit -m "docs: add agent development archive with commands and reasoning log"
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|scripts/Update-DevelopmentArchive.ps1 â€” sync script for session log"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|.gitignore â€” allow DEVELOPMENT-ARCHIVE-SESSION.log, ignore .archive-state.json"; .\scripts\Update-DevelopmentArchive.ps1
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|scripts/Update-DevelopmentArchive.ps1 - fixed parse errors"; .\scripts\Update-DevelopmentArchive.ps1
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 2>&1 | Select-Object -Last 15
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 2>&1 | Select-Object -Last 5
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 2>&1 | Select-Object -Last 3

@@ -8,6 +8,10 @@ reports/
 
 # Logs
 *.log
+!DEVELOPMENT-ARCHIVE-SESSION.log
+
+# Archive sync cursor (local machine state)
+.archive-state.json
 
 # Windows
 Thumbs.db

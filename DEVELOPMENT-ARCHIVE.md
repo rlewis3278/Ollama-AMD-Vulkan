@@ -6,7 +6,46 @@ Generated: **2026-06-24** (session `019ef98d-ebd9-7ea0-b305-ee7496b813b8`).
 > **Machine-readable full transcript:**  
 > `C:\Users\lewis\.grok\sessions\C%3A%5CUsers%5Clewis\019ef98d-ebd9-7ea0-b305-ee7496b813b8\updates.jsonl`  
 > **Design plan (living document):**  
-> `C:\Users\lewis\.grok\sessions\C%3A%5CUsers%5Clewis\019ef98d-ebd9-7ea0-b305-ee7496b813b8\plan.md`
+> `C:\Users\lewis\.grok\sessions\C%3A%5CUsers%5Clewis\019ef98d-ebd9-7ea0-b305-ee7496b813b8\plan.md`  
+> **Live append log (updated every agent action):**  
+> [`DEVELOPMENT-ARCHIVE-SESSION.log`](DEVELOPMENT-ARCHIVE-SESSION.log)
+
+---
+
+## 0. Agent maintenance protocol (MANDATORY)
+
+**Every agent working on this repo MUST update the archive before ending a turn.**
+
+### After each significant action, append to `DEVELOPMENT-ARCHIVE-SESSION.log`:
+
+```powershell
+.\scripts\Update-DevelopmentArchive.ps1 -Entry "CATEGORY|what happened"
+```
+
+| Category | When to use |
+|----------|-------------|
+| `USER` | User request received |
+| `REASONING` | Decision, plan change, why this approach |
+| `TOOL` | Non-shell tool use (Read, Grep, Write, etc.) |
+| `SHELL` | Command run |
+| `SHELL_FAIL` | Command failed (include exit code) |
+| `FILE` | File created or materially edited |
+| `BUILD` | dotnet build/publish result |
+| `GIT` | commit, branch, merge |
+
+### End of every development turn:
+
+```powershell
+.\scripts\Update-DevelopmentArchive.ps1
+```
+
+This syncs new shell commands and tool events from `updates.jsonl` into the session log and `DEVELOPMENT-ARCHIVE-COMMANDS.txt`.
+
+### After a completed phase or feature:
+
+1. Add a `## Phase N` section below (or extend the latest phase).
+2. Update Section 11 checkboxes and the git commit map.
+3. Commit archive files **with** the code change.
 
 ---
 
@@ -38,6 +77,7 @@ Generated: **2026-06-24** (session `019ef98d-ebd9-7ea0-b305-ee7496b813b8`).
 | 5 | **"continue build autonomously"** | Built BenchmarkStore, BenchmarkRunner, WPF tabs (Compute Modes, Models, Testing, Model Run, AI Activity, AI Features); hit CLI `import-reports` build error at session end |
 | 6 | **"continue build autonomously"** (resumed after context compaction) | Fixed CLI; implemented ModelCatalog/ModelCategory/ModelRegistry; wired Model Library, Test Results, AI Settings tabs; committed `ce23914` |
 | 7 | **"add a file to archive every command and thought process"** | Created this `DEVELOPMENT-ARCHIVE.md` |
+| 8 | **"make sure this log is updated with everything you do"** | Added `DEVELOPMENT-ARCHIVE-SESSION.log`, `scripts/Update-DevelopmentArchive.ps1`, Section 0 maintenance protocol |
 
 ---
 
@@ -462,6 +502,27 @@ src/OllamaToolkit.Cli/Program.cs (RunImportReportsAsync)
 
 ---
 
+## Phase 4 — Development archive system (`25292a1` + follow-up)
+
+**Commits:** `25292a1` (initial archive), pending (session log + sync script)
+
+### User request
+Ensure a complete record of agent commands and reasoning from planning through build.
+
+### Deliverables
+- `DEVELOPMENT-ARCHIVE.md` — structured narrative archive
+- `DEVELOPMENT-ARCHIVE-COMMANDS.txt` — unique shell commands
+- `DEVELOPMENT-ARCHIVE-SESSION.log` — append-only chronological log (one line per action)
+- `scripts/Update-DevelopmentArchive.ps1` — sync from session `updates.jsonl`
+- `.archive-state.json` — cursor for incremental sync (gitignored)
+
+### Agent reasoning
+- Narrative markdown alone goes stale; append-only log is cheap to update every turn.
+- PowerShell sync script pulls machine-readable `updates.jsonl` so shell commands are never missed.
+- Section 0 protocol makes updating the log a hard requirement for any future agent.
+
+---
+
 ## 11. Remaining plan items
 
 From `plan.md` — not yet implemented as of `ce23914`:
@@ -479,11 +540,24 @@ From `plan.md` — not yet implemented as of `ce23914`:
 
 ## 12. How to extend this archive
 
+See **Section 0** for the mandatory per-turn workflow.
+
+### Quick reference
+
+```powershell
+# Log a reasoning step or file edit manually:
+.\scripts\Update-DevelopmentArchive.ps1 -Entry "REASONING|why we chose X"
+.\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|src/OllamaToolkit.Core/Foo.cs — added Bar()"
+
+# End of turn — sync all new shell/tool events from session jsonl:
+.\scripts\Update-DevelopmentArchive.ps1
+```
+
 ### Append after each development session
 
-1. Add a new `## Phase N` section with commit hash, reasoning, commands, errors.
-2. Copy new shell commands from session `updates.jsonl` (filter `"title":"Shell"`).
-3. Update Section 11 checkboxes.
+1. Run `Update-DevelopmentArchive.ps1` (no `-Entry`).
+2. Add a new `## Phase N` section if a major milestone landed.
+3. Update Section 11 checkboxes and git commit map.
 
 ### Raw replay files
 
@@ -502,8 +576,19 @@ ce56315  Initial PowerShell toolkit
 bad4770  Fix GUI startup freeze (PowerShell)
 790e3a5  C# greenfield scaffold
 ce23914  Phase 3: catalog libraries + remaining tabs
+25292a1  docs: agent development archive (markdown + commands)
+         (pending) docs: session log + sync script + maintenance protocol
 ```
+
+### Archive files
+
+| File | Updated when |
+|------|----------------|
+| `DEVELOPMENT-ARCHIVE-SESSION.log` | Every agent action (append) |
+| `DEVELOPMENT-ARCHIVE-COMMANDS.txt` | On sync script run (new shells) |
+| `DEVELOPMENT-ARCHIVE.md` | Phase milestones + protocol changes |
+| `.archive-state.json` | Sync script cursor (local, gitignored) |
 
 ---
 
-*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated by agent session 2026-06-24.*
+*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated: 2026-06-24 — session log + sync script.*
