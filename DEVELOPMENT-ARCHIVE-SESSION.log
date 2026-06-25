@@ -1936,3 +1936,55 @@ EOF
 [2026-06-25 05:29:38] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "FIX|Test Undownload cross-thread: marshal EnterAiActivity/ExitAiActivity and ThrottledUpdater to UI dispatcher"; git add -A; git commit -m "fix: Test Undownload UI thread access from background work queue"; git log --oneline -2
 [2026-06-25 05:29:38] [SYNC] Processed updates.jsonl lines 8270..8408
 [2026-06-25 05:29:38] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 05:37:59] [FIX] Test Undownload: clamp num_ctx, verify pull, download bar, purple batch rows, descriptive log
+[2026-06-25 05:38:00] [TOOL] Read - Read
+[2026-06-25 05:38:00] [TOOL] Read - Read
+[2026-06-25 05:38:00] [TOOL] Grep - Grep
+[2026-06-25 05:38:00] [TOOL] Read - Read
+[2026-06-25 05:38:00] [TOOL] Read - Read
+[2026-06-25 05:38:00] [TOOL] Grep - Grep
+[2026-06-25 05:38:00] [TOOL] Read - Read
+[2026-06-25 05:38:00] [TOOL] Read - Read
+[2026-06-25 05:38:00] [TOOL] Read - Read
+[2026-06-25 05:38:00] [TOOL] Grep - Grep
+[2026-06-25 05:38:00] [TOOL] Read - Read
+[2026-06-25 05:38:00] [TOOL] Read - Read
+[2026-06-25 05:38:00] [TOOL] Grep - Grep
+[2026-06-25 05:38:00] [TOOL] Write - Write
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] Read - Read
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] Grep - Grep
+[2026-06-25 05:38:00] [TOOL] Read - Read
+[2026-06-25 05:38:00] [TOOL] Read - Read
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-25 05:38:00] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-25 05:38:00] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-25 05:38:00] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:38:00] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-25 05:38:00] [SHELL] Get-Process OllamaToolkit.App -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1; cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1
+[2026-06-25 05:38:00] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "FIX|Test Undownload: clamp num_ctx, verify pull, download bar, purple batch rows, descriptive log"; git add -A; git commit -m "fix: Test Undownload pull verify, settings clamp, download progress, purple batch rows"
+[2026-06-25 05:38:00] [SYNC] Processed updates.jsonl lines 8409..8624
+[2026-06-25 05:38:00] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using OllamaToolkit.AiAssist.Models;
+using OllamaToolkit.BenchmarkStore;
 using OllamaToolkit.BenchmarkStore.Models;
 using OllamaToolkit.Core;
 using OllamaToolkit.Core.Ollama;
@@ -47,19 +48,19 @@ public sealed class BenchmarkSettingsAdvisorService
         if (doc.Models.TryGetValue(summary.Model, out var existing)
             && !string.IsNullOrWhiteSpace(existing.Rationale))
         {
-            return existing;
+            return NormalizeEntry(existing, summary);
         }
 
         if (!await _settings.IsFeatureEnabledAsync(AiFeatureKeys.OptimalBenchmarkSettings, cancellationToken)
                 .ConfigureAwait(false))
         {
-            return DefaultEntry(summary);
+            return NormalizeEntry(DefaultEntry(summary), summary);
         }
 
         var summarizer = await _summarizer.ResolveAsync(summary.Model, cancellationToken).ConfigureAwait(false);
         if (summarizer is null || !await _apiClient.IsReadyAsync(cancellationToken).ConfigureAwait(false))
         {
-            return DefaultEntry(summary);
+            return NormalizeEntry(DefaultEntry(summary), summary);
         }
 
         var prior = summary.NeedsRetest ? "none" : $"{summary.BestMode} {summary.BestTps:F1} tok/s";
@@ -74,7 +75,7 @@ public sealed class BenchmarkSettingsAdvisorService
         {
             var text = await _apiClient.GenerateAsync(summarizer, prompt, 128, 4096, cancellationToken)
                 .ConfigureAwait(false);
-            var entry = ParseSettings(text) ?? DefaultEntry(summary);
+            var entry = NormalizeEntry(ParseSettings(text) ?? DefaultEntry(summary), summary);
             entry.SummaryModel = summarizer;
             entry.GeneratedAt = DateTimeOffset.Now.ToString("o");
             doc.Models[summary.Model] = entry;
@@ -83,8 +84,27 @@ public sealed class BenchmarkSettingsAdvisorService
         }
         catch
         {
-            return DefaultEntry(summary);
+            return NormalizeEntry(DefaultEntry(summary), summary);
         }
+    }
+
+    public static BenchmarkSettingsEntry NormalizeEntry(
+        BenchmarkSettingsEntry entry,
+        ModelProfileSummary summary)
+    {
+        var sizeGb = summary.SizeGB > 0 ? summary.SizeGB : 4;
+        var recommended = summary.RecommendedCtx > 0
+            ? summary.RecommendedCtx
+            : ProfileStoreService.GetRecommendedBenchmarkNumCtx(sizeGb);
+
+        if (entry.NumCtx < 2048)
+        {
+            entry.NumCtx = recommended;
+        }
+
+        entry.NumCtx = Math.Clamp(entry.NumCtx, 2048, 32768);
+        entry.NumPredict = Math.Clamp(entry.NumPredict, 8, 512);
+        return entry;
     }
 
     private static BenchmarkSettingsEntry DefaultEntry(ModelProfileSummary summary) =>

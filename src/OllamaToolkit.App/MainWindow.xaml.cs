@@ -34,6 +34,8 @@ public partial class MainWindow : Window
     private int _testOperations;
     private Task? _activeTestWork;
     private readonly List<Button> _activeTestFlashButtons = new();
+    private readonly HashSet<string> _undownloadPurpleLibraries = new(StringComparer.OrdinalIgnoreCase);
+    private bool _undownloadBatchActive;
     private string? _runModel;
     private readonly List<ChatMessage> _chatMessages = new();
     private readonly DispatcherTimer _activityTimer;
@@ -287,6 +289,8 @@ public partial class MainWindow : Window
 
     private void ClearCatalogTestingHighlights()
     {
+        _undownloadBatchActive = false;
+        _undownloadPurpleLibraries.Clear();
         foreach (var row in _catalogRows)
         {
             if (row.IsTesting)
@@ -296,6 +300,29 @@ public partial class MainWindow : Window
                 row.RefreshState = CatalogRowRefreshState.None;
             }
         }
+    }
+
+    private void ReapplyUndownloadPurpleHighlights()
+    {
+        if (!_undownloadBatchActive)
+        {
+            return;
+        }
+
+        foreach (var library in _undownloadPurpleLibraries)
+        {
+            SetCatalogTestingHighlight(library, on: true);
+        }
+    }
+
+    private void AppendTestLog(string line)
+    {
+        _testLogUpdater.Append(line + Environment.NewLine, appended =>
+        {
+            TestLogBox.Text += appended;
+            TestLogBox.CaretIndex = TestLogBox.Text.Length;
+            TestLogBox.ScrollToEnd();
+        }, () => TestLogBox.Text, v => TestLogBox.Text = v);
     }
 
     private void InitModeCards()
@@ -1035,6 +1062,7 @@ public partial class MainWindow : Window
             ExitAiActivity();
         }
 
+        settings = BenchmarkSettingsAdvisorService.NormalizeEntry(settings, summary);
         await UiDispatcher.InvokeAsync(() =>
         {
             TestNumCtxBox.Text = settings.NumCtx.ToString();
@@ -1045,56 +1073,94 @@ public partial class MainWindow : Window
         return (settings.NumCtx, settings.NumPredict);
     }
 
-    private void BuildTestModeProgressRows(IReadOnlyList<string> modes)
+    private void BuildTestModeProgressRows(IReadOnlyList<string> modes, bool includeDownloadRow = false)
     {
         TestModeProgressPanel.Children.Clear();
         _testModeProgress.Clear();
 
+        if (includeDownloadRow)
+        {
+            AddTestProgressRow("Download", 72);
+        }
+
         foreach (var mode in modes)
         {
-            var grid = new Grid { Margin = new Thickness(0, 2, 0, 2) };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(56) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
-
-            var name = new TextBlock
-            {
-                Text = mode,
-                Foreground = (Brush)FindResource("Brush.Text"),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(name, 0);
-
-            var bar = new ProgressBar
-            {
-                Style = (Style)FindResource("ToolkitProgressBar"),
-                Height = 8,
-                Minimum = 0,
-                Maximum = 100,
-                Value = 0,
-                Margin = new Thickness(6, 0, 6, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(bar, 1);
-
-            var status = new TextBlock
-            {
-                Text = "Pending",
-                Foreground = (Brush)FindResource("Brush.Muted"),
-                VerticalAlignment = VerticalAlignment.Center,
-                TextTrimming = TextTrimming.CharacterEllipsis
-            };
-            Grid.SetColumn(status, 2);
-
-            grid.Children.Add(name);
-            grid.Children.Add(bar);
-            grid.Children.Add(status);
-            TestModeProgressPanel.Children.Add(grid);
-            _testModeProgress[mode] = (bar, status);
+            AddTestProgressRow(mode, 56);
         }
     }
 
-    private void ResetTestProgressUi(string model, int modelIndex, int modelCount, IReadOnlyList<string> modes, string? aiSummarizer)
+    private void AddTestProgressRow(string label, int labelWidth)
+    {
+        var grid = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(labelWidth) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+
+        var name = new TextBlock
+        {
+            Text = label,
+            Foreground = (Brush)FindResource("Brush.Text"),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(name, 0);
+
+        var bar = new ProgressBar
+        {
+            Style = (Style)FindResource("ToolkitProgressBar"),
+            Height = 8,
+            Minimum = 0,
+            Maximum = 100,
+            Value = 0,
+            Margin = new Thickness(6, 0, 6, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(bar, 1);
+
+        var status = new TextBlock
+        {
+            Text = "Pending",
+            Foreground = (Brush)FindResource("Brush.Muted"),
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+        Grid.SetColumn(status, 2);
+
+        grid.Children.Add(name);
+        grid.Children.Add(bar);
+        grid.Children.Add(status);
+        TestModeProgressPanel.Children.Add(grid);
+        _testModeProgress[label] = (bar, status);
+    }
+
+    private void ApplyDownloadProgressUpdate(ModelPullProgress update)
+    {
+        if (!_testModeProgress.TryGetValue("Download", out var row))
+        {
+            return;
+        }
+
+        row.Bar.Foreground = (Brush)FindResource("Brush.Purple");
+        if (update.Percent is >= 0)
+        {
+            row.Bar.Value = update.Percent.Value;
+            row.Status.Text = $"{update.Percent.Value}%";
+        }
+        else
+        {
+            row.Bar.Value = row.Bar.Value > 0 ? row.Bar.Value : 5;
+            row.Status.Text = update.Status;
+        }
+
+        row.Status.Foreground = (Brush)FindResource("Brush.Purple");
+    }
+
+    private void ResetTestProgressUi(
+        string model,
+        int modelIndex,
+        int modelCount,
+        IReadOnlyList<string> modes,
+        string? aiSummarizer,
+        bool includeDownloadRow = false)
     {
         TestProgressPanel.Visibility = Visibility.Visible;
         TestOverallProgress.Value = 0;
@@ -1103,7 +1169,7 @@ public partial class MainWindow : Window
             : $"AI insights LLM: {aiSummarizer}";
         TestOverallLabel.Text =
             $"Overall: {model} ({modelIndex + 1}/{modelCount}) — {aiLine}";
-        BuildTestModeProgressRows(modes);
+        BuildTestModeProgressRows(modes, includeDownloadRow);
 
         foreach (var (bar, status) in _testModeProgress.Values)
         {
@@ -1259,12 +1325,13 @@ public partial class MainWindow : Window
 
         await UiDispatcher.InvokeAsync(() =>
         {
-            TestLogBox.Text +=
-                $"--- Undownload test queue ({candidates.Count} model(s), smallest file size first) ---{Environment.NewLine}";
-            TestLogBox.CaretIndex = TestLogBox.Text.Length;
-            TestLogBox.ScrollToEnd();
-            TestStatusLabel.Text =
-                $"Queue: {string.Join(" -> ", candidates.Select(c => c.LibraryName))}";
+            _undownloadBatchActive = true;
+            _undownloadPurpleLibraries.Clear();
+            AppendTestLog(
+                $"--- Undownload test queue ({candidates.Count} model(s), smallest file size first) ---");
+            AppendTestLog(
+                $"Order: {string.Join(" -> ", candidates.Select(c => c.LibraryName))}");
+            TestStatusLabel.Text = $"Undownload batch started — {candidates.Count} model(s) queued.";
         }).ConfigureAwait(true);
 
         await _svc.WorkQueue.EnqueueAsync(async _ =>
@@ -1282,26 +1349,92 @@ public partial class MainWindow : Window
                     }
 
                     var pullTag = candidate.PullTag;
+                    var fileSizeLabel = candidate.FileSizeBytes < long.MaxValue
+                        ? ModelSizeFormatter.FormatBytes(candidate.FileSizeBytes)
+                        : "unknown";
+
                     await UiDispatcher.InvokeAsync(() =>
                     {
+                        _undownloadPurpleLibraries.Add(candidate.LibraryName);
                         SetCatalogTestingHighlight(candidate.LibraryName, on: true);
                         TestStatusLabel.Text =
-                            $"[{i + 1}/{candidates.Count}] Pulling {pullTag}…";
+                            $"[{i + 1}/{candidates.Count}] Downloading {candidate.LibraryName} ({pullTag})…";
                     }).ConfigureAwait(false);
 
                     try
                     {
-                        var pullProgress = new Progress<string>(s =>
-                            _svc.ActivityLog.Write("Download", s));
+                        await UiDispatcher.InvokeAsync(() =>
+                        {
+                            AppendTestLog(string.Empty);
+                            AppendTestLog(
+                                $"=== Undownload test [{i + 1}/{candidates.Count}]: {candidate.LibraryName} ===");
+                            AppendTestLog($"Tag: {pullTag} | Catalog file size: {fileSizeLabel}");
+                            AppendTestLog($"Step 1/3: Downloading {pullTag} from Ollama library…");
+                        }).ConfigureAwait(false);
+
+                        var aiSummarizer = await _svc.Summarizer.ResolveAsync(cancellationToken: ct)
+                            .ConfigureAwait(false);
+                        await UiDispatcher.InvokeAsync(() =>
+                            ResetTestProgressUi(
+                                pullTag,
+                                i,
+                                candidates.Count,
+                                new[] { "CPU", "APU", "GPU", "Hybrid", "ROCm" },
+                                aiSummarizer,
+                                includeDownloadRow: true))
+                            .ConfigureAwait(false);
+
+                        var lastPullLogPercent = -1;
+                        var pullProgress = new Progress<ModelPullProgress>(update =>
+                        {
+                            UiDispatcher.InvokeAsync(() =>
+                            {
+                                ApplyDownloadProgressUpdate(update);
+                                if (update.Percent is int percent)
+                                {
+                                    if (percent >= 100 || percent - lastPullLogPercent >= 10)
+                                    {
+                                        lastPullLogPercent = percent;
+                                        AppendTestLog($"Download: {update.Status} ({percent}%)");
+                                    }
+                                }
+                                else if (!string.IsNullOrWhiteSpace(update.Status))
+                                {
+                                    AppendTestLog($"Download: {update.Status}");
+                                }
+                            });
+                        });
+
                         await _svc.ApiClient.PullAsync(pullTag, pullProgress, ct).ConfigureAwait(false);
                         _svc.Profiles.ClearCache();
+
+                        if (!await _svc.ApiClient.IsModelInstalledAsync(pullTag, ct).ConfigureAwait(false))
+                        {
+                            throw new InvalidOperationException(
+                                $"Download finished but {pullTag} was not found in the local Ollama model list.");
+                        }
+
+                        await UiDispatcher.InvokeAsync(() =>
+                        {
+                            if (_testModeProgress.TryGetValue("Download", out var row))
+                            {
+                                row.Bar.Value = 100;
+                                row.Status.Text = "Complete";
+                                row.Status.Foreground = (Brush)FindResource("Brush.Active");
+                            }
+
+                            AppendTestLog($"Download verified: {pullTag} is installed locally.");
+                            AppendTestLog("Step 2/3: Running 5-mode benchmark on downloaded model…");
+                        }).ConfigureAwait(false);
 
                         await RunBenchmarkQueueCoreAsync(
                             new[] { pullTag },
                             flashSender: null,
                             externalCt: ct,
-                            modelIndexOffset: 0,
-                            totalModels: candidates.Count)
+                            modelIndexOffset: i,
+                            totalModels: candidates.Count,
+                            holdCatalogHighlight: true,
+                            skipDownloadProgressRow: true)
                             .ConfigureAwait(false);
 
                         if (ct.IsCancellationRequested)
@@ -1309,19 +1442,34 @@ public partial class MainWindow : Window
                             cancelled = true;
                         }
 
+                        await UiDispatcher.InvokeAsync(() =>
+                            AppendTestLog($"Step 3/3: Removing local copy {pullTag} (keeping benchmark data)…"))
+                            .ConfigureAwait(false);
+
                         await _svc.ApiClient.DeleteAsync(pullTag, ct).ConfigureAwait(false);
                         _svc.Profiles.ClearCache();
+
+                        await UiDispatcher.InvokeAsync(() =>
+                        {
+                            AppendTestLog($"Removed {pullTag} from disk. Benchmark profile retained.");
+                            AppendTestLog(
+                                $"=== Finished [{i + 1}/{candidates.Count}]: {candidate.LibraryName} ===");
+                        }).ConfigureAwait(false);
 
                         await UiDispatcher.InvokeAsync(async () =>
                         {
                             await RefreshModelsUiAsync().ConfigureAwait(true);
                             await RefreshCatalogUiAsync().ConfigureAwait(true);
                             await RefreshTestResultsUiAsync().ConfigureAwait(true);
+                            ReapplyUndownloadPurpleHighlights();
                         }).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {
                         cancelled = true;
+                        await UiDispatcher.InvokeAsync(() =>
+                            AppendTestLog($"STOPPED ({pullTag}): download/test batch cancelled."))
+                            .ConfigureAwait(false);
                         try
                         {
                             await _svc.ApiClient.DeleteAsync(pullTag, CancellationToken.None).ConfigureAwait(false);
@@ -1337,7 +1485,7 @@ public partial class MainWindow : Window
                     {
                         await UiDispatcher.InvokeAsync(() =>
                         {
-                            TestLogBox.Text += $"FAIL ({pullTag}): {ex.Message}{Environment.NewLine}";
+                            AppendTestLog($"FAIL ({pullTag}): {ex.Message}");
                             TestStatusLabel.Text =
                                 $"Undownload test failed for {pullTag}: {ex.Message} — continuing queue…";
                         }).ConfigureAwait(false);
@@ -1345,16 +1493,13 @@ public partial class MainWindow : Window
                         try
                         {
                             await _svc.ApiClient.DeleteAsync(pullTag, CancellationToken.None).ConfigureAwait(false);
+                            await UiDispatcher.InvokeAsync(() =>
+                                AppendTestLog($"Cleanup: removed {pullTag} after failure.")).ConfigureAwait(false);
                         }
                         catch
                         {
                             // Best-effort cleanup after failure.
                         }
-                    }
-                    finally
-                    {
-                        await UiDispatcher.InvokeAsync(() =>
-                            SetCatalogTestingHighlight(candidate.LibraryName, on: false)).ConfigureAwait(false);
                     }
                 }
 
@@ -1363,6 +1508,7 @@ public partial class MainWindow : Window
                     TestStatusLabel.Text = cancelled
                         ? "Undownload test queue stopped."
                         : "Undownload test queue complete.";
+                    ClearCatalogTestingHighlights();
                     FinishTestOperation(flashSender, success: !cancelled, cancelled);
                 }).ConfigureAwait(false);
             }
@@ -1380,7 +1526,9 @@ public partial class MainWindow : Window
         object? flashSender,
         CancellationToken externalCt,
         int modelIndexOffset,
-        int totalModels)
+        int totalModels,
+        bool holdCatalogHighlight = false,
+        bool skipDownloadProgressRow = false)
     {
         var ct = externalCt;
         var benchmarkModes = new[] { "CPU", "APU", "GPU", "Hybrid", "ROCm" };
@@ -1394,8 +1542,17 @@ public partial class MainWindow : Window
             var globalIndex = modelIndexOffset + modelIndex;
             await UiDispatcher.InvokeAsync(() =>
             {
-                SetCatalogTestingHighlight(model, on: true);
-                ResetTestProgressUi(model, globalIndex, totalModels, benchmarkModes, aiSummarizer);
+                if (!holdCatalogHighlight)
+                {
+                    SetCatalogTestingHighlight(model, on: true);
+                }
+
+                if (!skipDownloadProgressRow)
+                {
+                    ResetTestProgressUi(
+                        model, globalIndex, totalModels, benchmarkModes, aiSummarizer);
+                }
+
                 TestStatusLabel.Text = $"Resolving AI benchmark settings for {model}…";
             }).ConfigureAwait(false);
 
@@ -1460,8 +1617,11 @@ public partial class MainWindow : Window
             }
             finally
             {
-                await UiDispatcher.InvokeAsync(() => SetCatalogTestingHighlight(model, on: false))
-                    .ConfigureAwait(false);
+                if (!holdCatalogHighlight)
+                {
+                    await UiDispatcher.InvokeAsync(() => SetCatalogTestingHighlight(model, on: false))
+                        .ConfigureAwait(false);
+                }
             }
         }
     }
@@ -1802,6 +1962,7 @@ public partial class MainWindow : Window
 
         _catalogRowByName = _catalogRows.ToDictionary(r => r.Name, StringComparer.OrdinalIgnoreCase);
         ScheduleFitGridColumns(CatalogGrid);
+        ReapplyUndownloadPurpleHighlights();
     }
 
     private async Task BindFullCatalogGridAsync(string statusPrefix, bool sortAlphabetically = false)
@@ -2463,7 +2624,8 @@ public partial class MainWindow : Window
         {
             try
             {
-                var progress = new Progress<string>(s => _svc.ActivityLog.Write("Download", s));
+                var progress = new Progress<ModelPullProgress>(p =>
+                    _svc.ActivityLog.Write("Download", p.Status));
                 await _svc.ApiClient.PullAsync(model, progress, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Task", $"Downloaded {model}.");
                 _svc.Profiles.ClearCache();
@@ -2785,10 +2947,11 @@ public partial class MainWindow : Window
         {
             try
             {
-                var progress = new Progress<string>(s =>
+                var progress = new Progress<ModelPullProgress>(p =>
                 {
-                    _svc.ActivityLog.Write("Download", s);
-                    UiDispatcher.InvokeAsync(() => SetAiSettingsActionStatus($"Downloading {model}: {s}"));
+                    _svc.ActivityLog.Write("Download", p.Status);
+                    UiDispatcher.InvokeAsync(() =>
+                        SetAiSettingsActionStatus($"Downloading {model}: {p.Status}"));
                 });
                 await _svc.ApiClient.PullAsync(model, progress, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Task", $"Downloaded summarizer {model}.");

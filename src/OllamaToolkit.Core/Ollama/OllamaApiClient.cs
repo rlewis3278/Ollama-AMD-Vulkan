@@ -202,9 +202,15 @@ public sealed class OllamaApiClient : IDisposable
         }
     }
 
+    public async Task<bool> IsModelInstalledAsync(string model, CancellationToken cancellationToken = default)
+    {
+        var tags = await GetTagsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        return tags.Any(t => t.Name.Equals(model, StringComparison.OrdinalIgnoreCase));
+    }
+
     public async Task PullAsync(
         string model,
-        IProgress<string>? progress = null,
+        IProgress<ModelPullProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         var body = new { name = model, stream = true };
@@ -244,10 +250,20 @@ public sealed class OllamaApiClient : IDisposable
 
             if (!string.IsNullOrEmpty(chunk?.Status))
             {
-                progress?.Report(chunk.Status);
+                int? percent = null;
+                if (chunk.Total is > 0 && chunk.Completed is >= 0)
+                {
+                    percent = (int)Math.Clamp(100.0 * chunk.Completed.Value / chunk.Total.Value, 0, 100);
+                }
+
+                progress?.Report(new ModelPullProgress
+                {
+                    Status = chunk.Status,
+                    Percent = percent
+                });
             }
 
-            if (chunk?.Completed == true)
+            if (chunk?.Status?.Equals("success", StringComparison.OrdinalIgnoreCase) == true)
             {
                 _tagsCache = null;
                 return;
@@ -311,7 +327,10 @@ public sealed class OllamaApiClient : IDisposable
         public string? Error { get; set; }
 
         [JsonPropertyName("completed")]
-        public bool? Completed { get; set; }
+        public long? Completed { get; set; }
+
+        [JsonPropertyName("total")]
+        public long? Total { get; set; }
     }
 }
 
