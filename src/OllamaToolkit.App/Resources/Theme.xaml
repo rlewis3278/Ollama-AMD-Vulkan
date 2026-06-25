@@ -23,6 +23,7 @@
     <SolidColorBrush x:Key="Brush.Muted" Color="{StaticResource Color.Muted}" />
     <SolidColorBrush x:Key="Brush.Accent" Color="{StaticResource Color.Accent}" />
     <SolidColorBrush x:Key="Brush.Active" Color="{StaticResource Color.Active}" />
+    <SolidColorBrush x:Key="Brush.ActiveBg" Color="{StaticResource Color.ActiveBg}" />
     <SolidColorBrush x:Key="Brush.Warning" Color="{StaticResource Color.Warning}" />
     <SolidColorBrush x:Key="Brush.WarningBg" Color="{StaticResource Color.WarningBg}" />
     <SolidColorBrush x:Key="Brush.Button" Color="{StaticResource Color.Button}" />
@@ -126,6 +127,19 @@
         <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}" />
         <Setter Property="Padding" Value="12,6" />
         <Setter Property="Margin" Value="0,0,8,0" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+
+    <Style x:Key="ModeCardButton" TargetType="Button">
+        <Setter Property="Background" Value="{StaticResource Brush.Button}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="Margin" Value="4" />
+        <Setter Property="MinHeight" Value="96" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Cursor" Value="Hand" />
     </Style>
 

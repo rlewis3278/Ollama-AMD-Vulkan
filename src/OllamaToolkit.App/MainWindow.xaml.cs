@@ -23,6 +23,7 @@ public partial class MainWindow : Window
 {
     private readonly AppServices _svc = App.Services;
     private readonly Dictionary<string, Button> _modeCards = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ModeCardPresenter _modeCardPresenter;
     private CancellationTokenSource? _chatCts;
     private CancellationTokenSource? _benchmarkCts;
     private string? _runModel;
@@ -37,6 +38,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        _modeCardPresenter = new ModeCardPresenter(this);
         _modeCards["CPU"] = CpuCard;
         _modeCards["APU"] = ApuCard;
         _modeCards["GPU"] = GpuCard;
@@ -65,6 +67,7 @@ public partial class MainWindow : Window
             _activityTimer.Stop();
             _catalogSearchTimer.Stop();
             _testSettingsTimer.Stop();
+            _modeCardPresenter.Stop();
         };
     }
 
@@ -91,10 +94,16 @@ public partial class MainWindow : Window
             $"Your GPUs: Integrated {map.ApuName} (Vulkan #{map.ApuVulkanIndex}) · Discrete {map.GpuName} (Vulkan #{map.GpuVulkanIndex})";
         foreach (var def in _svc.ModeDefinitions.Definitions.Values)
         {
-            if (_modeCards.TryGetValue(def.Mode.ToString(), out var card))
+            if (!_modeCards.TryGetValue(def.Mode.ToString(), out var card))
             {
-                card.Content = $"{def.ShortLabel}\n{def.Description}";
+                continue;
             }
+
+            var content = ModeCardPresenter.BuildContent(
+                def.ShortLabel, def.CardSubtitle, out var title, out var subtitle);
+            card.Content = content;
+            _modeCardPresenter.Register(def.Mode.ToString(), card, title, subtitle);
+            _modeCardPresenter.ApplyDefinition(def);
         }
     }
 
@@ -203,13 +212,7 @@ public partial class MainWindow : Window
             ? $"Active: {modeLabel} — Ollama is running and ready"
             : $"Active: {modeLabel} — Ollama API not reachable (start Ollama if needed)";
 
-        foreach (var pair in _modeCards)
-        {
-            var active = pair.Key.Equals(detected, StringComparison.OrdinalIgnoreCase);
-            pair.Value.Background = active
-                ? new SolidColorBrush(Color.FromRgb(22, 58, 38))
-                : (Brush)FindResource("Brush.Button");
-        }
+        _modeCardPresenter.ApplyActiveMode(detected);
 
         var snapshot = _svc.EnvBackup.ReadUserSnapshot();
         EnvBox.Text = ModeEnvSummaryBuilder.Build(
@@ -325,8 +328,15 @@ public partial class MainWindow : Window
             return;
         }
 
-        btn.Background = new SolidColorBrush(Color.FromRgb(22, 58, 38));
+        if (_modeCardPresenter.IsTransitionActive)
+        {
+            return;
+        }
+
+        var previousMode = _svc.ModeService.DetectCurrentMode();
         var restart = RestartCheck.IsChecked == true;
+        _modeCardPresenter.BeginTransition(previousMode, tag);
+        ModeStatusLabel.Text = $"Applying {tag}…";
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
@@ -337,6 +347,7 @@ public partial class MainWindow : Window
                 _svc.ActivityLog.Write("Task", $"Applied mode {mode}.");
                 await UiDispatcher.InvokeAsync(async () =>
                 {
+                    _modeCardPresenter.EndTransition();
                     await RefreshModesUiAsync().ConfigureAwait(true);
                     ModeStatusLabel.Text = $"Current mode: {mode} (applied) | Ollama restarted: {restart}";
                 }).ConfigureAwait(false);
@@ -345,8 +356,13 @@ public partial class MainWindow : Window
             {
                 var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
-                await UiDispatcher.InvokeAsync(() => MessageBox.Show(msg, "Mode Apply", MessageBoxButton.OK, MessageBoxImage.Warning))
-                    .ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    _modeCardPresenter.EndTransition();
+                    await RefreshModesUiAsync().ConfigureAwait(true);
+                    ModeStatusLabel.Text = $"Mode apply failed: {ex.Message}";
+                    MessageBox.Show(msg, "Mode Apply", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }

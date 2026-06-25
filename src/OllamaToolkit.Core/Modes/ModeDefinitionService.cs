@@ -61,7 +61,8 @@ public sealed class ModeDefinitionService
             {
                 Mode = ComputeMode.CPU,
                 Label = "CPU Only",
-                ShortLabel = "CPU",
+                ShortLabel = "CPU Only",
+                CardSubtitle = "CPU inference only",
                 Description = "Disable Vulkan and HIP; force CPU inference.",
                 Variables = new Dictionary<string, string>
                 {
@@ -77,6 +78,7 @@ public sealed class ModeDefinitionService
                 Mode = ComputeMode.APU,
                 Label = $"APU / iGPU Only ({map.ApuName})",
                 ShortLabel = "APU (680M)",
+                CardSubtitle = $"iGPU Vulkan {map.ApuVulkanIndex} · OLLAMA_IGPU_ENABLE",
                 Description =
                     $"Vulkan on integrated GPU Vulkan index {map.ApuVulkanIndex} only. Requires system Vulkan loader + OLLAMA_IGPU_ENABLE on Windows.",
                 Requires680MWorkaround = true,
@@ -95,6 +97,7 @@ public sealed class ModeDefinitionService
                 Mode = ComputeMode.GPU,
                 Label = $"Discrete GPU Only ({map.GpuName})",
                 ShortLabel = "GPU (6700S)",
+                CardSubtitle = $"dGPU Vulkan {map.GpuVulkanIndex} · fastest for most models",
                 Description = $"Vulkan on discrete GPU Vulkan index {map.GpuVulkanIndex} only.",
                 Variables = new Dictionary<string, string>
                 {
@@ -110,6 +113,7 @@ public sealed class ModeDefinitionService
                 Mode = ComputeMode.Hybrid,
                 Label = "Hybrid (iGPU + dGPU)",
                 ShortLabel = "Hybrid",
+                CardSubtitle = $"Vulkan {map.HybridVulkanValue} · both GPUs",
                 Description =
                     $"Vulkan on both GPUs (Vulkan indices {map.HybridVulkanValue}) for split scheduling.",
                 Variables = new Dictionary<string, string>
@@ -126,6 +130,7 @@ public sealed class ModeDefinitionService
                 Mode = ComputeMode.ROCm,
                 Label = $"ROCm / HIP ({map.GpuName})",
                 ShortLabel = "ROCm",
+                CardSubtitle = "HIP on discrete GPU · Vulkan disabled",
                 Description =
                     "AMD ROCm HIP on discrete GPU — Vulkan disabled. Requires ROCm v7 / HIP7 drivers on Windows.",
                 Variables = new Dictionary<string, string>

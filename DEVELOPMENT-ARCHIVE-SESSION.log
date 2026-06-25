@@ -827,3 +827,45 @@ EOF
 [2026-06-24 20:18:40] [SHELL] powershell -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "UI|Clear & Rerun Tests button: wipes profiles, reports, AI insights, starts untested queue"
 [2026-06-24 20:18:40] [SYNC] Processed updates.jsonl lines 3110..3246
 [2026-06-24 20:18:40] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 01:26:33] [UI] Compute Modes: aligned card labels, yellow/white pending flash, green active, red superseded
+[2026-06-25 01:26:33] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.BenchmarkStore/ProfileStoreService.cs src/OllamaToolkit.BenchmarkStore/ClearTestDataResult.cs src/OllamaToolkit.AiAssist/BenchmarkInsightService.cs src/OllamaToolkit.AiAssist/BenchmarkSettingsAdvisorService.cs src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs DEVELOPMENT-ARCHIVE-COMMANDS.txt DEVELOPMENT-ARCHIVE-SESSION.log; git commit -m "feat: add Clear & Rerun Tests button to wipe benchmark data"
+[2026-06-25 01:26:33] [TOOL] Grep - Grep
+[2026-06-25 01:26:33] [TOOL] Read - Read
+[2026-06-25 01:26:33] [TOOL] Read - Read
+[2026-06-25 01:26:33] [TOOL] Read - Read
+[2026-06-25 01:26:33] [TOOL] Read - Read
+[2026-06-25 01:26:33] [TOOL] Grep - Grep
+[2026-06-25 01:26:33] [TOOL] Read - Read
+[2026-06-25 01:26:33] [TOOL] Read - Read
+[2026-06-25 01:26:33] [TOOL] Grep - Grep
+[2026-06-25 01:26:33] [TOOL] Read - Read
+[2026-06-25 01:26:33] [TOOL] Read - Read
+[2026-06-25 01:26:33] [TOOL] Grep - Grep
+[2026-06-25 01:26:33] [TOOL] Grep - Grep
+[2026-06-25 01:26:33] [TOOL] Read - Read
+[2026-06-25 01:26:33] [TOOL] Read - Read
+[2026-06-25 01:26:33] [TOOL] Read - Read
+[2026-06-25 01:26:33] [TOOL] Glob - Glob
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] Write - Write
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [TOOL] Grep - Grep
+[2026-06-25 01:26:33] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-25 01:26:33] [TOOL] Grep - Grep
+[2026-06-25 01:26:33] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:26:33] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-25 01:26:33] [SHELL] powershell -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "UI|Compute Modes: aligned card labels, yellow/white pending flash, green active, red superseded"
+[2026-06-25 01:26:33] [SYNC] Processed updates.jsonl lines 3247..3419
+[2026-06-25 01:26:33] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
