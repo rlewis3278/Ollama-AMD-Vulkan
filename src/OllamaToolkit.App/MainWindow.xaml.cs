@@ -3002,7 +3002,7 @@ public partial class MainWindow : Window
     {
         if (!string.IsNullOrWhiteSpace(insight))
         {
-            return insight.Length > 60 ? insight[..57] + "..." : insight;
+            return insight.Trim();
         }
 
         var settings = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
@@ -3032,7 +3032,7 @@ public partial class MainWindow : Window
         foreach (var row in rows)
         {
             var insight = await _svc.BenchmarkInsights.GetInsightAsync(row.Model).ConfigureAwait(true);
-            var shortInsight = await FormatInsightColumnAsync(insight).ConfigureAwait(true);
+            var insightText = await FormatInsightColumnAsync(insight).ConfigureAwait(true);
             enriched.Add(new TestResultRowViewModel
             {
                 Model = row.Model,
@@ -3046,7 +3046,7 @@ public partial class MainWindow : Window
                 GpuResult = row.GpuResult,
                 HybridResult = row.HybridResult,
                 RocmResult = row.RocmResult,
-                Insight = shortInsight,
+                Insight = insightText,
                 LastTested = row.LastTested,
                 ReportPath = row.ReportPath
             });

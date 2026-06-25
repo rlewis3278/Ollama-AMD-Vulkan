@@ -18,6 +18,7 @@ public static class DataGridColumnHelper
     private const double ColumnWidthSlack = 14;
     private const double TemplateColumnMinWidth = 92;
     private const double DenseWrapColumnMinWidth = 240;
+    private const double DenseInsightColumnMinWidth = 280;
     private const int MaxRowsToMeasure = 500;
 
     private static readonly ConditionalWeakTable<DataGrid, FitState> FitStates = new();
@@ -75,8 +76,8 @@ public static class DataGridColumnHelper
     }
 
     /// <summary>
-    /// Dense multi-column grids (e.g. Test Results): every column gets a fixed pixel width
-    /// from header + cell content. No star columns — horizontal scroll handles overflow.
+    /// Dense multi-column grids (e.g. Test Results): fixed widths from header + cell content.
+    /// Insight column is star-sized so it expands and never clips AI summary text.
     /// </summary>
     public static void AutoFitColumnsDense(DataGrid grid)
     {
@@ -94,6 +95,18 @@ public static class DataGridColumnHelper
         {
             var column = grid.Columns[i];
             var headerWidth = MeasureHeaderWidth(grid, column);
+
+            if (IsInsightColumn(column))
+            {
+                var contentWidth = MeasureColumnContentWidth(grid, column, items);
+                var min = Math.Ceiling(
+                    Math.Max(DenseInsightColumnMinWidth, Math.Max(headerWidth, contentWidth)) + ColumnWidthSlack);
+                column.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
+                column.MinWidth = min;
+                column.MaxWidth = double.PositiveInfinity;
+                continue;
+            }
+
             double required;
 
             if (IsWrappingColumn(column))
@@ -221,6 +234,9 @@ public static class DataGridColumnHelper
             }
         }
     }
+
+    private static bool IsInsightColumn(DataGridColumn column) =>
+        column.Header?.ToString()?.Equals("Insight", StringComparison.OrdinalIgnoreCase) == true;
 
     private static bool IsWrappingColumn(DataGridColumn column) =>
         column is DataGridTextColumn { ElementStyle: { } style } && StyleSetsWrapping(style);
