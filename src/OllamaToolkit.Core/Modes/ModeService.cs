@@ -51,7 +51,17 @@ public sealed class ModeService
         foreach (var entry in definition.Variables)
         {
             System.Environment.SetEnvironmentVariable(entry.Key, entry.Value, EnvironmentVariableTarget.User);
+            System.Environment.SetEnvironmentVariable(entry.Key, entry.Value, EnvironmentVariableTarget.Process);
         }
+
+        if (mode != ComputeMode.APU)
+        {
+            System.Environment.SetEnvironmentVariable("OLLAMA_NUM_GPU", null, EnvironmentVariableTarget.User);
+            System.Environment.SetEnvironmentVariable("OLLAMA_NUM_GPU", null, EnvironmentVariableTarget.Process);
+        }
+
+        System.Environment.SetEnvironmentVariable("CUDA_VISIBLE_DEVICES", null, EnvironmentVariableTarget.User);
+        System.Environment.SetEnvironmentVariable("CUDA_VISIBLE_DEVICES", null, EnvironmentVariableTarget.Process);
 
         if (restartOllama)
         {

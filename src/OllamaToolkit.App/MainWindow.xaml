@@ -33,11 +33,12 @@
                     </Grid.RowDefinitions>
                     <TextBlock x:Name="VulkanLabel" Grid.Row="0" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
                     <TextBlock x:Name="ModeStatusLabel" Grid.Row="1" Margin="0,0,0,8" TextWrapping="Wrap" />
-                    <UniformGrid Grid.Row="2" Columns="2" Rows="2" Margin="0,0,0,8">
+                    <UniformGrid Grid.Row="2" Columns="3" Rows="2" Margin="0,0,0,8">
                         <Button x:Name="CpuCard" Margin="4" Padding="16" Style="{StaticResource ToolkitButton}" Click="ModeCard_Click" Tag="CPU" />
                         <Button x:Name="ApuCard" Margin="4" Padding="16" Style="{StaticResource ToolkitButton}" Click="ModeCard_Click" Tag="APU" />
                         <Button x:Name="GpuCard" Margin="4" Padding="16" Style="{StaticResource ToolkitButton}" Click="ModeCard_Click" Tag="GPU" />
                         <Button x:Name="HybridCard" Margin="4" Padding="16" Style="{StaticResource ToolkitButton}" Click="ModeCard_Click" Tag="Hybrid" />
+                        <Button x:Name="RocmCard" Margin="4" Padding="16" Style="{StaticResource ToolkitButton}" Click="ModeCard_Click" Tag="ROCm" />
                     </UniformGrid>
                     <TextBlock Grid.Row="3" Text="Configuration summary" Foreground="{StaticResource Brush.Muted}"
                                FontSize="12" Margin="0,4,0,4" />
@@ -185,6 +186,7 @@
                             <DataGridTextColumn Header="APU" Binding="{Binding ApuResult}" Width="55" />
                             <DataGridTextColumn Header="GPU" Binding="{Binding GpuResult}" Width="55" />
                             <DataGridTextColumn Header="Hybrid" Binding="{Binding HybridResult}" Width="55" />
+                            <DataGridTextColumn Header="ROCm" Binding="{Binding RocmResult}" Width="55" />
                             <DataGridTextColumn Header="Insight" Binding="{Binding Insight}" Width="180" />
                             <DataGridTextColumn Header="Tested" Binding="{Binding LastTested}" Width="120" />
                         </DataGrid.Columns>

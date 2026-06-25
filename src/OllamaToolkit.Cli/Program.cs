@@ -44,7 +44,7 @@ static int PrintUsage()
     Console.WriteLine("Ollama AMD Vulkan Toolkit CLI");
     Console.WriteLine();
     Console.WriteLine("Commands:");
-    Console.WriteLine("  set-mode <CPU|APU|GPU|Hybrid> [--no-restart]");
+    Console.WriteLine("  set-mode <CPU|APU|GPU|Hybrid|ROCm> [--no-restart]");
     Console.WriteLine("  vulkan-devices [--json]");
     Console.WriteLine("  status");
     Console.WriteLine("  import-reports");
@@ -56,7 +56,7 @@ static async Task<int> RunSetModeAsync(string[] args)
 {
     if (args.Length == 0)
     {
-        Console.Error.WriteLine("Usage: set-mode <CPU|APU|GPU|Hybrid> [--no-restart]");
+        Console.Error.WriteLine("Usage: set-mode <CPU|APU|GPU|Hybrid|ROCm> [--no-restart]");
         return 1;
     }
 

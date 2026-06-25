@@ -682,3 +682,27 @@ EOF
 [2026-06-24 19:53:24] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
 [2026-06-24 19:53:24] [SYNC] Processed updates.jsonl lines 2634..2636
 [2026-06-24 19:53:24] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 20:01:39] [FILE] ModeEnvSummaryBuilder + Compute Modes friendly summary UI
+[2026-06-24 20:01:40] [TOOL] Read - Read
+[2026-06-24 20:01:40] [TOOL] Read - Read
+[2026-06-24 20:01:40] [TOOL] Grep - Grep
+[2026-06-24 20:01:40] [TOOL] Read - Read
+[2026-06-24 20:01:40] [TOOL] Grep - Grep
+[2026-06-24 20:01:40] [TOOL] Read - Read
+[2026-06-24 20:01:40] [TOOL] Grep - Grep
+[2026-06-24 20:01:40] [TOOL] Grep - Grep
+[2026-06-24 20:01:40] [TOOL] Grep - Grep
+[2026-06-24 20:01:40] [TOOL] Read - Read
+[2026-06-24 20:01:40] [TOOL] Read - Read
+[2026-06-24 20:01:40] [TOOL] Write - Write
+[2026-06-24 20:01:40] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:01:40] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:01:40] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:01:40] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:01:40] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:01:40] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:01:40] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:01:40] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1
+[2026-06-24 20:01:40] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: human-readable configuration summary on Compute Modes tab"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|ModeEnvSummaryBuilder + Compute Modes friendly summary UI"
+[2026-06-24 20:01:40] [SYNC] Processed updates.jsonl lines 2637..2747
+[2026-06-24 20:01:40] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

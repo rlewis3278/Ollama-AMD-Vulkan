@@ -39,6 +39,7 @@ public partial class MainWindow : Window
         _modeCards["APU"] = ApuCard;
         _modeCards["GPU"] = GpuCard;
         _modeCards["Hybrid"] = HybridCard;
+        _modeCards["ROCm"] = RocmCard;
 
         _activityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
         _activityTimer.Tick += (_, _) => RefreshActivityLog();
@@ -828,6 +829,7 @@ public partial class MainWindow : Window
                 ApuResult = row.ApuResult,
                 GpuResult = row.GpuResult,
                 HybridResult = row.HybridResult,
+                RocmResult = row.RocmResult,
                 Insight = shortInsight,
                 LastTested = row.LastTested,
                 ReportPath = row.ReportPath

@@ -122,6 +122,7 @@ public sealed class ModelRegistryService
                     ApuResult = FormatModeResult(s.Results, "APU"),
                     GpuResult = FormatModeResult(s.Results, "GPU"),
                     HybridResult = FormatModeResult(s.Results, "Hybrid"),
+                    RocmResult = FormatModeResult(s.Results, "ROCm"),
                     Insight = string.Empty,
                     LastTested = s.LastTested
                 };

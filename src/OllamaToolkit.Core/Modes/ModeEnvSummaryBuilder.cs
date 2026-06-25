@@ -63,6 +63,18 @@ public static class ModeEnvSummaryBuilder
         snapshot.TryGetValue("OLLAMA_VULKAN", out var vulkan);
         var vulkanOn = vulkan == "1";
 
+        snapshot.TryGetValue("HIP_VISIBLE_DEVICES", out var hip);
+        snapshot.TryGetValue("ROCR_VISIBLE_DEVICES", out var rocr);
+        var rocmActive = hip is "0" && rocr is "0";
+
+        if (rocmActive || detectedMode.Equals("ROCm", StringComparison.OrdinalIgnoreCase))
+        {
+            yield return "  • AMD ROCm / HIP path is active — Vulkan is off.";
+            yield return $"  • Discrete GPU via ROCm (HIP device 0): {map.GpuName}.";
+            yield return "  • Requires ROCm v7 / HIP7-capable AMD drivers on Windows.";
+            yield break;
+        }
+
         if (!vulkanOn)
         {
             yield return "  • Inference runs on CPU only — no GPU acceleration.";
@@ -76,7 +88,7 @@ public static class ModeEnvSummaryBuilder
 
         yield return "  • Vulkan GPU acceleration is ON.";
         yield return ExplainGpuSelection(devices, igpu, map, detectedMode);
-        yield return "  • AMD HIP / ROCm paths are disabled — this toolkit uses Vulkan on Windows.";
+        yield return "  • AMD ROCm / HIP is disabled (Vulkan used instead).";
     }
 
     private static string ExplainGpuSelection(
@@ -126,8 +138,10 @@ public static class ModeEnvSummaryBuilder
         "GGML_VK_VISIBLE_DEVICES" => DescribeVkDevices(value, map),
         "OLLAMA_IGPU_ENABLE" => value == "1" ? "Allow integrated (APU) GPU" : "Discrete GPU only",
         "OLLAMA_NUM_GPU" => value == "(not set)" ? "Ollama default layer offload" : $"Offload up to {value} GPU layers",
-        "HIP_VISIBLE_DEVICES" or "ROCR_VISIBLE_DEVICES" =>
-            value == "-1" ? "Disabled (Vulkan used instead)" : $"Set to {value}",
+        "HIP_VISIBLE_DEVICES" =>
+            value == "-1" ? "HIP disabled (Vulkan path)" : value == "0" ? "HIP device 0 (discrete GPU)" : $"Set to {value}",
+        "ROCR_VISIBLE_DEVICES" =>
+            value == "-1" ? "ROCm disabled (Vulkan path)" : value == "0" ? "ROCm device 0 (discrete GPU)" : $"Set to {value}",
         "CUDA_VISIBLE_DEVICES" =>
             value == "(not set)" ? "Not configured (no NVIDIA path)" : $"Set to {value}",
         _ => string.Empty

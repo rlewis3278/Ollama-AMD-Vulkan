@@ -9,7 +9,7 @@ namespace OllamaToolkit.BenchmarkRunner;
 public sealed class AutomatedBenchmarkService
 {
     private const string DefaultPrompt =
-        "Summarize in one paragraph how AMD Vulkan GPU selection affects local LLM inference speed on Windows 11.";
+        "Summarize in one paragraph how local LLM GPU backend selection affects inference speed on Windows.";
 
     private readonly ModeService _modeService;
     private readonly OllamaApiClient _apiClient;
@@ -35,7 +35,7 @@ public sealed class AutomatedBenchmarkService
         IProgress<string>? log = null,
         CancellationToken cancellationToken = default)
     {
-        modes ??= [ComputeMode.CPU, ComputeMode.APU, ComputeMode.GPU, ComputeMode.Hybrid];
+        modes ??= [ComputeMode.CPU, ComputeMode.APU, ComputeMode.GPU, ComputeMode.Hybrid, ComputeMode.ROCm];
         outputDir ??= ProfileStoreService.NewGuiTestOutputDir(modelName);
         Directory.CreateDirectory(outputDir);
 
