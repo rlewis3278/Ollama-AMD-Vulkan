@@ -13,9 +13,11 @@ namespace OllamaToolkit.App.Services;
 public static class DataGridColumnHelper
 {
     private const double MinColumnWidth = 52;
-    private const double CellHorizontalPadding = 24;
-    private const double HeaderHorizontalPadding = 36;
-    private const double TemplateColumnMinWidth = 76;
+    private const double CellHorizontalPadding = 28;
+    private const double HeaderHorizontalPadding = 44;
+    private const double ColumnWidthSlack = 14;
+    private const double TemplateColumnMinWidth = 92;
+    private const double DenseWrapColumnMinWidth = 240;
     private const int MaxRowsToMeasure = 500;
 
     private static readonly ConditionalWeakTable<DataGrid, FitState> FitStates = new();
@@ -69,6 +71,57 @@ public static class DataGridColumnHelper
 
         grid.Dispatcher.BeginInvoke(() => QueueFit(grid), DispatcherPriority.Loaded);
         grid.Dispatcher.BeginInvoke(() => QueueFit(grid), DispatcherPriority.Render);
+        grid.Dispatcher.BeginInvoke(() => QueueFit(grid), DispatcherPriority.ApplicationIdle);
+    }
+
+    /// <summary>
+    /// Dense multi-column grids (e.g. Test Results): every column gets a fixed pixel width
+    /// from header + cell content. No star columns — horizontal scroll handles overflow.
+    /// </summary>
+    public static void AutoFitColumnsDense(DataGrid grid)
+    {
+        if (grid.Columns.Count == 0)
+        {
+            return;
+        }
+
+        ApplyDefaultCellTextStyles(grid);
+        grid.UpdateLayout();
+
+        var items = GetItems(grid).Take(MaxRowsToMeasure).ToList();
+
+        for (var i = 0; i < grid.Columns.Count; i++)
+        {
+            var column = grid.Columns[i];
+            var headerWidth = MeasureHeaderWidth(grid, column);
+            double required;
+
+            if (IsWrappingColumn(column))
+            {
+                var contentWidth = MeasureColumnContentWidth(grid, column, items);
+                required = Math.Max(
+                    DenseWrapColumnMinWidth,
+                    Math.Max(headerWidth, contentWidth));
+            }
+            else if (column is DataGridTemplateColumn)
+            {
+                required = Math.Max(
+                    MinColumnWidth,
+                    Math.Max(headerWidth, TemplateColumnMinWidth));
+            }
+            else
+            {
+                var contentWidth = MeasureColumnContentWidth(grid, column, items);
+                required = Math.Max(MinColumnWidth, Math.Max(headerWidth, contentWidth));
+            }
+
+            required = Math.Ceiling(required + ColumnWidthSlack);
+            column.Width = new DataGridLength(required);
+            column.MinWidth = required;
+            column.MaxWidth = double.PositiveInfinity;
+        }
+
+        grid.UpdateLayout();
     }
 
     public static void AutoFitColumns(DataGrid grid, params int[] starColumnIndices)
@@ -119,7 +172,7 @@ public static class DataGridColumnHelper
             }
 
             var contentWidth = MeasureColumnContentWidth(grid, column, items);
-            var required = Math.Max(MinColumnWidth, Math.Max(headerWidth, contentWidth));
+            var required = Math.Ceiling(Math.Max(MinColumnWidth, Math.Max(headerWidth, contentWidth)) + ColumnWidthSlack);
             column.Width = new DataGridLength(required);
             column.MinWidth = required;
         }
@@ -150,9 +203,21 @@ public static class DataGridColumnHelper
 
         foreach (var column in grid.Columns.OfType<DataGridTextColumn>())
         {
-            if (column.ElementStyle is null && !IsWrappingColumn(column))
+            if (IsWrappingColumn(column))
+            {
+                continue;
+            }
+
+            if (column.ElementStyle is null)
             {
                 column.ElementStyle = noTrim;
+            }
+            else if (column.ElementStyle.Setters.OfType<Setter>()
+                         .All(s => s.Property != TextBlock.TextTrimmingProperty))
+            {
+                var merged = new Style(column.ElementStyle.TargetType, column.ElementStyle);
+                merged.Setters.Add(new Setter(TextBlock.TextTrimmingProperty, TextTrimming.None));
+                column.ElementStyle = merged;
             }
         }
     }
@@ -191,7 +256,7 @@ public static class DataGridColumnHelper
         var max = 0.0;
         foreach (var item in items)
         {
-            var text = GetBoundText(item, bindingPath);
+            var text = GetCellDisplayText(item, bindingPath);
             if (string.IsNullOrEmpty(text))
             {
                 continue;
@@ -268,6 +333,30 @@ public static class DataGridColumnHelper
         }
 
         return current?.ToString();
+    }
+
+    private static string? GetCellDisplayText(object item, string bindingPath)
+    {
+        var text = GetBoundText(item, bindingPath);
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            return text;
+        }
+
+        if (bindingPath.Equals("BestMetricDisplay", StringComparison.OrdinalIgnoreCase))
+        {
+            var kind = GetBoundText(item, "BenchmarkKind");
+            var embedMs = GetBoundText(item, "BestEmbedMs");
+            var tps = GetBoundText(item, "BestTps");
+            if (kind?.Equals("Embed", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return double.TryParse(embedMs, out var ms) && ms > 0 ? $"{ms:F1} ms" : "-";
+            }
+
+            return double.TryParse(tps, out var tok) && tok > 0 ? $"{tok:F1}" : "-";
+        }
+
+        return text;
     }
 
     private static IEnumerable<object> GetItems(DataGrid grid)

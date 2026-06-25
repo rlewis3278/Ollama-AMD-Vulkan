@@ -1930,6 +1930,12 @@ public partial class MainWindow : Window
 
     private void FitGridColumns(DataGrid grid)
     {
+        if (ReferenceEquals(grid, TestResultsGrid))
+        {
+            DataGridColumnHelper.AutoFitColumnsDense(TestResultsGrid);
+            return;
+        }
+
         var starIndex = DataGridColumnHelper.IndexOfStarColumn(grid, "Description");
         if (starIndex < 0)
         {

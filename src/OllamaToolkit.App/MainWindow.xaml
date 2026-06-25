@@ -288,13 +288,15 @@
                     </StackPanel>
                     <DataGrid x:Name="TestResultsGrid" Grid.Row="1" Style="{StaticResource ToolkitDataGrid}"
                               AutoGenerateColumns="False" IsReadOnly="True"
-                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True"
+                              EnableRowVirtualization="False"
+                              ScrollViewer.HorizontalScrollBarVisibility="Visible"
+                              ScrollViewer.CanContentScroll="False"
                               SelectionChanged="TestResultsGrid_SelectionChanged">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*" />
+                            <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="160" />
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="100" />
-                            <DataGridTextColumn Header="Best" Binding="{Binding BestMode}" Width="60" />
-                            <DataGridTextColumn Header="Metric" Binding="{Binding BestMetricDisplay}" Width="65" />
+                            <DataGridTextColumn Header="Best" Binding="{Binding BestMode}" Width="72" />
+                            <DataGridTextColumn Header="Metric" Binding="{Binding BestMetricDisplay}" Width="80" />
                             <DataGridTextColumn Header="CPU" Binding="{Binding CpuResult}" Width="55"
                                                 CellStyle="{StaticResource TestResultWinnerCellCpu}" />
                             <DataGridTextColumn Header="APU" Binding="{Binding ApuResult}" Width="55"
@@ -305,14 +307,16 @@
                                                 CellStyle="{StaticResource TestResultWinnerCellHybrid}" />
                             <DataGridTextColumn Header="ROCm" Binding="{Binding RocmResult}" Width="55"
                                                 CellStyle="{StaticResource TestResultWinnerCellRocm}" />
-                            <DataGridTextColumn Header="Insight" Binding="{Binding Insight}" Width="180"
-                                                MinWidth="120">
+                            <DataGridTextColumn Header="Insight" Binding="{Binding Insight}" Width="240"
+                                                MinWidth="200">
                                 <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridWrapCell}" />
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridWrapCell}">
+                                        <Setter Property="TextTrimming" Value="None" />
+                                    </Style>
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Tested" Binding="{Binding LastTested}" Width="120" />
-                            <DataGridTemplateColumn Header="Clear" Width="58">
+                            <DataGridTextColumn Header="Tested" Binding="{Binding LastTested}" Width="140" />
+                            <DataGridTemplateColumn Header="Clear" Width="80">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
                                         <Button Content="Clear" Style="{StaticResource ToolkitButton}"

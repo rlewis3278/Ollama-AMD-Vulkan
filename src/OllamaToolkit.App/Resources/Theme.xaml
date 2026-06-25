@@ -214,7 +214,28 @@
         <Setter Property="Background" Value="{StaticResource Brush.Panel}" />
         <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
         <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}" />
-        <Setter Property="Padding" Value="8,6" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="DataGridColumnHeader">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="0,0,1,1"
+                            Padding="{TemplateBinding Padding}">
+                        <TextBlock Text="{TemplateBinding Content}"
+                                   TextTrimming="None"
+                                   TextWrapping="NoWrap"
+                                   HorizontalAlignment="Left"
+                                   VerticalAlignment="Center"
+                                   Foreground="{TemplateBinding Foreground}"
+                                   FontFamily="{TemplateBinding FontFamily}"
+                                   FontSize="{TemplateBinding FontSize}"
+                                   FontWeight="{TemplateBinding FontWeight}" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
     <Style TargetType="DataGridCell">
