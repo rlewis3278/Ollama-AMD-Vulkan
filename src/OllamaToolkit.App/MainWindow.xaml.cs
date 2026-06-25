@@ -114,11 +114,15 @@ public partial class MainWindow : Window
         return _flashButtons.TryBegin(button);
     }
 
-    private void EndTaskFlashSuccess(object sender, string successLabel = "Done", int holdSeconds = 10)
+    private void EndTaskFlashSuccess(
+        object sender,
+        string successLabel = "Done",
+        int holdSeconds = 10,
+        Action? onRestored = null)
     {
         if (TaskButton(sender) is { } button)
         {
-            _flashButtons.EndSuccess(button, successLabel, holdSeconds);
+            _flashButtons.EndSuccess(button, successLabel, holdSeconds, onRestored);
         }
     }
 
@@ -1188,13 +1192,12 @@ public partial class MainWindow : Window
 
                 _svc.ActivityLog.Write("AI", $"Refreshed {count} catalog description(s) from web + AI.");
 
-                await UiDispatcher.InvokeAsync(async () =>
+                await UiDispatcher.InvokeAsync(() =>
                 {
                     _catalogRowAnimator.Stop();
-                    CatalogRowRefreshAnimator.ResetAll(_catalogRows);
-                    await RefreshCatalogUiAsync().ConfigureAwait(true);
+                    ScrollCatalogGridToTop();
                     CatalogStatusLabel.Text = $"Descriptions refreshed — {count} AI summary(s) updated.";
-                    EndTaskFlashSuccess(sender, "Refreshed", 10);
+                    EndTaskFlashSuccess(sender, "Refreshed", 10, FinishDescriptionRefreshHoldover);
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -1234,6 +1237,29 @@ public partial class MainWindow : Window
             descriptionMode: _catalogDescriptionMode).ConfigureAwait(true);
         BindCatalogRows(rows);
         CatalogStatusLabel.Text = $"Refreshing descriptions for {rows.Count} model(s)...";
+    }
+
+    private void ScrollCatalogGridToTop()
+    {
+        if (_catalogRows.Count == 0)
+        {
+            return;
+        }
+
+        var first = _catalogRows[0];
+        CatalogGrid.UpdateLayout();
+        CatalogGrid.SelectedItem = first;
+        CatalogGrid.ScrollIntoView(first);
+        if (CatalogGrid.ItemContainerGenerator.ContainerFromItem(first) is System.Windows.Controls.DataGridRow row)
+        {
+            row.BringIntoView();
+        }
+    }
+
+    private void FinishDescriptionRefreshHoldover()
+    {
+        CatalogRowRefreshAnimator.ResetAll(_catalogRows);
+        _ = RefreshCatalogUiAsync();
     }
 
     private void HandleDescriptionRefreshProgress(DescriptionRefreshItemProgress progress)

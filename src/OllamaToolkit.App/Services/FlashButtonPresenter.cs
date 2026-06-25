@@ -22,6 +22,7 @@ public sealed class FlashButtonPresenter
     private readonly DispatcherTimer _restoreTimer;
     private bool _flashPhase;
     private bool _flashing;
+    private Action? _onRestored;
 
     public FlashButtonPresenter(Button button, Window window)
     {
@@ -53,10 +54,11 @@ public sealed class FlashButtonPresenter
         _flashTimer.Start();
     }
 
-    public void EndSuccess(string successLabel = "Refreshed", int holdSeconds = 10)
+    public void EndSuccess(string successLabel = "Refreshed", int holdSeconds = 10, Action? onRestored = null)
     {
         _flashTimer.Stop();
         _flashing = false;
+        _onRestored = onRestored;
         _button.Content = successLabel;
         _button.Background = _activeBg;
         _button.BorderBrush = _activeBorder;
@@ -71,6 +73,7 @@ public sealed class FlashButtonPresenter
         _flashTimer.Stop();
         _restoreTimer.Stop();
         _flashing = false;
+        _onRestored = null;
         RestoreIdle();
     }
 
@@ -79,6 +82,7 @@ public sealed class FlashButtonPresenter
         _flashTimer.Stop();
         _restoreTimer.Stop();
         _flashing = false;
+        _onRestored = null;
     }
 
     private void FlashTick()
@@ -107,6 +111,10 @@ public sealed class FlashButtonPresenter
         _button.Background = _idleBg;
         _button.BorderBrush = _idleBorder;
         _button.Foreground = _idleForeground;
+
+        var callback = _onRestored;
+        _onRestored = null;
+        callback?.Invoke();
     }
 
     private static Brush GetBrush(Window window, string key) =>
