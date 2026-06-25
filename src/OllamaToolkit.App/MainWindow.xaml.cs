@@ -43,6 +43,8 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<CatalogRowViewModel> _catalogRows = new();
     private readonly CatalogRowRefreshAnimator _catalogRowAnimator;
     private Dictionary<string, CatalogRowViewModel> _catalogRowByName = new(StringComparer.OrdinalIgnoreCase);
+    private bool _suppressCatalogUiEvents;
+    private bool _catalogRefreshInProgress;
 
     public MainWindow()
     {
@@ -1229,14 +1231,22 @@ public partial class MainWindow : Window
 
     private async Task BindFullCatalogGridAsync(string statusPrefix)
     {
-        CategoryFilterCombo.SelectedIndex = 0;
-        CatalogSearchBox.Text = string.Empty;
-        var rows = await _svc.Registry.GetCatalogRowsAsync(
-            search: null,
-            categoryFilter: "All",
-            descriptionMode: _catalogDescriptionMode).ConfigureAwait(true);
-        BindCatalogRows(rows);
-        CatalogStatusLabel.Text = $"{statusPrefix} for {rows.Count} model(s)...";
+        _suppressCatalogUiEvents = true;
+        try
+        {
+            CategoryFilterCombo.SelectedIndex = 0;
+            CatalogSearchBox.Text = string.Empty;
+            var rows = await _svc.Registry.GetCatalogRowsAsync(
+                search: null,
+                categoryFilter: "All",
+                descriptionMode: _catalogDescriptionMode).ConfigureAwait(true);
+            BindCatalogRows(rows);
+            CatalogStatusLabel.Text = $"{statusPrefix} for {rows.Count} model(s)...";
+        }
+        finally
+        {
+            _suppressCatalogUiEvents = false;
+        }
     }
 
     private void ScrollCatalogGridToTop()
@@ -1278,9 +1288,8 @@ public partial class MainWindow : Window
         if (progress.Phase == CatalogRefreshPhase.Started)
         {
             _catalogRowAnimator.BeginRow(row);
-            CatalogGrid.ScrollIntoView(row);
             CatalogGrid.SelectedItem = row;
-            CatalogGrid.UpdateLayout();
+            CatalogGrid.ScrollIntoView(row);
         }
         else
         {
@@ -1313,9 +1322,8 @@ public partial class MainWindow : Window
         if (progress.Phase == DescriptionRefreshPhase.Started)
         {
             _catalogRowAnimator.BeginRow(row);
-            CatalogGrid.ScrollIntoView(row);
             CatalogGrid.SelectedItem = row;
-            CatalogGrid.UpdateLayout();
+            CatalogGrid.ScrollIntoView(row);
         }
         else
         {
@@ -1369,6 +1377,11 @@ public partial class MainWindow : Window
 
     private async Task RefreshCatalogUiAsync()
     {
+        if (_catalogRefreshInProgress)
+        {
+            return;
+        }
+
         var search = CatalogSearchBox.Text;
         var category = CategoryFilterCombo.SelectedItem as string;
         var rows = (await _svc.Registry.GetCatalogRowsAsync(search, category, _catalogDescriptionMode)
@@ -1400,8 +1413,15 @@ public partial class MainWindow : Window
         _catalogSearchTimer.Start();
     }
 
-    private async void CategoryFilterCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+    private async void CategoryFilterCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressCatalogUiEvents || _catalogRefreshInProgress)
+        {
+            return;
+        }
+
         await RefreshCatalogUiAsync().ConfigureAwait(true);
+    }
 
     private async void RefreshCatalog_Click(object sender, RoutedEventArgs e)
     {
@@ -1415,27 +1435,32 @@ public partial class MainWindow : Window
         {
             try
             {
+                _catalogRefreshInProgress = true;
+
                 await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
                 _svc.CatalogStore.ClearCache();
 
                 await UiDispatcher.InvokeAsync(async () =>
                     await BindFullCatalogGridAsync("Refreshing catalog").ConfigureAwait(true)).ConfigureAwait(false);
 
-                var installed = await _svc.Registry.GetInstalledModelNamesAsync(ct).ConfigureAwait(false);
                 var progress = new Progress<string>(msg =>
-                    UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
-                var itemProgress = new Progress<CatalogRefreshItemProgress>(p =>
-                    UiDispatcher.InvokeAsync(() => HandleCatalogRefreshProgress(p)));
+                    UiDispatcher.Invoke(() => CatalogStatusLabel.Text = msg));
+                var enriched = await _svc.CatalogStore.EnrichFileSizesAsync(progress, ct).ConfigureAwait(false);
+                _svc.CatalogStore.ClearCache();
 
-                var enriched = await _svc.CatalogStore.ProcessCatalogEntriesWithProgressAsync(
+                var installed = await _svc.Registry.GetInstalledModelNamesAsync(ct).ConfigureAwait(false);
+                await _svc.CatalogStore.ProcessCatalogEntriesUiPassAsync(
                     installed,
                     progress,
-                    itemProgress,
+                    async (item, token) =>
+                    {
+                        await UiDispatcher.InvokeAsync(() => HandleCatalogRefreshProgress(item)).ConfigureAwait(true);
+                    },
                     ct).ConfigureAwait(false);
-                _svc.CatalogStore.ClearCache();
 
                 await UiDispatcher.InvokeAsync(() =>
                 {
+                    _catalogRefreshInProgress = false;
                     _catalogRowAnimator.Stop();
                     ScrollCatalogGridToTop();
                     CatalogStatusLabel.Text = enriched > 0
@@ -1450,6 +1475,7 @@ public partial class MainWindow : Window
                 _svc.ActivityLog.Write("Error", msg);
                 await UiDispatcher.InvokeAsync(() =>
                 {
+                    _catalogRefreshInProgress = false;
                     _catalogRowAnimator.Stop();
                     CatalogRowRefreshAnimator.ResetAll(_catalogRows);
                     CatalogStatusLabel.Text = msg;

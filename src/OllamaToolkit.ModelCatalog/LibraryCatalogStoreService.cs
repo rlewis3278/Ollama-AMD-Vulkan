@@ -159,14 +159,13 @@ public sealed class LibraryCatalogStoreService
         return enriched;
     }
 
-    public async Task<int> ProcessCatalogEntriesWithProgressAsync(
+    public async Task ProcessCatalogEntriesUiPassAsync(
         IReadOnlySet<string> installedModelNames,
-        IProgress<string>? progress = null,
-        IProgress<CatalogRefreshItemProgress>? itemProgress = null,
+        IProgress<string>? progress,
+        Func<CatalogRefreshItemProgress, CancellationToken, Task> onItemProgress,
         CancellationToken cancellationToken = default)
     {
         var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
-        var enriched = 0;
         var items = store.Items;
 
         for (var i = 0; i < items.Count; i++)
@@ -176,37 +175,15 @@ public sealed class LibraryCatalogStoreService
             var isInstalled = IsModelInstalled(entry.Name, installedModelNames);
 
             progress?.Report($"Refreshing catalog {i + 1}/{items.Count}: {entry.Name}");
-            itemProgress?.Report(new CatalogRefreshItemProgress
+
+            await onItemProgress(new CatalogRefreshItemProgress
             {
                 ModelName = entry.Name,
                 Phase = CatalogRefreshPhase.Started,
                 IsInstalled = isInstalled
-            });
+            }, cancellationToken).ConfigureAwait(false);
 
-            if (string.IsNullOrWhiteSpace(entry.FileSize) || entry.FileSize == "-")
-            {
-                try
-                {
-                    var url = $"{CatalogUrl}/{entry.Name}";
-                    using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-                        var size = OllamaLibraryDetailParser.ParseFileSizeRange(html);
-                        if (size != "-" && !string.IsNullOrWhiteSpace(size))
-                        {
-                            entry.FileSize = size;
-                            enriched++;
-                        }
-                    }
-                }
-                catch
-                {
-                    // Best-effort per-model enrichment.
-                }
-            }
-
-            itemProgress?.Report(new CatalogRefreshItemProgress
+            await onItemProgress(new CatalogRefreshItemProgress
             {
                 ModelName = entry.Name,
                 Phase = CatalogRefreshPhase.Completed,
@@ -214,11 +191,8 @@ public sealed class LibraryCatalogStoreService
                 FileSize = entry.FileSize,
                 Description = entry.Description,
                 ParameterSize = entry.ParameterSize
-            });
+            }, cancellationToken).ConfigureAwait(false);
         }
-
-        await SaveAsync(store, cancellationToken).ConfigureAwait(false);
-        return enriched;
     }
 
     private static bool IsModelInstalled(string libraryName, IReadOnlySet<string> installedModelNames) =>

@@ -16,4 +16,7 @@ public static class UiDispatcher
 
     public static Task<T> InvokeAsync<T>(Func<T> func) =>
         Dispatcher.InvokeAsync(func).Task;
+
+    public static void Invoke(Action action) =>
+        Dispatcher.Invoke(action);
 }
