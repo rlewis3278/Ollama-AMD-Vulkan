@@ -779,9 +779,8 @@ aab235b  docs: post-execution archive entry for Phase 9
 a261a8a  fix: Test Undownload pull verify, settings clamp, download progress
 090f39b  docs: pre-execution archive sync for Phase 10 embed benchmark
 782b470  docs: pre-execution archive sync for Phase 10 embed benchmark (session log)
+21177f0  feat: Phase 10 embedding model benchmark via /api/embed
 ```
-
-*(Phase 10 feature commit follows in same session.)*
 
 ### Archive files
 
