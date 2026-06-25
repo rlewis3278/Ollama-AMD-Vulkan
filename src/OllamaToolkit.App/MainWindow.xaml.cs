@@ -45,6 +45,8 @@ public partial class MainWindow : Window
     private Dictionary<string, CatalogRowViewModel> _catalogRowByName = new(StringComparer.OrdinalIgnoreCase);
     private bool _suppressCatalogUiEvents;
     private bool _catalogRefreshInProgress;
+    private bool _fileSizeEnrichScheduled;
+    private Task? _fileSizeEnrichTask;
 
     public MainWindow()
     {
@@ -1159,6 +1161,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        await CancelBackgroundFileSizeEnrichAsync().ConfigureAwait(true);
         CatalogStatusLabel.Text = "Refreshing descriptions from ollama.com...";
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
@@ -1168,11 +1171,6 @@ public partial class MainWindow : Window
                 await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
                 _svc.CatalogStore.ClearCache();
                 _svc.Descriptions.ClearCache();
-
-                var sizeProgress = new Progress<string>(msg =>
-                    UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
-                await _svc.CatalogStore.EnrichFileSizesAsync(sizeProgress, ct).ConfigureAwait(false);
-                _svc.CatalogStore.ClearCache();
 
                 var entries = await _svc.CatalogStore.GetEntriesAsync(cancellationToken: ct)
                     .ConfigureAwait(false);
@@ -1352,27 +1350,111 @@ public partial class MainWindow : Window
 
     private async Task LoadCatalogTabAsync()
     {
+        if (_catalogRefreshInProgress)
+        {
+            await RefreshCatalogUiAsync().ConfigureAwait(true);
+            return;
+        }
+
         CatalogStatusLabel.Text = "Loading catalog...";
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
+            if (_catalogRefreshInProgress)
+            {
+                await UiDispatcher.InvokeAsync(async () => await RefreshCatalogUiAsync().ConfigureAwait(true))
+                    .ConfigureAwait(false);
+                return;
+            }
+
             if (await _svc.CatalogStore.IsStaleAsync(ct).ConfigureAwait(false))
             {
                 await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
                 _svc.CatalogStore.ClearCache();
             }
 
-            var entries = await _svc.CatalogStore.GetEntriesAsync(cancellationToken: ct).ConfigureAwait(false);
-            if (entries.Any(e => string.IsNullOrWhiteSpace(e.FileSize) || e.FileSize == "-"))
-            {
-                var progress = new Progress<string>(msg =>
-                    UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
-                await _svc.CatalogStore.EnrichFileSizesAsync(progress, ct).ConfigureAwait(false);
-                _svc.CatalogStore.ClearCache();
-            }
-
             await UiDispatcher.InvokeAsync(async () => await RefreshCatalogUiAsync().ConfigureAwait(true))
                 .ConfigureAwait(false);
+
+            if (!_catalogRefreshInProgress)
+            {
+                var entries = await _svc.CatalogStore.GetEntriesAsync(cancellationToken: ct).ConfigureAwait(false);
+                if (entries.Any(e => string.IsNullOrWhiteSpace(e.FileSize) || e.FileSize == "-"))
+                {
+                    ScheduleBackgroundFileSizeEnrich();
+                }
+            }
         }).ConfigureAwait(true);
+    }
+
+    private void ScheduleBackgroundFileSizeEnrich()
+    {
+        if (_fileSizeEnrichScheduled || _catalogRefreshInProgress)
+        {
+            return;
+        }
+
+        _fileSizeEnrichScheduled = true;
+        _fileSizeEnrichTask = Task.Run(async () =>
+        {
+            try
+            {
+                if (_catalogRefreshInProgress)
+                {
+                    return;
+                }
+
+                var progress = new Progress<string>(msg =>
+                {
+                    if (!_catalogRefreshInProgress)
+                    {
+                        UiDispatcher.Invoke(() => CatalogStatusLabel.Text = msg);
+                    }
+                });
+
+                var enriched = await _svc.CatalogStore.EnrichFileSizesAsync(
+                    progress,
+                    shouldAbort: () => _catalogRefreshInProgress,
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+                if (enriched > 0 && !_catalogRefreshInProgress)
+                {
+                    _svc.CatalogStore.ClearCache();
+                    await UiDispatcher.InvokeAsync(async () => await RefreshCatalogUiAsync().ConfigureAwait(true))
+                        .ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Superseded by Refresh Catalog or another enrich run.
+            }
+            finally
+            {
+                _fileSizeEnrichScheduled = false;
+            }
+        });
+    }
+
+    private async Task CancelBackgroundFileSizeEnrichAsync()
+    {
+        _svc.CatalogStore.CancelFileSizeEnrichment();
+        if (_fileSizeEnrichTask is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _fileSizeEnrichTask.ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when cancelling enrichment.
+        }
+        finally
+        {
+            _fileSizeEnrichScheduled = false;
+            _fileSizeEnrichTask = null;
+        }
     }
 
     private async Task RefreshCatalogUiAsync()
@@ -1430,13 +1512,13 @@ public partial class MainWindow : Window
             return;
         }
 
+        await CancelBackgroundFileSizeEnrichAsync().ConfigureAwait(true);
+        _catalogRefreshInProgress = true;
         CatalogStatusLabel.Text = "Refreshing from ollama.com...";
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
             try
             {
-                _catalogRefreshInProgress = true;
-
                 await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
                 _svc.CatalogStore.ClearCache();
 
@@ -1445,8 +1527,6 @@ public partial class MainWindow : Window
 
                 var progress = new Progress<string>(msg =>
                     UiDispatcher.Invoke(() => CatalogStatusLabel.Text = msg));
-                var enriched = await _svc.CatalogStore.EnrichFileSizesAsync(progress, ct).ConfigureAwait(false);
-                _svc.CatalogStore.ClearCache();
 
                 var installed = await _svc.Registry.GetInstalledModelNamesAsync(ct).ConfigureAwait(false);
                 await _svc.CatalogStore.ProcessCatalogEntriesUiPassAsync(
@@ -1463,9 +1543,7 @@ public partial class MainWindow : Window
                     _catalogRefreshInProgress = false;
                     _catalogRowAnimator.Stop();
                     ScrollCatalogGridToTop();
-                    CatalogStatusLabel.Text = enriched > 0
-                        ? $"Catalog refreshed — file sizes added for {enriched} model(s)."
-                        : "Catalog refreshed.";
+                    CatalogStatusLabel.Text = "Catalog refreshed.";
                     EndTaskFlashSuccess(sender, "Refreshed", 10, FinishCatalogRefreshHoldover);
                 }).ConfigureAwait(false);
             }

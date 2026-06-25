@@ -9,6 +9,8 @@ public sealed class LibraryCatalogStoreService
     private static readonly TimeSpan StoreMaxAge = TimeSpan.FromDays(7);
 
     private readonly HttpClient _httpClient;
+    private readonly SemaphoreSlim _enrichGate = new(1, 1);
+    private CancellationTokenSource? _enrichCts;
     private LibraryCatalogStoreDocument? _cache;
 
     public LibraryCatalogStoreService(HttpClient? httpClient = null)
@@ -77,7 +79,36 @@ public sealed class LibraryCatalogStoreService
         var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(search))
         {
+            var preserved = store.Items.ToDictionary(e => e.Name, StringComparer.OrdinalIgnoreCase);
             store.Items = items;
+            foreach (var item in store.Items)
+            {
+                if (!preserved.TryGetValue(item.Name, out var previous))
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(previous.FileSize) && previous.FileSize != "-")
+                {
+                    item.FileSize = previous.FileSize;
+                }
+
+                if (!string.IsNullOrWhiteSpace(previous.Category))
+                {
+                    item.Category = previous.Category;
+                }
+
+                if (previous.SortOrder != 0)
+                {
+                    item.SortOrder = previous.SortOrder;
+                }
+
+                if (!string.IsNullOrWhiteSpace(previous.ListDescription))
+                {
+                    item.ListDescription = previous.ListDescription;
+                }
+            }
+
             store.CatalogFetchedAt = DateTimeOffset.Now.ToString("o");
         }
 
@@ -99,9 +130,49 @@ public sealed class LibraryCatalogStoreService
         return store.Items;
     }
 
+    private static readonly TimeSpan FileSizeRequestTimeout = TimeSpan.FromSeconds(15);
+
+    public void CancelFileSizeEnrichment()
+    {
+        try
+        {
+            _enrichCts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Enrichment already finished.
+        }
+    }
+
     public async Task<int> EnrichFileSizesAsync(
         IProgress<string>? progress = null,
+        Func<bool>? shouldAbort = null,
         CancellationToken cancellationToken = default)
+    {
+        CancelFileSizeEnrichment();
+        _enrichCts?.Dispose();
+        _enrichCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var enrichToken = _enrichCts.Token;
+
+        if (!await _enrichGate.WaitAsync(0, enrichToken).ConfigureAwait(false))
+        {
+            return 0;
+        }
+
+        try
+        {
+            return await EnrichFileSizesCoreAsync(progress, shouldAbort, enrichToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _enrichGate.Release();
+        }
+    }
+
+    private async Task<int> EnrichFileSizesCoreAsync(
+        IProgress<string>? progress,
+        Func<bool>? shouldAbort,
+        CancellationToken cancellationToken)
     {
         var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
         var missing = store.Items
@@ -113,50 +184,59 @@ public sealed class LibraryCatalogStoreService
         }
 
         var enriched = 0;
-        using var gate = new SemaphoreSlim(4);
-        var completed = 0;
-        var tasks = missing.Select(async entry =>
+        for (var i = 0; i < missing.Count; i++)
         {
-            await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (shouldAbort?.Invoke() == true)
+            {
+                break;
+            }
+
+            var entry = missing[i];
+            progress?.Report($"Fetching catalog file sizes ({i + 1}/{missing.Count}): {entry.Name}");
+
             try
             {
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeoutCts.CancelAfter(FileSizeRequestTimeout);
+
                 var url = $"{CatalogUrl}/{entry.Name}";
-                using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+                using var response = await _httpClient.GetAsync(url, timeoutCts.Token).ConfigureAwait(false);
                 if (!response.IsSuccessStatusCode)
                 {
-                    return;
+                    continue;
                 }
 
-                var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                var html = await response.Content.ReadAsStringAsync(timeoutCts.Token).ConfigureAwait(false);
                 var size = OllamaLibraryDetailParser.ParseFileSizeRange(html);
                 if (size != "-" && !string.IsNullOrWhiteSpace(size))
                 {
                     entry.FileSize = size;
-                    Interlocked.Increment(ref enriched);
+                    enriched++;
+                    await SaveAsync(store, cancellationToken).ConfigureAwait(false);
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch
             {
-                // Best-effort enrichment; skip models that fail to load.
+                // Best-effort enrichment; skip models that fail or time out.
             }
-            finally
-            {
-                gate.Release();
-                var done = Interlocked.Increment(ref completed);
-                if (done % 10 == 0 || done == missing.Count)
-                {
-                    progress?.Report($"Fetching catalog file sizes ({done}/{missing.Count})...");
-                }
-            }
-        });
-
-        await Task.WhenAll(tasks).ConfigureAwait(false);
-        if (enriched > 0)
-        {
-            await SaveAsync(store, cancellationToken).ConfigureAwait(false);
         }
 
         return enriched;
+    }
+
+    public int CountMissingFileSizes()
+    {
+        if (_cache?.Items is null)
+        {
+            return 0;
+        }
+
+        return _cache.Items.Count(e => string.IsNullOrWhiteSpace(e.FileSize) || e.FileSize == "-");
     }
 
     public async Task ProcessCatalogEntriesUiPassAsync(
