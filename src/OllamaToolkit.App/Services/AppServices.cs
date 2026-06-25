@@ -16,7 +16,8 @@ public sealed class AppServices : IDisposable
     public AppServices()
     {
         ActivityLog = new ActivityLogService();
-        WorkQueue = new BackgroundWorkQueue(ActivityLog);
+        Diagnostics = new ToolkitDiagnosticsService();
+        WorkQueue = new BackgroundWorkQueue(ActivityLog, Diagnostics);
         ApiClient = new OllamaApiClient();
         OllamaCli = new OllamaCliService();
         ModelSessions = new OllamaModelSessionService(OllamaCli);
@@ -56,6 +57,7 @@ public sealed class AppServices : IDisposable
     public AutomatedBenchmarkService BenchmarkRunner { get; }
     public PlainLanguageErrorService PlainErrors { get; }
     public ActivityLogService ActivityLog { get; }
+    public ToolkitDiagnosticsService Diagnostics { get; }
     public LibraryCatalogStoreService CatalogStore { get; }
     public DescriptionStoreService Descriptions { get; }
     public UsageCategoryStoreService CategoryStore { get; }

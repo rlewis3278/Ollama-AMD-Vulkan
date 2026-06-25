@@ -9,14 +9,14 @@ public sealed class ReportImporter
         _profiles = profiles ?? new ProfileStoreService();
     }
 
-    public async Task<int> ImportReportsAsync(
+    public async Task<ImportReportsResult> ImportReportsAsync(
         string? reportsRoot = null,
         CancellationToken cancellationToken = default)
     {
         reportsRoot ??= Core.ToolkitPaths.ReportsRoot;
         if (!Directory.Exists(reportsRoot))
         {
-            return 0;
+            return new ImportReportsResult();
         }
 
         var latestByModel = new Dictionary<string, (string Path, string CompletedAt)>(StringComparer.OrdinalIgnoreCase);
@@ -52,9 +52,9 @@ public sealed class ReportImporter
             }
         }
 
-        var imported = 0;
+        var importedNames = new List<string>();
         var store = await _profiles.LoadAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var (_, entry) in latestByModel)
+        foreach (var (modelName, entry) in latestByModel)
         {
             var profile = await ReportParser.ParseReportAsync(entry.Path, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
@@ -72,14 +72,17 @@ public sealed class ReportImporter
             }
 
             store.Models[report.Model] = profile;
-            imported++;
+            importedNames.Add(modelName);
         }
 
-        if (imported > 0)
+        if (importedNames.Count > 0)
         {
             await _profiles.SaveAsync(store, cancellationToken).ConfigureAwait(false);
         }
 
-        return imported;
+        return new ImportReportsResult
+        {
+            ModelNames = importedNames.OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList()
+        };
     }
 }

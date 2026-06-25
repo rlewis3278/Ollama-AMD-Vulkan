@@ -273,10 +273,8 @@
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled"
                                   Background="{StaticResource Brush.LogBg}">
-                        <TextBox x:Name="TestLogBox" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
-                                 BorderThickness="0" Background="Transparent"
-                                 VerticalScrollBarVisibility="Disabled"
-                                 Foreground="{StaticResource Brush.Text}" FontFamily="Consolas" FontSize="14" />
+                        <TextBlock x:Name="TestLogText" Margin="12" TextWrapping="Wrap"
+                                   Foreground="{StaticResource Brush.Text}" FontFamily="Consolas" FontSize="14" />
                     </ScrollViewer>
                 </Grid>
             </TabItem>
@@ -374,6 +372,23 @@
                         <TextBlock x:Name="AnomalySummary" Foreground="{StaticResource Brush.Warning}" Margin="12,6,0,0" TextWrapping="Wrap" />
                     </StackPanel>
                     <TextBox x:Name="AiActivityLog" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.LogBg}"
+                             Foreground="{StaticResource Brush.Text}" />
+                </Grid>
+            </TabItem>
+            <TabItem Header="Diagnostics">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="Copy Diagnostics" Style="{StaticResource ToolkitButton}" Click="CopyDiagnostics_Click" />
+                        <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Margin="8,0,0,0" Click="RefreshDiagnostics_Click" />
+                        <TextBlock Foreground="{StaticResource Brush.Muted}" Margin="12,6,0,0" TextWrapping="Wrap"
+                                   Text="Persistent app-wide log at ~/.ollama-amd-vulkan/toolkit-diagnostics.log" />
+                    </StackPanel>
+                    <TextBox x:Name="DiagnosticsLog" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
                              VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.LogBg}"
                              Foreground="{StaticResource Brush.Text}" />
                 </Grid>

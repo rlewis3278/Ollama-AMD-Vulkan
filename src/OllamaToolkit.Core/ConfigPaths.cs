@@ -17,6 +17,7 @@ public static class ConfigPaths
     public static string LogAnomaliesFile => Path.Combine(ConfigDirectory, "log-anomalies.json");
     public static string VulkanWorkaroundFile => Path.Combine(ConfigDirectory, "vulkan-workaround.json");
     public static string GuiAiActivityLog => Path.Combine(ConfigDirectory, "gui-ai-activity.log");
+    public static string ToolkitDiagnosticsLog => Path.Combine(ConfigDirectory, "toolkit-diagnostics.log");
 
     public static string OllamaAppPath =>
         Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),

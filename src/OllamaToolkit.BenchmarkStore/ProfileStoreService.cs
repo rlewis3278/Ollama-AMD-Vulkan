@@ -40,7 +40,26 @@ public sealed class ProfileStoreService
             }
         }
 
-        Directory.CreateDirectory(ToolkitPaths.GuiTestReportsDir);
+        if (Directory.Exists(ToolkitPaths.GuiTestReportsDir))
+        {
+            foreach (var dir in Directory.EnumerateDirectories(ToolkitPaths.GuiTestReportsDir))
+            {
+                Directory.Delete(dir, recursive: true);
+                reportDirsRemoved++;
+            }
+
+            foreach (var file in Directory.EnumerateFiles(ToolkitPaths.GuiTestReportsDir))
+            {
+                File.Delete(file);
+                reportFilesRemoved++;
+            }
+        }
+        else
+        {
+            Directory.CreateDirectory(ToolkitPaths.GuiTestReportsDir);
+        }
+
+        _apiClient.InvalidateCaches();
         return new ClearTestDataResult(reportDirsRemoved, reportFilesRemoved);
     }
 
@@ -121,21 +140,20 @@ public sealed class ProfileStoreService
     }
 
     public async Task<IReadOnlyList<OllamaModelTag>> GetLocalModelsAsync(
+        bool forceRefresh = false,
         CancellationToken cancellationToken = default)
     {
-        var tags = await _apiClient.GetTagsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-        return tags
-            .Where(m => m.Size > 1_000_000)
-            .OrderBy(m => m.Size)
-            .ThenBy(m => m.Name)
-            .ToList();
+        var tags = await _apiClient.GetTagsAsync(
+            forceRefresh: forceRefresh,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+        return LocalModelFilter.FilterBenchmarkable(tags);
     }
 
     public async Task<IReadOnlyList<ModelProfileSummary>> GetAllSummariesAsync(
         CancellationToken cancellationToken = default)
     {
         var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
-        var local = await GetLocalModelsAsync(cancellationToken).ConfigureAwait(false);
+        var local = await GetLocalModelsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         var summaries = new List<ModelProfileSummary>();
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -301,27 +319,22 @@ public sealed class ProfileStoreService
         CancellationToken cancellationToken = default) =>
         await GetLocalRetestQueueAsync(cancellationToken).ConfigureAwait(false);
 
+    public async Task<RetestQueueBuildResult> BuildLocalRetestQueueAsync(
+        CancellationToken cancellationToken = default)
+    {
+        _apiClient.InvalidateCaches();
+        var localModels = await GetLocalModelsAsync(forceRefresh: true, cancellationToken)
+            .ConfigureAwait(false);
+        var summaries = await GetAllSummariesAsync(cancellationToken).ConfigureAwait(false);
+        return RetestQueueBuilder.Build(localModels, summaries);
+    }
+
     public async Task<IReadOnlyList<ModelProfileSummary>> GetLocalRetestQueueAsync(
         CancellationToken cancellationToken = default)
     {
-        var summaries = await GetAllSummariesAsync(cancellationToken).ConfigureAwait(false);
-        var localNames = (await GetLocalModelsAsync(cancellationToken).ConfigureAwait(false))
-            .Select(m => m.Name)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        return summaries
-            .Where(s => localNames.Contains(s.Model))
-            .Where(s => s.NeedsRetest || HasFailedModeResults(s))
-            .OrderBy(s => s.Model, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var build = await BuildLocalRetestQueueAsync(cancellationToken).ConfigureAwait(false);
+        return build.Queue;
     }
-
-    private static bool HasFailedModeResults(ModelProfileSummary summary) =>
-        summary.Results?.Values.Any(r => IsFailedModeStatus(r.Status)) == true;
-
-    private static bool IsFailedModeStatus(string status) =>
-        status.Equals("Failed", StringComparison.OrdinalIgnoreCase)
-        || status.Equals("FAIL", StringComparison.OrdinalIgnoreCase);
 
     public static string SafeReportDirName(string name) =>
         string.Concat(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).TrimEnd('.');

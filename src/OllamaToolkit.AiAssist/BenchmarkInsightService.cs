@@ -152,7 +152,8 @@ public sealed class BenchmarkInsightService
         }
 
         var failures = summary.Results
-            .Where(r => r.Value.Status.Equals("FAIL", StringComparison.OrdinalIgnoreCase))
+            .Where(r => r.Value.Status.Equals("FAIL", StringComparison.OrdinalIgnoreCase)
+                || r.Value.Status.Equals("Failed", StringComparison.OrdinalIgnoreCase))
             .ToList();
         if (failures.Count == 0)
         {

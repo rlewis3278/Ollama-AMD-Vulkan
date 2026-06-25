@@ -116,7 +116,11 @@ static async Task<int> RunStatusAsync()
 static async Task<int> RunImportReportsAsync()
 {
     var importer = new ReportImporter();
-    var count = await importer.ImportReportsAsync().ConfigureAwait(false);
-    Console.WriteLine($"Imported {count} report(s).");
+    var result = await importer.ImportReportsAsync().ConfigureAwait(false);
+    Console.WriteLine($"Imported {result.Count} report(s).");
+    if (result.Count > 0)
+    {
+        Console.WriteLine($"Models: {string.Join(", ", result.ModelNames)}");
+    }
     return 0;
 }

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 
 using System.Windows;
 using System.Windows.Controls;
@@ -32,6 +33,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _chatCts;
     private CancellationTokenSource? _benchmarkCts;
     private CancellationTokenSource? _undownloadCts;
+    private volatile bool _benchmarkQueueRunning;
     private int _testOperations;
     private Task? _activeTestWork;
     private readonly List<Button> _activeTestFlashButtons = new();
@@ -43,6 +45,9 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _catalogSearchTimer;
     private readonly DispatcherTimer _testSettingsTimer;
     private readonly ThrottledUpdater _chatUpdater;
+    private readonly StringBuilder _testLogBuilder = new();
+    private bool _testLogStickToBottom = true;
+    private bool _testLogAutoScrolling;
     private readonly Dictionary<string, (ProgressBar Bar, TextBlock Status)> _testModeProgress = new(StringComparer.OrdinalIgnoreCase);
     private List<string> _nlRankedCatalog = new();
     private bool _suppressSummarizerComboSave;
@@ -78,7 +83,11 @@ public partial class MainWindow : Window
         _modeCards["ROCm"] = RocmCard;
 
         _activityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
-        _activityTimer.Tick += (_, _) => RefreshActivityLog();
+        _activityTimer.Tick += (_, _) =>
+        {
+            RefreshActivityLog();
+            RefreshDiagnosticsLog();
+        };
         _catalogSearchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         _catalogSearchTimer.Tick += async (_, _) =>
         {
@@ -92,6 +101,16 @@ public partial class MainWindow : Window
             await SuggestBenchmarkSettingsAsync().ConfigureAwait(true);
         };
         _chatUpdater = new ThrottledUpdater(TimeSpan.FromMilliseconds(33), Dispatcher);
+        TestLogScroll.ScrollChanged += (_, _) =>
+        {
+            if (_testLogAutoScrolling)
+            {
+                return;
+            }
+
+            var maxOffset = Math.Max(0, TestLogScroll.ExtentHeight - TestLogScroll.ViewportHeight);
+            _testLogStickToBottom = TestLogScroll.VerticalOffset >= maxOffset - 2;
+        };
         DataGridColumnHelper.AttachAutoFit(ModelsGrid, FitGridColumns);
         DataGridColumnHelper.AttachAutoFit(CatalogGrid, FitGridColumns);
         DataGridColumnHelper.AttachAutoFit(TestResultsGrid, FitGridColumns);
@@ -110,6 +129,7 @@ public partial class MainWindow : Window
 
     private async void OnLoadedAsync(object sender, RoutedEventArgs e)
     {
+        _svc.Diagnostics.Write("App", "MainWindow loaded");
         ApplyCatalogDescriptionModeUi();
         UpdateCatalogStopButtonUi();
         UpdateStopTestButtonUi();
@@ -117,6 +137,7 @@ public partial class MainWindow : Window
         InitAiFeatureToggles();
         InitCategoryFilter();
         _activityTimer.Start();
+        RefreshDiagnosticsLog();
         await RefreshAllAsync().ConfigureAwait(true);
         _ = ScheduleLogScanAsync();
     }
@@ -160,8 +181,16 @@ public partial class MainWindow : Window
         }
     }
 
+    private bool IsBenchmarkQueueRunning() =>
+        _benchmarkQueueRunning || _activeTestWork is { IsCompleted: false };
+
     private bool BeginTestOperation(object? sender, FlashColorScheme scheme = FlashColorScheme.YellowBlack)
     {
+        if (IsBenchmarkQueueRunning())
+        {
+            return false;
+        }
+
         _testOperations++;
         UpdateStopTestButtonUi();
 
@@ -246,6 +275,20 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ResetTestOperationState()
+    {
+        foreach (var button in _activeTestFlashButtons.ToList())
+        {
+            _flashButtons.EndIdle(button);
+        }
+
+        _activeTestFlashButtons.Clear();
+        _testOperations = 0;
+        _benchmarkQueueRunning = false;
+        UpdateStopTestButtonUi();
+        ClearCatalogTestingHighlights();
+    }
+
     private async Task CancelTestOperationsAsync()
     {
         _benchmarkCts?.Cancel();
@@ -263,17 +306,13 @@ public partial class MainWindow : Window
             }
         }
 
+        _benchmarkQueueRunning = false;
+        _svc.ApiClient.InvalidateCaches();
+        _svc.Diagnostics.Write("Testing", "Stop Test clicked — cancelling benchmark queue");
+
         await UiDispatcher.InvokeAsync(() =>
         {
-            foreach (var button in _activeTestFlashButtons.ToList())
-            {
-                _flashButtons.EndIdle(button);
-            }
-
-            _activeTestFlashButtons.Clear();
-            _testOperations = 0;
-            UpdateStopTestButtonUi();
-            ClearCatalogTestingHighlights();
+            ResetTestOperationState();
             TestStatusLabel.Text = "Benchmark queue stopped.";
         }).ConfigureAwait(true);
     }
@@ -322,37 +361,66 @@ public partial class MainWindow : Window
 
     private void AppendTestLog(string line)
     {
-        if (!Dispatcher.CheckAccess())
+        try
         {
-            Dispatcher.BeginInvoke(() => AppendTestLog(line));
-            return;
-        }
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.BeginInvoke(() => AppendTestLog(line));
+                return;
+            }
 
-        if (string.IsNullOrEmpty(line))
-        {
-            TestLogBox.AppendText(Environment.NewLine);
-        }
-        else
-        {
-            TestLogBox.AppendText(line + Environment.NewLine);
-        }
+            if (string.IsNullOrEmpty(line))
+            {
+                _testLogBuilder.AppendLine();
+            }
+            else
+            {
+                _testLogBuilder.AppendLine(line);
+            }
 
-        ScrollTestLogToEnd();
+            TestLogText.Text = _testLogBuilder.ToString();
+
+            if (_testLogStickToBottom)
+            {
+                ScrollTestLogToEnd();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"AppendTestLog failed: {ex.Message}");
+        }
     }
 
     private void ScrollTestLogToEnd()
     {
-        TestLogBox.CaretIndex = TestLogBox.Text.Length;
-        TestLogScroll.ScrollToEnd();
-        TestLogScroll.Dispatcher.BeginInvoke(() =>
+        void Scroll()
         {
-            TestLogBox.CaretIndex = TestLogBox.Text.Length;
-            TestLogScroll.ScrollToVerticalOffset(TestLogScroll.ExtentHeight);
-        }, DispatcherPriority.Loaded);
-        TestLogScroll.Dispatcher.BeginInvoke(() =>
+            TestLogScroll.UpdateLayout();
+            var maxOffset = Math.Max(0, TestLogScroll.ExtentHeight - TestLogScroll.ViewportHeight);
+            TestLogScroll.ScrollToVerticalOffset(maxOffset);
+        }
+
+        _testLogAutoScrolling = true;
+        try
         {
-            TestLogScroll.ScrollToVerticalOffset(TestLogScroll.ExtentHeight);
-        }, DispatcherPriority.ApplicationIdle);
+            Scroll();
+
+            EventHandler? onLayout = null;
+            onLayout = (_, _) =>
+            {
+                TestLogScroll.LayoutUpdated -= onLayout!;
+                Scroll();
+                _testLogAutoScrolling = false;
+            };
+            TestLogScroll.LayoutUpdated += onLayout;
+
+            Dispatcher.BeginInvoke(() => _testLogAutoScrolling = false, DispatcherPriority.ApplicationIdle);
+        }
+        catch (Exception ex)
+        {
+            _testLogAutoScrolling = false;
+            Debug.WriteLine($"ScrollTestLogToEnd failed: {ex.Message}");
+        }
     }
 
     private void InitModeCards()
@@ -443,10 +511,16 @@ public partial class MainWindow : Window
             try
             {
                 var imported = await _svc.ReportImporter.ImportReportsAsync(cancellationToken: ct).ConfigureAwait(false);
-                if (imported > 0)
+                if (imported.Count > 0)
                 {
                     _svc.Profiles.ClearCache();
-                    _svc.ActivityLog.Write("Task", $"Imported {imported} benchmark report(s).");
+                    _svc.ActivityLog.Write("Task", $"Imported {imported.Count} benchmark report(s).");
+                    _svc.Diagnostics.Write("Import",
+                        $"Startup import: {imported.Count} model(s): {string.Join(", ", imported.ModelNames)}");
+                }
+                else
+                {
+                    _svc.Diagnostics.Write("Import", "Startup import: no reports found");
                 }
 
                 await UiDispatcher.InvokeAsync(async () =>
@@ -463,6 +537,7 @@ public partial class MainWindow : Window
             catch (Exception ex)
             {
                 _svc.ActivityLog.Write("Error", $"Startup refresh failed: {ex.Message}");
+                _svc.Diagnostics.Write("App", $"Startup refresh failed: {ex.Message}");
                 await UiDispatcher.InvokeAsync(() =>
                     AlertText.Text = $"Data load error: {ex.Message}").ConfigureAwait(false);
             }
@@ -705,6 +780,23 @@ public partial class MainWindow : Window
 
     private void RefreshActivityLog() => AiActivityLog.Text = _svc.ActivityLog.ReadTail();
 
+    private void RefreshDiagnosticsLog() => DiagnosticsLog.Text = _svc.Diagnostics.ReadTail();
+
+    private void CopyDiagnostics_Click(object sender, RoutedEventArgs e)
+    {
+        var text = _svc.Diagnostics.ReadAll();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            text = "(no diagnostics logged yet)";
+        }
+
+        Clipboard.SetText(text);
+        _svc.Diagnostics.Write("App", "Diagnostics copied to clipboard");
+        RefreshDiagnosticsLog();
+    }
+
+    private void RefreshDiagnostics_Click(object sender, RoutedEventArgs e) => RefreshDiagnosticsLog();
+
     private async void ModeCard_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button btn || btn.Tag is not string tag)
@@ -741,6 +833,8 @@ public partial class MainWindow : Window
 
         _modeCardPresenter.BeginTransition(previousMode, tag);
         ModeStatusLabel.Text = restart ? $"Applying {tag} and restarting Ollama…" : $"Applying {tag}…";
+        _svc.Diagnostics.Write("Modes",
+            $"Apply {tag} requested (restart={restart}, previous={previousMode})");
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
@@ -753,6 +847,10 @@ public partial class MainWindow : Window
                 _svc.ActivityLog.Write("Task", restart
                     ? $"Applied mode {mode} and restarted Ollama. Env: {envSummary}"
                     : $"Applied mode {mode} env (no restart). Env: {envSummary}");
+                _svc.Diagnostics.Write("Modes",
+                    restart
+                        ? $"Applied {mode} and restarted Ollama"
+                        : $"Applied {mode} env (no restart)");
                 await UiDispatcher.InvokeAsync(async () =>
                 {
                     _modeCardPresenter.EndTransition();
@@ -766,6 +864,7 @@ public partial class MainWindow : Window
             {
                 var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
+                _svc.Diagnostics.Write("Modes", $"Apply {mode} failed: {ex.Message}");
                 await UiDispatcher.InvokeAsync(async () =>
                 {
                     _modeCardPresenter.EndTransition();
@@ -825,8 +924,12 @@ public partial class MainWindow : Window
 
         try
         {
-            var count = await _svc.ReportImporter.ImportReportsAsync().ConfigureAwait(true);
-            _svc.ActivityLog.Write("Task", $"Manual import: {count} report(s).");
+            var imported = await _svc.ReportImporter.ImportReportsAsync().ConfigureAwait(true);
+            _svc.ActivityLog.Write("Task", $"Manual import: {imported.Count} report(s).");
+            _svc.Diagnostics.Write("Import",
+                imported.Count > 0
+                    ? $"Manual import: {imported.Count} model(s): {string.Join(", ", imported.ModelNames)}"
+                    : "Manual import: no reports found");
             _svc.Profiles.ClearCache();
             await RefreshModelsUiAsync().ConfigureAwait(true);
             EndTaskFlashSuccess(sender, "Imported");
@@ -923,9 +1026,16 @@ public partial class MainWindow : Window
 
         if (!BeginTestOperation(sender))
         {
+            if (IsBenchmarkQueueRunning())
+            {
+                TestStatusLabel.Text = "Benchmark already running — click Stop Test first.";
+                AppendTestLog("Benchmark already running — click Stop Test first.");
+            }
+
             return;
         }
 
+        _svc.Diagnostics.Write("Testing", $"Test Selected clicked: {model}");
         await RunBenchmarkQueueAsync(new[] { model }, sender).ConfigureAwait(true);
     }
 
@@ -933,6 +1043,16 @@ public partial class MainWindow : Window
     {
         if (!BeginTestOperation(sender))
         {
+            if (IsBenchmarkQueueRunning())
+            {
+                TestStatusLabel.Text = "Benchmark already running — click Stop Test first.";
+                AppendTestLog("Benchmark already running — click Stop Test first.");
+            }
+            else
+            {
+                TestStatusLabel.Text = "Test operation already in progress on this button.";
+            }
+
             return;
         }
 
@@ -976,15 +1096,28 @@ public partial class MainWindow : Window
             await CancelTestOperationsAsync().ConfigureAwait(true);
         }
 
+        var storeBefore = await _svc.Profiles.LoadAsync().ConfigureAwait(true);
+        var profileCountBefore = storeBefore.Models.Count;
+        _svc.Diagnostics.Write("Profile",
+            $"ClearAll requested — profiles before: {profileCountBefore}");
+
         var cleared = await _svc.Profiles.ClearAllTestDataAsync().ConfigureAwait(true);
         await _svc.BenchmarkInsights.ClearAllAsync().ConfigureAwait(true);
         await _svc.BenchmarkSettingsAdvisor.ClearAllAsync().ConfigureAwait(true);
         _svc.Profiles.ClearCache();
         _svc.BenchmarkInsights.ClearCache();
         _svc.BenchmarkSettingsAdvisor.ClearCache();
+        _svc.ApiClient.InvalidateCaches();
+
+        var storeAfter = await _svc.Profiles.LoadAsync().ConfigureAwait(true);
+        var profileCountAfter = storeAfter.Models.Count;
+        _svc.Diagnostics.Write("Profile",
+            $"ClearAll complete — removed {cleared.ReportDirsRemoved} report dir(s), " +
+            $"{cleared.ReportFilesRemoved} file(s); profiles after: {profileCountAfter}");
 
         await UiDispatcher.InvokeAsync(async () =>
         {
+            ResetTestOperationState();
             TestProgressPanel.Visibility = Visibility.Collapsed;
             TestOverallProgress.Value = 0;
             AppendTestLog($"--- Cleared all test data ({cleared.ReportDirsRemoved} report folder(s)) ---");
@@ -999,21 +1132,69 @@ public partial class MainWindow : Window
 
     private async Task RunUntestedBenchmarkQueueAsync(object? flashSender = null)
     {
-        var retestQueue = await _svc.Profiles.GetLocalRetestQueueAsync().ConfigureAwait(true);
-        var names = retestQueue.Select(u => u.Model).ToList();
-        if (names.Count == 0)
+        _svc.Diagnostics.Write("Testing", "Test Local Untested clicked");
+
+        var startup = await EnsureOllamaApiReadyAsync(
+            CancellationToken.None, "Test Local Untested requires Ollama", timeoutSec: 90).ConfigureAwait(true);
+        if (!startup.Success)
         {
+            _svc.Diagnostics.Write("Ollama", $"Test Local Untested aborted: {startup.Message}");
             await UiDispatcher.InvokeAsync(() =>
             {
-                TestStatusLabel.Text = "No local models need testing or failed-mode retest.";
+                AppendTestLog($"ABORT: {startup.Message}");
+                TestStatusLabel.Text = "Test Local Untested aborted — Ollama API not reachable.";
                 FinishTestOperation(flashSender, success: false, cancelled: false);
             }).ConfigureAwait(true);
             return;
         }
 
-        var failedRetests = retestQueue.Count(s => !s.NeedsRetest);
+        var build = await _svc.Profiles.BuildLocalRetestQueueAsync().ConfigureAwait(true);
+        var names = build.Queue.Select(u => u.Model).ToList();
+
+        foreach (var decision in build.Decisions)
+        {
+            _svc.Diagnostics.Write("Testing",
+                $"Retest decision: {decision.Model} => {(decision.Included ? "INCLUDE" : "SKIP")} " +
+                $"({decision.Reason}, NeedsRetest={decision.NeedsRetest}, Results={decision.ResultCount})");
+        }
+
+        _svc.Diagnostics.Write("Testing",
+            $"Retest queue built: {build.IncludedCount} included, {build.ExcludedCount} excluded, " +
+            $"{build.LocalModelCount} local gguf model(s)");
+
+        if (names.Count == 0)
+        {
+            var store = await _svc.Profiles.LoadAsync().ConfigureAwait(true);
+            await UiDispatcher.InvokeAsync(() =>
+            {
+                var detail = build.LocalModelCount == 0
+                    ? "Retest queue empty: no local gguf models detected (is Ollama running?)."
+                    : $"Retest queue empty: {build.LocalModelCount} local gguf model(s), " +
+                      $"{build.ExcludedCount} excluded, {store.Models.Count} profile(s) in store.";
+                AppendTestLog(detail);
+                foreach (var excluded in build.Decisions.Where(d => !d.Included).Take(10))
+                {
+                    AppendTestLog($"  SKIP {excluded.Model}: {excluded.Reason}");
+                }
+
+                if (build.Decisions.Count(d => !d.Included) > 10)
+                {
+                    AppendTestLog($"  … and {build.Decisions.Count(d => !d.Included) - 10} more excluded (see Diagnostics tab)");
+                }
+
+                TestStatusLabel.Text = build.LocalModelCount == 0
+                    ? "No local models detected — start Ollama and refresh the Models tab."
+                    : "No local models need testing or failed-mode retest.";
+                FinishTestOperation(flashSender, success: false, cancelled: false);
+            }).ConfigureAwait(true);
+            return;
+        }
+
+        var failedRetests = build.Queue.Count(s => !s.NeedsRetest);
         var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
         var queue = await _svc.QueueAdvisor.PrioritizeAsync(names, summaries).ConfigureAwait(true);
+        _svc.Diagnostics.Write("Testing",
+            $"AI prioritized queue ({queue.Models.Count} model(s)): {string.Join(" -> ", queue.Models)}");
         await UiDispatcher.InvokeAsync(() =>
         {
             var queueLabel = failedRetests > 0
@@ -1353,11 +1534,26 @@ public partial class MainWindow : Window
 
     private async Task RunBenchmarkQueueAsync(IReadOnlyList<string> models, object? flashSender = null)
     {
-        _benchmarkCts?.Cancel();
+        if (IsBenchmarkQueueRunning())
+        {
+            _svc.Diagnostics.Write("Testing",
+                $"Benchmark queue rejected — already running ({models.Count} model(s) requested)");
+            await UiDispatcher.InvokeAsync(() =>
+            {
+                AppendTestLog("Benchmark already running — click Stop Test first.");
+                TestStatusLabel.Text = "Benchmark already running — click Stop Test first.";
+                FinishTestOperation(flashSender, success: false, cancelled: false);
+            }).ConfigureAwait(true);
+            return;
+        }
+
+        _svc.Diagnostics.Write("Testing",
+            $"Benchmark queue starting ({models.Count} model(s)): {string.Join(", ", models)}");
         _benchmarkCts = new CancellationTokenSource();
         var ct = _benchmarkCts.Token;
         var workTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _activeTestWork = workTcs.Task;
+        _benchmarkQueueRunning = true;
 
         await _svc.WorkQueue.EnqueueAsync(async _ =>
         {
@@ -1388,22 +1584,43 @@ public partial class MainWindow : Window
                 {
                     cancelled = true;
                 }
-
-                await UiDispatcher.InvokeAsync(async () =>
+            }
+            catch (Exception ex)
+            {
+                _svc.Diagnostics.Write("Testing", $"Benchmark queue error: {ex.Message}");
+                await UiDispatcher.InvokeAsync(() =>
                 {
-                    await RefreshModelsUiAsync().ConfigureAwait(true);
-                    await RefreshTestResultsUiAsync().ConfigureAwait(true);
-                    await RefreshCatalogUiAsync().ConfigureAwait(true);
-                    TestOverallProgress.Value = 100;
-                    TestStatusLabel.Text = cancelled
-                        ? "Benchmark queue stopped."
-                        : "Benchmark queue complete.";
-                    FinishTestOperation(flashSender, success: !cancelled, cancelled);
+                    AppendTestLog($"ABORT: Benchmark queue error: {ex.Message}");
+                    TestStatusLabel.Text = $"Benchmark queue error: {ex.Message}";
                 }).ConfigureAwait(false);
             }
             finally
             {
-                workTcs.TrySetResult();
+                try
+                {
+                    _svc.Diagnostics.Write("Testing",
+                        cancelled ? "Benchmark queue stopped" : "Benchmark queue complete");
+                    await UiDispatcher.InvokeAsync(async () =>
+                    {
+                        await RefreshModelsUiAsync().ConfigureAwait(true);
+                        await RefreshTestResultsUiAsync().ConfigureAwait(true);
+                        await RefreshCatalogUiAsync().ConfigureAwait(true);
+                        TestOverallProgress.Value = 100;
+                        TestStatusLabel.Text = cancelled
+                            ? "Benchmark queue stopped."
+                            : "Benchmark queue complete.";
+                        FinishTestOperation(flashSender, success: !cancelled, cancelled);
+                    }).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Benchmark queue cleanup failed: {ex.Message}");
+                }
+                finally
+                {
+                    _benchmarkQueueRunning = false;
+                    workTcs.TrySetResult();
+                }
             }
         }).ConfigureAwait(true);
 
@@ -2800,9 +3017,11 @@ public partial class MainWindow : Window
         if (!startup.Success)
         {
             _svc.ActivityLog.Write("Error", startup.Message);
+            _svc.Diagnostics.Write("Ollama", $"API not ready: {startup.Message}");
             return (false, startup.Message);
         }
 
+        _svc.Diagnostics.Write("Ollama", "API ready");
         return (true, startup.Message);
     }
 
