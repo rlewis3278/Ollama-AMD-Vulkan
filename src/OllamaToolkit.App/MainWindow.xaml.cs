@@ -40,6 +40,7 @@ public partial class MainWindow : Window
     private bool _suppressSummarizerComboSave;
     private CatalogDescriptionDisplayMode _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
     private readonly FlashButtonRegistry _flashButtons;
+    private readonly AiProcessingFlashPresenter _aiProcessingFlash;
     private readonly ObservableCollection<CatalogRowViewModel> _catalogRows = new();
     private readonly CatalogRowRefreshAnimator _catalogRowAnimator;
     private Dictionary<string, CatalogRowViewModel> _catalogRowByName = new(StringComparer.OrdinalIgnoreCase);
@@ -48,11 +49,15 @@ public partial class MainWindow : Window
     private bool _descriptionRefreshInProgress;
     private CancellationTokenSource? _refreshCatalogCts;
     private CancellationTokenSource? _refreshDescriptionsCts;
+    private CancellationTokenSource? _classificationCts;
+    private int _catalogToolbarOperations;
+    private int _aiActivityDepth;
 
     public MainWindow()
     {
         InitializeComponent();
         _flashButtons = new FlashButtonRegistry(this);
+        _aiProcessingFlash = new AiProcessingFlashPresenter(AiStatusButton, this);
         _catalogRowAnimator = new CatalogRowRefreshAnimator(Dispatcher);
         CatalogGrid.ItemsSource = _catalogRows;
         _modeCardPresenter = new ModeCardPresenter(this);
@@ -86,6 +91,7 @@ public partial class MainWindow : Window
             _testSettingsTimer.Stop();
             _modeCardPresenter.Stop();
             _flashButtons.StopAll();
+            _aiProcessingFlash.Stop();
             _catalogRowAnimator.Stop();
         };
     }
@@ -93,6 +99,7 @@ public partial class MainWindow : Window
     private async void OnLoadedAsync(object sender, RoutedEventArgs e)
     {
         ApplyCatalogDescriptionModeUi();
+        UpdateCatalogStopButtonUi();
         InitModeCards();
         InitAiFeatureToggles();
         InitCategoryFilter();
@@ -371,24 +378,85 @@ public partial class MainWindow : Window
     {
         var ready = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
         var settings = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
+        string content;
         if (!settings.ToolkitAiEnabled)
         {
-            AiStatusButton.Content = "AI Disabled";
+            content = "AI Disabled";
         }
         else if (!ready)
         {
-            AiStatusButton.Content = "AI Inactive";
+            content = "AI Inactive";
         }
         else if (!string.IsNullOrWhiteSpace(settings.PreferredSummarizerModel))
         {
-            AiStatusButton.Content = "AI Active";
+            content = "AI Active";
         }
         else
         {
-            AiStatusButton.Content = "AI Inactive";
+            content = "AI Inactive";
         }
 
+        _aiProcessingFlash.SetIdlePresentation(
+            content,
+            (Brush)FindResource("Brush.Button"),
+            (Brush)FindResource("Brush.PanelBorder"),
+            (Brush)FindResource("Brush.Text"));
+
         await UpdateAiButtonStatesAsync().ConfigureAwait(true);
+    }
+
+    private void EnterAiActivity()
+    {
+        if (_aiActivityDepth++ == 0)
+        {
+            _aiProcessingFlash.BeginProcessingFlash();
+        }
+    }
+
+    private void ExitAiActivity()
+    {
+        if (_aiActivityDepth <= 0)
+        {
+            return;
+        }
+
+        if (--_aiActivityDepth == 0)
+        {
+            _aiProcessingFlash.EndProcessingFlash();
+            _ = UpdateAiStatusAsync();
+        }
+    }
+
+    private void BeginCatalogToolbarOperation()
+    {
+        _catalogToolbarOperations++;
+        UpdateCatalogStopButtonUi();
+    }
+
+    private void EndCatalogToolbarOperation()
+    {
+        if (_catalogToolbarOperations > 0)
+        {
+            _catalogToolbarOperations--;
+        }
+
+        UpdateCatalogStopButtonUi();
+    }
+
+    private void UpdateCatalogStopButtonUi()
+    {
+        if (_catalogToolbarOperations > 0)
+        {
+            CatalogStopBtn.Background = (Brush)FindResource("Brush.Accent");
+            CatalogStopBtn.BorderBrush = (Brush)FindResource("Brush.AccentHover");
+            CatalogStopBtn.Foreground = Brushes.White;
+        }
+        else
+        {
+            CatalogStopBtn.Background = (Brush)FindResource("Brush.Button");
+            CatalogStopBtn.BorderBrush = (Brush)FindResource("Brush.PanelBorder");
+            CatalogStopBtn.Foreground = (Brush)FindResource("Brush.Text");
+        }
     }
 
     private async Task UpdateAiButtonStatesAsync()
@@ -706,7 +774,17 @@ public partial class MainWindow : Window
         var categories = await GetCategoryMapAsync().ConfigureAwait(true);
         var lib = model.Split(':')[0];
         var category = categories.TryGetValue(lib, out var c) ? c : string.Empty;
-        var settings = await _svc.BenchmarkSettingsAdvisor.SuggestAsync(summary, category).ConfigureAwait(true);
+        EnterAiActivity();
+        BenchmarkSettingsEntry settings;
+        try
+        {
+            settings = await _svc.BenchmarkSettingsAdvisor.SuggestAsync(summary, category).ConfigureAwait(true);
+        }
+        finally
+        {
+            ExitAiActivity();
+        }
+
         TestNumCtxBox.Text = settings.NumCtx.ToString();
         TestNumPredictBox.Text = settings.NumPredict.ToString();
         TestSettingsLabel.Text = settings.Rationale ?? string.Empty;
@@ -1006,6 +1084,7 @@ public partial class MainWindow : Window
 
         await _svc.WorkQueue.EnqueueAsync(async token =>
         {
+            EnterAiActivity();
             try
             {
                 await foreach (var chunk in _svc.ApiClient.ChatStreamAsync(_runModel!, _chatMessages, ct)
@@ -1046,6 +1125,10 @@ public partial class MainWindow : Window
                         EndTaskFlashIdle(flashSender);
                     }
                 }).ConfigureAwait(false);
+            }
+            finally
+            {
+                ExitAiActivity();
             }
         }).ConfigureAwait(true);
     }
@@ -1163,16 +1246,21 @@ public partial class MainWindow : Window
             return;
         }
 
+        _catalogDescriptionMode = CatalogDescriptionDisplayMode.Ai;
+        ApplyCatalogDescriptionModeUi();
+
         _refreshDescriptionsCts?.Cancel();
         _refreshDescriptionsCts?.Dispose();
         _refreshDescriptionsCts = new CancellationTokenSource();
         _descriptionRefreshInProgress = true;
+        BeginCatalogToolbarOperation();
         CatalogStatusLabel.Text = "Refreshing descriptions from ollama.com...";
 
         await _svc.WorkQueue.EnqueueAsync(async workCt =>
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(workCt, _refreshDescriptionsCts.Token);
             var ct = linked.Token;
+            EnterAiActivity();
             try
             {
                 await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
@@ -1209,11 +1297,11 @@ public partial class MainWindow : Window
                     .ConfigureAwait(false);
 
                 _svc.CatalogStore.ClearCache();
+                await ApplyCatalogFileSizesToRowsAsync(ct).ConfigureAwait(false);
 
-                await UiDispatcher.InvokeAsync(async () =>
+                await UiDispatcher.InvokeAsync(() =>
                 {
                     _descriptionRefreshInProgress = false;
-                    await RefreshCatalogUiAsync().ConfigureAwait(true);
                     _catalogRowAnimator.Stop();
                     ScrollCatalogGridToTop();
                     CatalogStatusLabel.Text = $"Descriptions refreshed — {count} AI summary(s) updated.";
@@ -1249,7 +1337,32 @@ public partial class MainWindow : Window
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
             }
+            finally
+            {
+                ExitAiActivity();
+                EndCatalogToolbarOperation();
+            }
         }).ConfigureAwait(true);
+    }
+
+    private async Task ApplyCatalogFileSizesToRowsAsync(CancellationToken cancellationToken)
+    {
+        var entries = await _svc.CatalogStore.GetEntriesAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        await UiDispatcher.InvokeAsync(() =>
+        {
+            foreach (var entry in entries)
+            {
+                if (!_catalogRowByName.TryGetValue(entry.Name, out var row)
+                    || string.IsNullOrWhiteSpace(entry.FileSize)
+                    || entry.FileSize == "-")
+                {
+                    continue;
+                }
+
+                row.FileSize = OllamaToolkit.Core.ModelSizeFormatter.FormatSizeLabel(entry.FileSize);
+            }
+        }).ConfigureAwait(false);
     }
 
     private void BindCatalogRows(IReadOnlyList<CatalogRowViewModel> rows)
@@ -1409,9 +1522,12 @@ public partial class MainWindow : Window
     {
         _refreshCatalogCts?.Cancel();
         _refreshDescriptionsCts?.Cancel();
+        _classificationCts?.Cancel();
         CancelCatalogFileSizeEnrichment();
         _catalogRefreshInProgress = false;
         _descriptionRefreshInProgress = false;
+        _catalogToolbarOperations = 0;
+        UpdateCatalogStopButtonUi();
 
         await UiDispatcher.InvokeAsync(() =>
         {
@@ -1419,7 +1535,20 @@ public partial class MainWindow : Window
             CatalogRowRefreshAnimator.ResetAll(_catalogRows);
             EndTaskFlashIdle(RefreshCatalogBtn);
             EndTaskFlashIdle(RefreshDescriptionsBtn);
+            EndTaskFlashIdle(CatalogCategorizeAllBtn);
+            EndTaskFlashIdle(ClearCatalogBtn);
         }).ConfigureAwait(true);
+    }
+
+    private async void CatalogStop_Click(object sender, RoutedEventArgs e)
+    {
+        if (_catalogToolbarOperations == 0)
+        {
+            return;
+        }
+
+        await CancelActiveCatalogOperationsAsync().ConfigureAwait(true);
+        CatalogStatusLabel.Text = "Catalog operation stopped.";
     }
 
     private async Task RefreshCatalogUiAsync()
@@ -1437,7 +1566,17 @@ public partial class MainWindow : Window
         {
             var candidates = rows.Select(r => new NlSearchCandidate(r.Name, r.Category, r.ParameterSize, r.DisplayDescription))
                 .ToList();
-            var ranked = await _svc.NlSearch.RankModelsAsync(search, candidates).ConfigureAwait(true);
+            EnterAiActivity();
+            IReadOnlyList<string> ranked;
+            try
+            {
+                ranked = await _svc.NlSearch.RankModelsAsync(search, candidates).ConfigureAwait(true);
+            }
+            finally
+            {
+                ExitAiActivity();
+            }
+
             if (ranked.Count > 0)
             {
                 _nlRankedCatalog = ranked.ToList();
@@ -1481,6 +1620,7 @@ public partial class MainWindow : Window
         _refreshCatalogCts?.Dispose();
         _refreshCatalogCts = new CancellationTokenSource();
         _catalogRefreshInProgress = true;
+        BeginCatalogToolbarOperation();
         CatalogStatusLabel.Text = "Refreshing from ollama.com...";
         await _svc.WorkQueue.EnqueueAsync(async workCt =>
         {
@@ -1549,6 +1689,10 @@ public partial class MainWindow : Window
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
             }
+            finally
+            {
+                EndCatalogToolbarOperation();
+            }
         }).ConfigureAwait(true);
     }
 
@@ -1568,6 +1712,13 @@ public partial class MainWindow : Window
         }
 
         await CancelActiveCatalogOperationsAsync().ConfigureAwait(true);
+
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        BeginCatalogToolbarOperation();
         CatalogStatusLabel.Text = "Clearing catalog...";
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
@@ -1586,13 +1737,22 @@ public partial class MainWindow : Window
                     _catalogRowByName = new Dictionary<string, CatalogRowViewModel>(StringComparer.OrdinalIgnoreCase);
                     CatalogStatusLabel.Text = "Catalog cleared — use Refresh Catalog to reload.";
                     _svc.ActivityLog.Write("Task", "Catalog metadata cleared.");
+                    EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
-                await UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    CatalogStatusLabel.Text = msg;
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                EndCatalogToolbarOperation();
             }
         }).ConfigureAwait(true);
     }
@@ -1601,7 +1761,8 @@ public partial class MainWindow : Window
         await RunClassificationAsync(
             recategorize: false,
             fromAiSettings: MainTabs.SelectedItem == AiSettingsTab,
-            sender).ConfigureAwait(true);
+            sender,
+            trackCatalogStop: ReferenceEquals(sender, CatalogCategorizeAllBtn)).ConfigureAwait(true);
 
     private async void RecategorizeAll_Click(object sender, RoutedEventArgs e)
     {
@@ -1614,10 +1775,15 @@ public partial class MainWindow : Window
         await RunClassificationAsync(
             recategorize: true,
             fromAiSettings: MainTabs.SelectedItem == AiSettingsTab,
-            sender).ConfigureAwait(true);
+            sender,
+            trackCatalogStop: false).ConfigureAwait(true);
     }
 
-    private async Task RunClassificationAsync(bool recategorize, bool fromAiSettings, object? sender = null)
+    private async Task RunClassificationAsync(
+        bool recategorize,
+        bool fromAiSettings,
+        object? sender = null,
+        bool trackCatalogStop = false)
     {
         if (sender is not null && !BeginTaskFlash(sender))
         {
@@ -1698,8 +1864,20 @@ public partial class MainWindow : Window
             CatalogStatusLabel.Text = "Classifying catalog models...";
         }
 
-        await _svc.WorkQueue.EnqueueAsync(async ct =>
+        if (trackCatalogStop)
         {
+            BeginCatalogToolbarOperation();
+        }
+
+        _classificationCts?.Cancel();
+        _classificationCts?.Dispose();
+        _classificationCts = new CancellationTokenSource();
+
+        await _svc.WorkQueue.EnqueueAsync(async workCt =>
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(workCt, _classificationCts.Token);
+            var ct = linked.Token;
+            EnterAiActivity();
             try
             {
                 var progress = new Progress<string>(msg =>
@@ -1744,6 +1922,25 @@ public partial class MainWindow : Window
                     }
                 }).ConfigureAwait(false);
             }
+            catch (OperationCanceledException)
+            {
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    if (fromAiSettings)
+                    {
+                        SetAiSettingsActionStatus("Classification cancelled.");
+                    }
+                    else
+                    {
+                        CatalogStatusLabel.Text = "Classification cancelled.";
+                    }
+
+                    if (sender is not null)
+                    {
+                        EndTaskFlashIdle(sender);
+                    }
+                }).ConfigureAwait(false);
+            }
             catch (Exception ex)
             {
                 var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
@@ -1767,6 +1964,12 @@ public partial class MainWindow : Window
             }
             finally
             {
+                ExitAiActivity();
+                if (trackCatalogStop)
+                {
+                    EndCatalogToolbarOperation();
+                }
+
                 if (fromAiSettings)
                 {
                     await UiDispatcher.InvokeAsync(() => SetAiSettingsButtonsEnabled(true)).ConfigureAwait(false);
@@ -2206,6 +2409,7 @@ public partial class MainWindow : Window
         SetAiSettingsButtonsEnabled(false);
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
+            EnterAiActivity();
             try
             {
                 var result = await _svc.ApiClient.GenerateAsync(
@@ -2231,6 +2435,7 @@ public partial class MainWindow : Window
             }
             finally
             {
+                ExitAiActivity();
                 await UiDispatcher.InvokeAsync(() => SetAiSettingsButtonsEnabled(true)).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
@@ -2245,6 +2450,7 @@ public partial class MainWindow : Window
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
+            EnterAiActivity();
             try
             {
                 var doc = await _svc.LogAnomalies.ScanAsync(ct).ConfigureAwait(false);
@@ -2265,6 +2471,10 @@ public partial class MainWindow : Window
                     AnomalySummary.Text = msg;
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
+            }
+            finally
+            {
+                ExitAiActivity();
             }
         }).ConfigureAwait(true);
     }
@@ -2297,6 +2507,7 @@ public partial class MainWindow : Window
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
+            EnterAiActivity();
             try
             {
                 var recs = await _svc.ModelAdvisor.RecommendInstalledAsync(intent, summaries, categories, ct)
@@ -2331,6 +2542,10 @@ public partial class MainWindow : Window
                         EndTaskFlashIdle(sender);
                     }
                 }).ConfigureAwait(false);
+            }
+            finally
+            {
+                ExitAiActivity();
             }
         }).ConfigureAwait(true);
     }
@@ -2399,6 +2614,7 @@ public partial class MainWindow : Window
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
+            EnterAiActivity();
             try
             {
                 var text = await _svc.ModelComparison.CompareManyAsync(models, ct).ConfigureAwait(false);
@@ -2423,6 +2639,10 @@ public partial class MainWindow : Window
                         EndTaskFlashIdle(sender);
                     }
                 }).ConfigureAwait(false);
+            }
+            finally
+            {
+                ExitAiActivity();
             }
         }).ConfigureAwait(true);
     }

@@ -302,6 +302,16 @@
         </Style.Triggers>
     </Style>
 
+    <ControlTemplate x:Key="ToolkitFlashButtonTemplate" TargetType="Button">
+        <Border Background="{TemplateBinding Background}"
+                BorderBrush="{TemplateBinding BorderBrush}"
+                BorderThickness="{TemplateBinding BorderThickness}"
+                Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+        </Border>
+    </ControlTemplate>
+
     <ControlTemplate x:Key="ToolkitButtonTemplate" TargetType="Button">
         <Border x:Name="Border"
                 Background="{TemplateBinding Background}"
