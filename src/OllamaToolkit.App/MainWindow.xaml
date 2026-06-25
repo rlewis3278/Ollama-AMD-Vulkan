@@ -68,7 +68,7 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*" />
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="100" />
-                            <DataGridTextColumn Header="Size GB" Binding="{Binding SizeGB}" Width="70" />
+                            <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="80" />
                             <DataGridTextColumn Header="Best Mode" Binding="{Binding BestMode}" Width="80" />
                             <DataGridTextColumn Header="tok/s" Binding="{Binding BestTps}" Width="60" />
                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
@@ -102,6 +102,7 @@
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
                             <DataGridTextColumn Header="Description" Binding="{Binding ListDescription}" Width="*" />
                             <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
+                            <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="85" />
                             <DataGridTextColumn Header="Installed" Binding="{Binding Installed}" Width="70" />
                         </DataGrid.Columns>
                     </DataGrid>

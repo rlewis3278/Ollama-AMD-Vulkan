@@ -1,5 +1,6 @@
 using OllamaToolkit.BenchmarkStore;
 using OllamaToolkit.BenchmarkStore.Models;
+using OllamaToolkit.Core;
 using OllamaToolkit.Core.Ollama;
 using OllamaToolkit.ModelCatalog;
 using OllamaToolkit.ModelCatalog.Models;
@@ -39,6 +40,7 @@ public sealed class ModelRegistryService
             .ConfigureAwait(false);
         var categoryDoc = await _categories.LoadAsync(cancellationToken).ConfigureAwait(false);
         var installed = await GetInstalledNameSetAsync(cancellationToken).ConfigureAwait(false);
+        var installedSizes = await GetInstalledFileSizeByLibraryAsync(cancellationToken).ConfigureAwait(false);
 
         var rows = entries.Select(e =>
         {
@@ -54,6 +56,13 @@ public sealed class ModelRegistryService
                 ? e.ListDescription
                 : DescriptionStoreService.TruncateListDescription(e.Description);
 
+            var fileSize = e.FileSize;
+            if ((fileSize == "-" || string.IsNullOrWhiteSpace(fileSize))
+                && installedSizes.TryGetValue(e.Name, out var installedSize))
+            {
+                fileSize = installedSize;
+            }
+
             return new CatalogRowViewModel
             {
                 Name = e.Name,
@@ -61,7 +70,7 @@ public sealed class ModelRegistryService
                 ListDescription = listDesc,
                 Category = category,
                 ParameterSize = e.ParameterSize,
-                FileSize = e.FileSize,
+                FileSize = ModelSizeFormatter.FormatSizeLabel(fileSize),
                 Tags = e.Tags,
                 Installed = installed.Contains(e.Name) || installed.Any(n => n.StartsWith($"{e.Name}:", StringComparison.OrdinalIgnoreCase)),
                 SortOrder = CategoryNormalizer.GetSortOrder(category)
@@ -134,6 +143,29 @@ public sealed class ModelRegistryService
         }
 
         return row.GenerationTps > 0 ? $"{row.GenerationTps:F1}" : row.Status;
+    }
+
+    private async Task<Dictionary<string, string>> GetInstalledFileSizeByLibraryAsync(
+        CancellationToken cancellationToken)
+    {
+        var tags = await _apiClient.GetTagsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var group in tags.GroupBy(t => t.Name.Split(':')[0], StringComparer.OrdinalIgnoreCase))
+        {
+            var sizes = group.Where(t => t.Size > 0).Select(t => t.Size).ToList();
+            if (sizes.Count == 0)
+            {
+                continue;
+            }
+
+            var min = sizes.Min();
+            var max = sizes.Max();
+            map[group.Key] = min == max
+                ? ModelSizeFormatter.FormatBytes(min)
+                : $"{ModelSizeFormatter.FormatBytes(min)}-{ModelSizeFormatter.FormatBytes(max)}";
+        }
+
+        return map;
     }
 
     private async Task<HashSet<string>> GetInstalledNameSetAsync(CancellationToken cancellationToken)

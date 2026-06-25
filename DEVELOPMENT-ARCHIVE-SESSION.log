@@ -644,3 +644,14 @@ EOF
 [2026-06-24 18:45:55] [BUILD] dotnet build 0 errors; mode switch CPU/GPU/Hybrid verified via CLI
 [2026-06-24 18:45:55] [SYNC] Processed updates.jsonl lines 2460..2465
 [2026-06-24 18:45:55] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 18:46:10] [TOOL] TodoWrite - TodoWrite
+[2026-06-24 18:46:10] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1
+[2026-06-24 18:46:10] [SYNC] Processed updates.jsonl lines 2466..2486
+[2026-06-24 18:46:10] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 19:45:02] [BUILD] published OllamaToolkit.App to publish/OllamaToolkit.App
+[2026-06-24 19:45:02] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1
+[2026-06-24 19:45:02] [SHELL] Get-Item "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.exe" | Select-Object FullName, Length, LastWriteTime; Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|published OllamaToolkit.App to publish/OllamaToolkit.App"; .\scripts\Update-DevelopmentArchive.ps1
+[2026-06-24 19:45:02] [SYNC] Processed updates.jsonl lines 2487..2517
+[2026-06-24 19:45:02] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 19:45:02] [SYNC] Processed updates.jsonl lines 2518..2518
+[2026-06-24 19:45:02] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

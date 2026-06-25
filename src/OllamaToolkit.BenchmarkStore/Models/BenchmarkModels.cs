@@ -97,6 +97,7 @@ public sealed class ModelProfileSummary
 {
     public required string Model { get; init; }
     public double SizeGB { get; init; }
+    public string FileSize => OllamaToolkit.Core.ModelSizeFormatter.FormatGb(SizeGB);
     public string Quantization { get; init; } = "-";
     public string ParameterSize { get; init; } = "-";
     public string Digest { get; init; } = string.Empty;

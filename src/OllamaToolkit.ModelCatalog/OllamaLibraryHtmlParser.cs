@@ -39,7 +39,8 @@ public static partial class OllamaLibraryHtmlParser
             }
 
             var capabilities = new List<string>();
-            var sizes = new List<string>();
+            var paramSizes = new List<string>();
+            var fileSizeLabels = new List<string>();
             foreach (Match tm in TagSpan().Matches(block))
             {
                 var kind = tm.Groups[1].Value;
@@ -51,9 +52,16 @@ public static partial class OllamaLibraryHtmlParser
 
                 if (kind.Equals("size", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!sizes.Contains(tag))
+                    if (FileSizeToken().IsMatch(tag))
                     {
-                        sizes.Add(tag);
+                        if (!fileSizeLabels.Contains(tag))
+                        {
+                            fileSizeLabels.Add(tag);
+                        }
+                    }
+                    else if (!paramSizes.Contains(tag))
+                    {
+                        paramSizes.Add(tag);
                     }
                 }
                 else if (!capabilities.Contains(tag))
@@ -62,17 +70,37 @@ public static partial class OllamaLibraryHtmlParser
                 }
             }
 
+            var fileSize = FormatFileSizeLabels(fileSizeLabels);
+            if (fileSize == "-" && FileSizeInBlock().Match(block) is { Success: true } blockMatch)
+            {
+                fileSize = blockMatch.Groups[1].Value.Trim().ToUpperInvariant();
+            }
+
             results.Add(new LibraryCatalogEntry
             {
                 Name = name,
                 Description = description,
                 Tags = string.Join(' ', capabilities),
-                ParameterSize = FormatParameterSizeLabel(sizes),
-                FileSize = "-"
+                ParameterSize = FormatParameterSizeLabel(paramSizes),
+                FileSize = fileSize
             });
         }
 
         return results;
+    }
+
+    private static string FormatFileSizeLabels(IReadOnlyList<string> labels)
+    {
+        if (labels.Count == 0)
+        {
+            return "-";
+        }
+
+        var normalized = labels
+            .Select(l => l.Replace(" ", string.Empty, StringComparison.Ordinal).ToUpperInvariant())
+            .Distinct()
+            .ToList();
+        return normalized.Count == 1 ? normalized[0] : string.Join("-", normalized);
     }
 
     private static string FormatParameterSizeLabel(IReadOnlyList<string> tokens)
@@ -101,4 +129,10 @@ public static partial class OllamaLibraryHtmlParser
 
     [GeneratedRegex(@"x-test-(capability|size)\s+class=""[^""]*"">([^<]+)</span>", RegexOptions.Compiled)]
     private static partial Regex TagSpan();
+
+    [GeneratedRegex(@"^[\d.]+\s*(?:gb|mb|kb)$", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex FileSizeToken();
+
+    [GeneratedRegex(@"([\d.]+\s*(?:GB|MB))(?:\s*</|\s+\d+K|\s+&bull;|\s+context)", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex FileSizeInBlock();
 }
