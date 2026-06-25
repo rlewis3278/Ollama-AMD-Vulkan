@@ -784,7 +784,7 @@ a261a8a  fix: Test Undownload pull verify, settings clamp, download progress
 2cbdce7  docs: post-execution archive entry for Phase 10
 ```
 
-*(Phase 11 feature commit follows in same session.)*
+5a470fb  fix: Model Library download progress, installed accuracy, Ollama readiness for pulls
 
 ### Archive files
 
