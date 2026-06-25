@@ -2208,3 +2208,53 @@ EOF
 [2026-06-25 06:05:31] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "FIX|Robust Ollama startup: tray+serve+recycle stuck; connection helper; download progress visible at start"; git add -A; git commit -m "fix: robust Ollama API startup and connection error handling for downloads"
 [2026-06-25 06:05:31] [SYNC] Processed updates.jsonl lines 9288..9432
 [2026-06-25 06:05:31] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 12:47:21] [FEAT] CLI model sessions ollama run/stop/rm; no server restart on launch/benchmark; uninstall button
+[2026-06-25 12:47:21] [TOOL] Grep - Grep
+[2026-06-25 12:47:21] [TOOL] Grep - Grep
+[2026-06-25 12:47:21] [TOOL] Glob - Glob
+[2026-06-25 12:47:22] [TOOL] Read - Read
+[2026-06-25 12:47:22] [TOOL] Read - Read
+[2026-06-25 12:47:22] [TOOL] Read - Read
+[2026-06-25 12:47:22] [TOOL] Grep - Grep
+[2026-06-25 12:47:22] [SHELL] & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" --help 2>&1; & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" run --help 2>&1
+[2026-06-25 12:47:22] [TOOL] Read - Read
+[2026-06-25 12:47:22] [TOOL] Read - Read
+[2026-06-25 12:47:22] [SHELL] & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" stop --help 2>&1; & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" rm --help 2>&1; & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" ps 2>&1
+[2026-06-25 12:47:22] [TOOL] Read - Read
+[2026-06-25 12:47:22] [TOOL] Read - Read
+[2026-06-25 12:47:22] [TOOL] Grep - Grep
+[2026-06-25 12:47:22] [TOOL] Read - Read
+[2026-06-25 12:47:22] [TOOL] Write - Write
+[2026-06-25 12:47:22] [TOOL] Write - Write
+[2026-06-25 12:47:22] [TOOL] Write - Write
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] Read - Read
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] Read - Read
+[2026-06-25 12:47:22] [TOOL] Read - Read
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [TOOL] Grep - Grep
+[2026-06-25 12:47:22] [TOOL] StrReplace - StrReplace
+[2026-06-25 12:47:22] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-25 12:47:22] [SHELL] Get-Process OllamaToolkit.App -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "FEAT|CLI model sessions ollama run/stop/rm; no server restart on launch/benchmark; uninstall button"; git add -A; git commit -m "feat: Ollama CLI model sessions, stop server restart loop, uninstall LLM button"
+[2026-06-25 12:47:22] [SYNC] Processed updates.jsonl lines 9433..9647
+[2026-06-25 12:47:22] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

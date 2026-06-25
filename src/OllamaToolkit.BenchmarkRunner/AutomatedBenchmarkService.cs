@@ -21,15 +21,19 @@ public sealed class AutomatedBenchmarkService
     private readonly ModeService _modeService;
     private readonly OllamaApiClient _apiClient;
     private readonly ProfileStoreService _profiles;
+    private readonly OllamaModelSessionService _modelSessions;
+    private ComputeMode? _lastBenchmarkMode;
 
     public AutomatedBenchmarkService(
         ModeService? modeService = null,
         OllamaApiClient? apiClient = null,
-        ProfileStoreService? profiles = null)
+        ProfileStoreService? profiles = null,
+        OllamaModelSessionService? modelSessions = null)
     {
         _modeService = modeService ?? new ModeService();
         _apiClient = apiClient ?? new OllamaApiClient();
         _profiles = profiles ?? new ProfileStoreService(_apiClient);
+        _modelSessions = modelSessions ?? new OllamaModelSessionService();
     }
 
     public async Task<BenchmarkReportDocument> RunAsync(
@@ -86,6 +90,9 @@ public sealed class AutomatedBenchmarkService
             Results = new List<BenchmarkReportModeResult>()
         };
 
+        await _modelSessions.SwitchToModelAsync(modelName, warmLoad: true, cancellationToken)
+            .ConfigureAwait(false);
+
         for (var modeIndex = 0; modeIndex < modes.Count; modeIndex++)
         {
             var mode = modes[modeIndex];
@@ -111,8 +118,19 @@ public sealed class AutomatedBenchmarkService
 
             try
             {
-                await _modeService.ApplyModeAsync(mode, restartOllama: true, cancellationToken: cancellationToken)
-                    .ConfigureAwait(false);
+                if (_lastBenchmarkMode != mode)
+                {
+                    await _modeService.ApplyModeEnvAsync(mode, cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+                    _lastBenchmarkMode = mode;
+                    BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+                    {
+                        Phase = BenchmarkProgressPhase.ModeApplying,
+                        BenchmarkKind = benchmarkKind,
+                        Model = modelName,
+                        LogLine = $"Applied {mode} env vars (no Ollama restart). Restart Ollama from Compute Modes tab to activate this backend."
+                    });
+                }
 
                 BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
                 {
@@ -220,6 +238,15 @@ public sealed class AutomatedBenchmarkService
             }
 
             report.Results!.Add(modeResult);
+        }
+
+        try
+        {
+            await _modelSessions.StopModelAsync(modelName, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Best effort unload after benchmark completes.
         }
 
         var successes = report.Results

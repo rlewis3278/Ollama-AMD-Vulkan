@@ -47,7 +47,7 @@
                              Foreground="{StaticResource Brush.Text}" BorderBrush="{StaticResource Brush.PanelBorder}"
                              FontFamily="Segoe UI" FontSize="14" Padding="10" />
                     <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,0">
-                        <CheckBox x:Name="RestartCheck" Content="Restart Ollama after applying mode" IsChecked="True" Foreground="{StaticResource Brush.Text}" />
+                        <CheckBox x:Name="RestartCheck" Content="Restart Ollama after applying mode" IsChecked="False" Foreground="{StaticResource Brush.Text}" />
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModes_Click" />
                     </StackPanel>
                 </Grid>
@@ -152,6 +152,9 @@
                             <Button x:Name="DownloadCatalogModelBtn" Content="Download Selected LLM"
                                     Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
                                     Click="DownloadCatalogModel_Click" />
+                            <Button x:Name="UninstallCatalogModelBtn" Content="Uninstall Selected LLM"
+                                    Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
+                                    Click="UninstallCatalogModel_Click" />
                             <Button x:Name="CompareCatalogBtn" Content="Compare with AI"
                                     Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
                                     Click="CompareCatalog_Click"

@@ -61,7 +61,7 @@ public static class BenchmarkProgressFormatter
     }
 
     public static string ModeApplying(int modeIndex, int modeCount, ComputeMode mode) =>
-        $"[{modeIndex + 1}/{modeCount}] {mode} — Applying mode, restarting Ollama...";
+        $"[{modeIndex + 1}/{modeCount}] {mode} — Applying compute mode (env only, no Ollama restart)...";
 
     public static string ModeBenchmarking(int modeIndex, int modeCount, ComputeMode mode) =>
         $"[{modeIndex + 1}/{modeCount}] {mode} — Benchmarking generation...";

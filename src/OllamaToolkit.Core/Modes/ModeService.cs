@@ -37,9 +37,16 @@ public sealed class ModeService
         return "Custom/Unknown";
     }
 
+    public async Task<ModeApplyResult> ApplyModeEnvAsync(
+        ComputeMode mode,
+        bool saveBackup = true,
+        CancellationToken cancellationToken = default) =>
+        await ApplyModeAsync(mode, restartOllama: false, saveBackup: saveBackup, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
     public async Task<ModeApplyResult> ApplyModeAsync(
         ComputeMode mode,
-        bool restartOllama = true,
+        bool restartOllama = false,
         bool saveBackup = true,
         CancellationToken cancellationToken = default)
     {

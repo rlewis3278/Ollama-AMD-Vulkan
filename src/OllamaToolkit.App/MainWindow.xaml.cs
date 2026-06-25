@@ -835,18 +835,18 @@ public partial class MainWindow : Window
 
         MainTabs.SelectedItem = ModelRunTab;
         _runModel = model.Model;
-        ModelRunStatus.Text = $"Applying best mode {model.BestMode} for {model.Model}...";
+        ModelRunStatus.Text = $"Loading {model.Model} via ollama run (no server restart)...";
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
             try
             {
-                await _svc.ModeService.ApplyModeAsync(mode, restartOllama: true, cancellationToken: ct)
-                    .ConfigureAwait(false);
+                await _svc.ModeService.ApplyModeEnvAsync(mode, cancellationToken: ct).ConfigureAwait(false);
+                await _svc.ModelSessions.SwitchToModelAsync(model.Model, warmLoad: true, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     ModelRunStatus.Text =
-                        $"{model.Model} | Mode: {model.BestMode} ({model.BestMetricDisplay}) | Ready";
+                        $"{model.Model} | Mode env: {model.BestMode} ({model.BestMetricDisplay}) | Loaded via ollama run";
                     ChatHistory.Text = string.Empty;
                     _chatMessages.Clear();
                     EndTaskFlashSuccess(sender, "Launched");
@@ -1521,12 +1521,13 @@ public partial class MainWindow : Window
                             AppendTestLog($"Step 3/3: Removing local copy {pullTag} (keeping benchmark data)…"))
                             .ConfigureAwait(false);
 
-                        await _svc.ApiClient.DeleteAsync(pullTag, ct).ConfigureAwait(false);
+                        await _svc.ModelSessions.UninstallModelAsync(pullTag, ct).ConfigureAwait(false);
+                        _svc.ApiClient.InvalidateCaches();
                         _svc.Profiles.ClearCache();
 
                         await UiDispatcher.InvokeAsync(() =>
                         {
-                            AppendTestLog($"Removed {pullTag} from disk. Benchmark profile retained.");
+                            AppendTestLog($"Removed {pullTag} from disk (ollama rm). Benchmark profile retained.");
                             AppendTestLog(
                                 $"=== Finished [{i + 1}/{candidates.Count}]: {candidate.LibraryName} ===");
                         }).ConfigureAwait(false);
@@ -1547,7 +1548,8 @@ public partial class MainWindow : Window
                             .ConfigureAwait(false);
                         try
                         {
-                            await _svc.ApiClient.DeleteAsync(pullTag, CancellationToken.None).ConfigureAwait(false);
+                            await _svc.ModelSessions.UninstallModelAsync(pullTag, CancellationToken.None)
+                                .ConfigureAwait(false);
                         }
                         catch
                         {
@@ -1580,9 +1582,11 @@ public partial class MainWindow : Window
 
                         try
                         {
-                            await _svc.ApiClient.DeleteAsync(pullTag, CancellationToken.None).ConfigureAwait(false);
+                            await _svc.ModelSessions.UninstallModelAsync(pullTag, CancellationToken.None)
+                                .ConfigureAwait(false);
                             await UiDispatcher.InvokeAsync(() =>
-                                AppendTestLog($"Cleanup: removed {pullTag} after failure.")).ConfigureAwait(false);
+                                AppendTestLog($"Cleanup: removed {pullTag} after failure (ollama rm)."))
+                                .ConfigureAwait(false);
                         }
                         catch
                         {
@@ -1815,7 +1819,22 @@ public partial class MainWindow : Window
         }).ConfigureAwait(true);
     }
 
-    private void StopChat_Click(object sender, RoutedEventArgs e) => _chatCts?.Cancel();
+    private async void StopChat_Click(object sender, RoutedEventArgs e)
+    {
+        _chatCts?.Cancel();
+        try
+        {
+            await _svc.ModelSessions.StopActiveModelAsync().ConfigureAwait(true);
+            if (!string.IsNullOrWhiteSpace(_runModel))
+            {
+                ModelRunStatus.Text = $"{_runModel} unloaded (ollama stop /bye equivalent).";
+            }
+        }
+        catch (Exception ex)
+        {
+            ModelRunStatus.Text = ex.Message;
+        }
+    }
 
     private void ClearChat_Click(object sender, RoutedEventArgs e)
     {
@@ -2886,6 +2905,65 @@ public partial class MainWindow : Window
         }).ConfigureAwait(true);
     }
 
+    private async void UninstallCatalogModel_Click(object sender, RoutedEventArgs e)
+    {
+        if (CatalogGrid.SelectedItem is not CatalogRowViewModel row)
+        {
+            MessageBox.Show("Select an installed catalog model first.", "Uninstall",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (!row.Installed && !row.InstalledDisplay.Equals("Yes", StringComparison.OrdinalIgnoreCase))
+        {
+            MessageBox.Show($"{row.Name} is not installed locally.", "Uninstall",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var model = $"{row.Name}:latest";
+        if (!ToolkitConfirmDialog.ShowAccept(
+                this,
+                $"Remove {model} from this PC? Benchmark data in the toolkit will be kept.",
+                "Uninstall LLM"))
+        {
+            return;
+        }
+
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        await _svc.WorkQueue.EnqueueAsync(async ct =>
+        {
+            try
+            {
+                await _svc.ModelSessions.UninstallModelAsync(model, ct).ConfigureAwait(false);
+                _svc.ApiClient.InvalidateCaches();
+                _svc.Profiles.ClearCache();
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    row.Installed = false;
+                    row.InstalledDisplay = "No";
+                    CatalogStatusLabel.Text = $"Uninstalled {model}.";
+                    await RefreshModelsUiAsync().ConfigureAwait(true);
+                    await RefreshCatalogUiAsync().ConfigureAwait(true);
+                    EndTaskFlashSuccess(sender, "Removed", 10);
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    CatalogStatusLabel.Text = msg;
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
+        }).ConfigureAwait(true);
+    }
+
     private async Task<string> FormatInsightColumnAsync(string? insight)
     {
         if (!string.IsNullOrWhiteSpace(insight))
@@ -3053,18 +3131,18 @@ public partial class MainWindow : Window
 
         MainTabs.SelectedItem = ModelRunTab;
         _runModel = model.Model;
-        ModelRunStatus.Text = $"Applying best mode {model.BestMode} for {model.Model}...";
+        ModelRunStatus.Text = $"Loading {model.Model} via ollama run (no server restart)...";
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
             try
             {
-                await _svc.ModeService.ApplyModeAsync(mode, restartOllama: true, cancellationToken: ct)
-                    .ConfigureAwait(false);
+                await _svc.ModeService.ApplyModeEnvAsync(mode, cancellationToken: ct).ConfigureAwait(false);
+                await _svc.ModelSessions.SwitchToModelAsync(model.Model, warmLoad: true, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     ModelRunStatus.Text =
-                        $"{model.Model} | Mode: {model.BestMode} ({model.BestMetricDisplay}) | Ready";
+                        $"{model.Model} | Mode env: {model.BestMode} ({model.BestMetricDisplay}) | Loaded via ollama run";
                     ChatHistory.Text = string.Empty;
                     _chatMessages.Clear();
                 }).ConfigureAwait(false);

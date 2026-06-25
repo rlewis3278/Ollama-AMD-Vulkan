@@ -131,7 +131,6 @@ public sealed class OllamaProcessService
         var attempt = 0;
         var startedTray = false;
         var startedServe = false;
-        var recycled = false;
         string? lastError = null;
 
         while (DateTime.UtcNow < deadline)
@@ -151,8 +150,7 @@ public sealed class OllamaProcessService
                             Success = true,
                             Message = "Ollama API is ready.",
                             StartedTrayApp = startedTray,
-                            StartedServeProcess = startedServe,
-                            RecycledStuckProcesses = recycled
+                            StartedServeProcess = startedServe
                         };
                     }
                 }
@@ -181,27 +179,12 @@ public sealed class OllamaProcessService
                 }
             }
 
-            if (!startedServe && attempt >= 10)
+            if (!startedServe && attempt >= 10 && GetProcesses().Count == 0)
             {
                 try
                 {
                     await StartServeProcessAsync(cancellationToken).ConfigureAwait(false);
                     startedServe = true;
-                }
-                catch (Exception ex)
-                {
-                    lastError = ex.Message;
-                }
-            }
-
-            if (!recycled && attempt >= 20 && GetProcesses().Count > 0)
-            {
-                try
-                {
-                    await StopAsync(quick: true, cancellationToken: cancellationToken).ConfigureAwait(false);
-                    recycled = true;
-                    startedTray = false;
-                    startedServe = false;
                 }
                 catch (Exception ex)
                 {
@@ -220,8 +203,7 @@ public sealed class OllamaProcessService
             Success = false,
             Message = $"Ollama API not ready after {timeoutSec}s. {detail}",
             StartedTrayApp = startedTray,
-            StartedServeProcess = startedServe,
-            RecycledStuckProcesses = recycled
+            StartedServeProcess = startedServe
         };
     }
 

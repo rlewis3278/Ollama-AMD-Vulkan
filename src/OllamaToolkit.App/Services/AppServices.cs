@@ -18,13 +18,15 @@ public sealed class AppServices : IDisposable
         ActivityLog = new ActivityLogService();
         WorkQueue = new BackgroundWorkQueue(ActivityLog);
         ApiClient = new OllamaApiClient();
+        OllamaCli = new OllamaCliService();
+        ModelSessions = new OllamaModelSessionService(OllamaCli);
         ModeDefinitions = new ModeDefinitionService();
         ModeService = new ModeService(ModeDefinitions, new EnvBackupService(), new OllamaProcessService());
         EnvBackup = new EnvBackupService();
         AiSettings = new AiSettingsService();
         Profiles = new ProfileStoreService(ApiClient);
         ReportImporter = new ReportImporter(Profiles);
-        BenchmarkRunner = new AutomatedBenchmarkService(ModeService, ApiClient, Profiles);
+        BenchmarkRunner = new AutomatedBenchmarkService(ModeService, ApiClient, Profiles, ModelSessions);
         PlainErrors = new PlainLanguageErrorService(AiSettings, ApiClient);
         CatalogStore = new LibraryCatalogStoreService();
         Descriptions = new DescriptionStoreService(AiSettings, ApiClient);
@@ -43,6 +45,8 @@ public sealed class AppServices : IDisposable
 
     public BackgroundWorkQueue WorkQueue { get; }
     public OllamaApiClient ApiClient { get; }
+    public OllamaCliService OllamaCli { get; }
+    public OllamaModelSessionService ModelSessions { get; }
     public ModeDefinitionService ModeDefinitions { get; }
     public ModeService ModeService { get; }
     public EnvBackupService EnvBackup { get; }
