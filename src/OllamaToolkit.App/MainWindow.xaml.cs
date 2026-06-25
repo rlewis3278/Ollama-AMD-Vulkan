@@ -87,8 +87,8 @@ public partial class MainWindow : Window
             _testSettingsTimer.Stop();
             await SuggestBenchmarkSettingsAsync().ConfigureAwait(true);
         };
-        _chatUpdater = new ThrottledUpdater(TimeSpan.FromMilliseconds(33));
-        _testLogUpdater = new ThrottledUpdater(TimeSpan.FromMilliseconds(33));
+        _chatUpdater = new ThrottledUpdater(TimeSpan.FromMilliseconds(33), Dispatcher);
+        _testLogUpdater = new ThrottledUpdater(TimeSpan.FromMilliseconds(33), Dispatcher);
         Loaded += OnLoadedAsync;
         Closed += (_, _) =>
         {
@@ -558,23 +558,47 @@ public partial class MainWindow : Window
 
     private void EnterAiActivity()
     {
-        if (_aiActivityDepth++ == 0)
+        void Enter()
         {
-            _aiProcessingFlash.BeginProcessingFlash();
+            if (_aiActivityDepth++ == 0)
+            {
+                _aiProcessingFlash.BeginProcessingFlash();
+            }
+        }
+
+        if (CheckAccess())
+        {
+            Enter();
+        }
+        else
+        {
+            Dispatcher.Invoke(Enter);
         }
     }
 
     private void ExitAiActivity()
     {
-        if (_aiActivityDepth <= 0)
+        void Exit()
         {
-            return;
+            if (_aiActivityDepth <= 0)
+            {
+                return;
+            }
+
+            if (--_aiActivityDepth == 0)
+            {
+                _aiProcessingFlash.EndProcessingFlash();
+                _ = UpdateAiStatusAsync();
+            }
         }
 
-        if (--_aiActivityDepth == 0)
+        if (CheckAccess())
         {
-            _aiProcessingFlash.EndProcessingFlash();
-            _ = UpdateAiStatusAsync();
+            Exit();
+        }
+        else
+        {
+            Dispatcher.Invoke(Exit);
         }
     }
 
@@ -994,7 +1018,7 @@ public partial class MainWindow : Window
             };
         }
 
-        var categoriesMap = await GetCategoryMapAsync().ConfigureAwait(true);
+        var categoriesMap = await GetCategoryMapAsync().ConfigureAwait(false);
         var library = model.Split(':')[0];
         var modelCategory = categoriesMap.TryGetValue(library, out var cat) ? cat : string.Empty;
 
@@ -1016,7 +1040,7 @@ public partial class MainWindow : Window
             TestNumCtxBox.Text = settings.NumCtx.ToString();
             TestNumPredictBox.Text = settings.NumPredict.ToString();
             TestSettingsLabel.Text = settings.Rationale ?? string.Empty;
-        }).ConfigureAwait(true);
+        }).ConfigureAwait(false);
 
         return (settings.NumCtx, settings.NumPredict);
     }
@@ -1314,7 +1338,8 @@ public partial class MainWindow : Window
                         await UiDispatcher.InvokeAsync(() =>
                         {
                             TestLogBox.Text += $"FAIL ({pullTag}): {ex.Message}{Environment.NewLine}";
-                            TestStatusLabel.Text = $"Undownload test failed for {pullTag}: {ex.Message}";
+                            TestStatusLabel.Text =
+                                $"Undownload test failed for {pullTag}: {ex.Message} — continuing queue…";
                         }).ConfigureAwait(false);
 
                         try
