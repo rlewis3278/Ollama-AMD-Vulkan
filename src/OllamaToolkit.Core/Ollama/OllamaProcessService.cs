@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using OllamaToolkit.Core.Windows;
 
 namespace OllamaToolkit.Core.Ollama;
 
@@ -68,41 +67,15 @@ public sealed class OllamaProcessService
     public async Task RestartAsync(
         bool autoStart = true,
         int timeoutSec = 90,
-        IntPtr? keepFocusWindow = null,
         CancellationToken cancellationToken = default)
     {
-        using var guardCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        var guardTask = ShouldGuardForeground(keepFocusWindow)
-            ? WindowsForeground.GuardForegroundAsync(keepFocusWindow!.Value, guardCts.Token)
-            : Task.CompletedTask;
-
-        try
+        await StopAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (autoStart)
         {
-            await StopAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-            if (autoStart)
-            {
-                await StartApplicationAsync(cancellationToken).ConfigureAwait(false);
-            }
-
-            await WaitForApiReadyAsync(timeoutSec, autoStart, cancellationToken).ConfigureAwait(false);
+            await StartApplicationAsync(cancellationToken).ConfigureAwait(false);
         }
-        finally
-        {
-            guardCts.Cancel();
-            try
-            {
-                await guardTask.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected when the guard is cancelled.
-            }
 
-            if (ShouldGuardForeground(keepFocusWindow))
-            {
-                WindowsForeground.TryBringToForeground(keepFocusWindow!.Value);
-            }
-        }
+        await WaitForApiReadyAsync(timeoutSec, autoStart, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task WaitForApiReadyAsync(
@@ -137,9 +110,6 @@ public sealed class OllamaProcessService
 
         throw new TimeoutException($"Ollama API not ready after {timeoutSec}s.");
     }
-
-    private static bool ShouldGuardForeground(IntPtr? windowHandle) =>
-        windowHandle is { } handle && handle != IntPtr.Zero;
 
     private static List<Process> GetProcesses()
     {
