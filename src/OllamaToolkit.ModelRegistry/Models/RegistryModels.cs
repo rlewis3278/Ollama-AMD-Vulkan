@@ -173,8 +173,14 @@ public sealed class TestResultRowViewModel
 {
     public required string Model { get; init; }
     public string Category { get; init; } = string.Empty;
+    public string BenchmarkKind { get; init; } = "Generate";
     public string BestMode { get; init; } = string.Empty;
     public double BestTps { get; init; }
+    public double BestEmbedMs { get; init; }
+    public string BestMetricDisplay =>
+        BenchmarkKind.Equals("Embed", StringComparison.OrdinalIgnoreCase)
+            ? BestEmbedMs > 0 ? $"{BestEmbedMs:F1} ms" : "-"
+            : BestTps > 0 ? $"{BestTps:F1}" : "-";
     public string CpuResult { get; init; } = "-";
     public string ApuResult { get; init; } = "-";
     public string GpuResult { get; init; } = "-";

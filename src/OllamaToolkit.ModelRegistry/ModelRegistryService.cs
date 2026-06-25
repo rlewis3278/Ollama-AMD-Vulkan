@@ -138,17 +138,20 @@ public sealed class ModelRegistryService
                     category = cat.Category;
                 }
 
+                var isEmbed = s.BenchmarkKind.Equals(BenchmarkKinds.Embed, StringComparison.OrdinalIgnoreCase);
                 return new TestResultRowViewModel
                 {
                     Model = s.Model,
                     Category = category,
+                    BenchmarkKind = s.BenchmarkKind,
                     BestMode = s.BestMode,
                     BestTps = s.BestTps,
-                    CpuResult = FormatModeResult(s.Results, "CPU"),
-                    ApuResult = FormatModeResult(s.Results, "APU"),
-                    GpuResult = FormatModeResult(s.Results, "GPU"),
-                    HybridResult = FormatModeResult(s.Results, "Hybrid"),
-                    RocmResult = FormatModeResult(s.Results, "ROCm"),
+                    BestEmbedMs = s.BestEmbedMs,
+                    CpuResult = FormatModeResult(s.Results, "CPU", isEmbed),
+                    ApuResult = FormatModeResult(s.Results, "APU", isEmbed),
+                    GpuResult = FormatModeResult(s.Results, "GPU", isEmbed),
+                    HybridResult = FormatModeResult(s.Results, "Hybrid", isEmbed),
+                    RocmResult = FormatModeResult(s.Results, "ROCm", isEmbed),
                     Insight = string.Empty,
                     LastTested = s.LastTested
                 };
@@ -157,16 +160,25 @@ public sealed class ModelRegistryService
             .ToList();
     }
 
-    private static string FormatModeResult(Dictionary<string, ModeResultEntry>? results, string mode)
+    private static string FormatModeResult(
+        Dictionary<string, ModeResultEntry>? results,
+        string mode,
+        bool isEmbed)
     {
         if (results is null || !results.TryGetValue(mode, out var row))
         {
             return "-";
         }
 
-        if (row.Status.Equals("FAIL", StringComparison.OrdinalIgnoreCase))
+        if (row.Status.Equals("Failed", StringComparison.OrdinalIgnoreCase)
+            || row.Status.Equals("FAIL", StringComparison.OrdinalIgnoreCase))
         {
             return "FAIL";
+        }
+
+        if (isEmbed)
+        {
+            return row.EmbedLatencyMs > 0 ? $"{row.EmbedLatencyMs:F1}ms" : row.Status;
         }
 
         return row.GenerationTps > 0 ? $"{row.GenerationTps:F1}" : row.Status;
@@ -296,6 +308,11 @@ public sealed class ModelRegistryService
         if (profile is null || string.IsNullOrEmpty(profile.BestMode))
         {
             return ("-", "-");
+        }
+
+        if (profile.BenchmarkKind.Equals(BenchmarkKinds.Embed, StringComparison.OrdinalIgnoreCase))
+        {
+            return (profile.BestMode, profile.BestEmbedMs > 0 ? $"{profile.BestEmbedMs:F1} ms" : "-");
         }
 
         return (profile.BestMode, profile.BestTps > 0 ? $"{profile.BestTps:F1}" : "-");

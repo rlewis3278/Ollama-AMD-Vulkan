@@ -665,6 +665,30 @@ src/OllamaToolkit.ModelRegistry/ModelRegistryService.cs
 
 ---
 
+## Phase 10 — Embedding model benchmark (`/api/embed`)
+
+**User request:** Properly benchmark embedding models (`all-minilm`, `snowflake-arctic-embed`, etc.) that fail on `/api/generate` with 400.
+
+**Deliverables:**
+- `CategoryNormalizer.IsEmbeddingModel()` — category + name heuristics
+- `OllamaApiClient.BenchmarkEmbedAsync()` — warmup + timed `/api/embed` call
+- `AutomatedBenchmarkService` branches generate vs embed; winner = lowest `EmbedLatency_ms`
+- Profile/report schema: `BenchmarkKind`, `BestEmbed_ms`, per-mode `EmbedLatency_ms`
+- Test Selected / Test Undownload route embedding models to embed path automatically
+- UI: Metric columns show `12.4 ms` for embed vs tok/s for generation; skip AI num_ctx settings for embed
+- `BenchmarkInsightService` embed-aware interpretation prompts
+
+**Key files:**
+```
+src/OllamaToolkit.Core/Ollama/OllamaApiClient.cs
+src/OllamaToolkit.BenchmarkRunner/AutomatedBenchmarkService.cs
+src/OllamaToolkit.BenchmarkStore/Models/BenchmarkModels.cs
+src/OllamaToolkit.ModelCategory/CategoryNormalizer.cs
+src/OllamaToolkit.App/MainWindow.xaml(.cs)
+```
+
+---
+
 ## 11. Remaining plan items
 
 From `plan.md` — not yet implemented:
@@ -754,7 +778,10 @@ aab235b  docs: post-execution archive entry for Phase 9
 6ebcad1  fix: Test Undownload UI thread access
 a261a8a  fix: Test Undownload pull verify, settings clamp, download progress
 090f39b  docs: pre-execution archive sync for Phase 10 embed benchmark
+782b470  docs: pre-execution archive sync for Phase 10 embed benchmark (session log)
 ```
+
+*(Phase 10 feature commit follows in same session.)*
 
 ### Archive files
 
@@ -767,4 +794,4 @@ a261a8a  fix: Test Undownload pull verify, settings clamp, download progress
 
 ---
 
-*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated: 2026-06-25 — Phase 10 embed benchmark (pre-execution); session log synced to updates.jsonl.*
+*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated: 2026-06-25 — Phase 10 embed benchmark complete; session log synced to updates.jsonl.*

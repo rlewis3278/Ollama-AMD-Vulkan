@@ -14,6 +14,7 @@ public enum BenchmarkProgressPhase
 
 public sealed class BenchmarkProgressUpdate
 {
+    public string BenchmarkKind { get; init; } = "Generate";
     public BenchmarkProgressPhase Phase { get; init; }
     public string? Model { get; init; }
     public int ModelIndex { get; init; }
@@ -24,10 +25,12 @@ public sealed class BenchmarkProgressUpdate
     public int NumCtx { get; init; }
     public int NumPredict { get; init; }
     public double? GenerationTps { get; init; }
+    public double? EmbedLatencyMs { get; init; }
     public double DurationSec { get; init; }
     public string? Error { get; init; }
     public string? BestMode { get; init; }
     public double BestTps { get; init; }
+    public double BestEmbedMs { get; init; }
     public string? LogLine { get; init; }
     public string? AiSummarizerModel { get; init; }
 

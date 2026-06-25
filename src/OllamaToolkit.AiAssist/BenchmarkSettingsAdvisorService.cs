@@ -6,6 +6,7 @@ using OllamaToolkit.Core;
 using OllamaToolkit.Core.Ollama;
 using OllamaToolkit.Core.Settings;
 using OllamaToolkit.ModelCatalog;
+using OllamaToolkit.ModelCategory;
 
 namespace OllamaToolkit.AiAssist;
 
@@ -44,6 +45,17 @@ public sealed class BenchmarkSettingsAdvisorService
         string? category = null,
         CancellationToken cancellationToken = default)
     {
+        if (CategoryNormalizer.IsEmbeddingModel(summary.Model, category ?? summary.Category))
+        {
+            return new BenchmarkSettingsEntry
+            {
+                NumCtx = 0,
+                NumPredict = 0,
+                Rationale = "Embedding model — uses /api/embed benchmark (latency ms; no generation settings).",
+                GeneratedAt = DateTimeOffset.Now.ToString("o")
+            };
+        }
+
         var doc = await LoadAsync(cancellationToken).ConfigureAwait(false);
         if (doc.Models.TryGetValue(summary.Model, out var existing)
             && !string.IsNullOrWhiteSpace(existing.Rationale))
@@ -92,6 +104,14 @@ public sealed class BenchmarkSettingsAdvisorService
         BenchmarkSettingsEntry entry,
         ModelProfileSummary summary)
     {
+        if (CategoryNormalizer.IsEmbeddingModel(summary.Model, summary.Category))
+        {
+            entry.NumCtx = 0;
+            entry.NumPredict = 0;
+            entry.Rationale ??= "Embedding model — uses /api/embed benchmark (latency ms; no generation settings).";
+            return entry;
+        }
+
         var sizeGb = summary.SizeGB > 0 ? summary.SizeGB : 4;
         var recommended = summary.RecommendedCtx > 0
             ? summary.RecommendedCtx

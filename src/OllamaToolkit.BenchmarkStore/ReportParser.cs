@@ -22,6 +22,7 @@ public static class ReportParser
             return null;
         }
 
+        var isEmbed = report.BenchmarkKind.Equals(BenchmarkKinds.Embed, StringComparison.OrdinalIgnoreCase);
         var results = new Dictionary<string, ModeResultEntry>(StringComparer.OrdinalIgnoreCase);
         if (report.Results is not null)
         {
@@ -33,6 +34,7 @@ public static class ReportParser
                     GenerationTps = row.GenerationTps,
                     PromptEvalTps = row.PromptEvalTps,
                     TtftMs = row.TtftMs,
+                    EmbedLatencyMs = row.EmbedLatencyMs,
                     VramMb = row.VramMb,
                     Notes = row.Notes,
                     Error = row.Error
@@ -42,11 +44,13 @@ public static class ReportParser
 
         return new ModelProfileEntry
         {
+            BenchmarkKind = isEmbed ? BenchmarkKinds.Embed : BenchmarkKinds.Generate,
             BestMode = report.Winner?.Mode,
             BestTps = report.Winner?.GenerationTps ?? 0,
+            BestEmbedMs = report.Winner?.EmbedLatencyMs ?? 0,
             Quantization = report.Quantization ?? "unknown",
-            NumCtx = numCtx,
-            NumPredict = report.NumPredict > 0 ? report.NumPredict : 32,
+            NumCtx = isEmbed ? 0 : numCtx,
+            NumPredict = isEmbed ? 0 : report.NumPredict > 0 ? report.NumPredict : 32,
             Runs = report.Runs > 0 ? report.Runs : 1,
             LastTested = report.CompletedAt ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             Results = results,

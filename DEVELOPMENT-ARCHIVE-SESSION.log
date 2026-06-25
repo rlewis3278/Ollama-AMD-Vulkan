@@ -2044,3 +2044,59 @@ EOF
 [2026-06-25 05:45:40] [REASONING] Branch generate vs embed benchmarks by model category; metrics: embed latency ms and prompt tok/s; winner = lowest latency per mode
 [2026-06-25 05:45:40] [SYNC] Processed updates.jsonl lines 8836..8841
 [2026-06-25 05:45:40] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 05:47:43] [BUILD] Release build succeeded — 0 warnings, 0 errors
+[2026-06-25 05:47:43] [TOOL] Read - Read
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add DEVELOPMENT-ARCHIVE.md DEVELOPMENT-ARCHIVE-SESSION.log DEVELOPMENT-ARCHIVE-COMMANDS.txt; git commit -m "docs: pre-execution archive sync for Phase 10 embed benchmark"
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] Write - Write
+[2026-06-25 05:47:43] [TOOL] Write - Write
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] Write - Write
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] Read - Read
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] Read - Read
+[2026-06-25 05:47:43] [TOOL] Grep - Grep
+[2026-06-25 05:47:43] [TOOL] Read - Read
+[2026-06-25 05:47:43] [TOOL] Read - Read
+[2026-06-25 05:47:43] [TOOL] Read - Read
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-25 05:47:43] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 05:47:43] [TOOL] Read - Read
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:47:43] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "BUILD|Release build succeeded â€” 0 warnings, 0 errors"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "FILE|Phase 10 embed benchmark â€” OllamaApiClient, AutomatedBenchmarkService, UI columns, Test Undownload routing"; git add -A; git commit -m "feat: Phase 10 embedding model benchmark via /api/embed"
+[2026-06-25 05:47:43] [SYNC] Processed updates.jsonl lines 8842..9026
+[2026-06-25 05:47:43] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 05:47:44] [FILE] Phase 10 embed benchmark — OllamaApiClient, AutomatedBenchmarkService, UI columns, Test Undownload routing
+[2026-06-25 05:47:44] [SYNC] Processed updates.jsonl lines 9027..9032
+[2026-06-25 05:47:44] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

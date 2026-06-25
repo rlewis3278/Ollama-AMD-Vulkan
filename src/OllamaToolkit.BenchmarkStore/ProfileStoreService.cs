@@ -97,11 +97,18 @@ public sealed class ProfileStoreService
             var status = "Untested";
             var bestMode = string.Empty;
             var bestTps = 0.0;
+            var bestEmbedMs = 0.0;
+            var benchmarkKind = BenchmarkKinds.Generate;
             var lastTested = string.Empty;
             var needsRetest = true;
 
             if (profile is not null)
             {
+                benchmarkKind = string.IsNullOrWhiteSpace(profile.BenchmarkKind)
+                    ? BenchmarkKinds.Generate
+                    : profile.BenchmarkKind;
+                bestEmbedMs = profile.BestEmbedMs;
+
                 if (!string.IsNullOrEmpty(profile.Digest) && !string.IsNullOrEmpty(digest)
                     && !string.Equals(profile.Digest, digest, StringComparison.Ordinal))
                 {
@@ -125,12 +132,14 @@ public sealed class ProfileStoreService
             {
                 Model = model.Name,
                 SizeGB = sizeGb,
+                BenchmarkKind = benchmarkKind,
                 Quantization = model.Details?.QuantizationLevel ?? "-",
                 ParameterSize = model.Details?.ParameterSize ?? "-",
                 Digest = digest,
                 Status = status,
                 BestMode = bestMode,
                 BestTps = bestTps,
+                BestEmbedMs = bestEmbedMs,
                 LastTested = lastTested,
                 NeedsRetest = needsRetest,
                 RecommendedCtx = GetRecommendedBenchmarkNumCtx(sizeGb),
@@ -160,11 +169,18 @@ public sealed class ProfileStoreService
         var status = "Untested";
         var bestMode = string.Empty;
         var bestTps = 0.0;
+        var bestEmbedMs = 0.0;
+        var benchmarkKind = BenchmarkKinds.Generate;
         var lastTested = string.Empty;
         var needsRetest = true;
 
         if (profile is not null)
         {
+            benchmarkKind = string.IsNullOrWhiteSpace(profile.BenchmarkKind)
+                ? BenchmarkKinds.Generate
+                : profile.BenchmarkKind;
+            bestEmbedMs = profile.BestEmbedMs;
+
             if (!string.IsNullOrEmpty(profile.BestMode))
             {
                 status = "Tested";
@@ -183,12 +199,14 @@ public sealed class ProfileStoreService
         {
             Model = modelName,
             SizeGB = sizeGb,
+            BenchmarkKind = benchmarkKind,
             Quantization = profile?.Quantization ?? "-",
             ParameterSize = "-",
             Digest = digest,
             Status = status,
             BestMode = bestMode,
             BestTps = bestTps,
+            BestEmbedMs = bestEmbedMs,
             LastTested = lastTested,
             NeedsRetest = needsRetest,
             RecommendedCtx = GetRecommendedBenchmarkNumCtx(sizeGb > 0 ? sizeGb : 4),

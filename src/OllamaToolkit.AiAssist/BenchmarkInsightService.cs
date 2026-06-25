@@ -84,15 +84,22 @@ public sealed class BenchmarkInsightService
             return;
         }
 
+        var isEmbed = summary.BenchmarkKind.Equals(BenchmarkKinds.Embed, StringComparison.OrdinalIgnoreCase);
         var modes = summary.Results is null
             ? string.Empty
-            : string.Join(", ", summary.Results.Select(r =>
-                $"{r.Key}:{r.Value.Status}@{r.Value.GenerationTps:F1}tok/s"));
+            : string.Join(", ", summary.Results.Select(r => isEmbed
+                ? $"{r.Key}:{r.Value.Status}@{r.Value.EmbedLatencyMs:F1}ms"
+                : $"{r.Key}:{r.Value.Status}@{r.Value.GenerationTps:F1}tok/s"));
+
+        var bestMetric = isEmbed
+            ? $"{summary.BestEmbedMs:F1} ms/embed"
+            : $"{summary.BestTps:F1} tok/s";
+        var benchmarkType = isEmbed ? "embedding (/api/embed)" : "generation (/api/generate)";
 
         var prompt = $"""
-            Summarize this Ollama benchmark on AMD Vulkan Windows in 2-3 sentences for a laptop user.
+            Summarize this Ollama {benchmarkType} benchmark on AMD Vulkan Windows in 2-3 sentences for a laptop user.
             Model: {summary.Model} ({summary.SizeGB} GB)
-            Best mode: {summary.BestMode} at {summary.BestTps:F1} tok/s
+            Best mode: {summary.BestMode} at {bestMetric}
             Per-mode: {modes}
             Summary:
             """;

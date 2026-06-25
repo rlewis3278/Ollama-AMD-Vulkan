@@ -3,6 +3,7 @@ using OllamaToolkit.BenchmarkStore.Models;
 using OllamaToolkit.Core;
 using OllamaToolkit.Core.Modes;
 using OllamaToolkit.Core.Ollama;
+using OllamaToolkit.ModelCategory;
 
 namespace OllamaToolkit.BenchmarkRunner;
 
@@ -10,6 +11,12 @@ public sealed class AutomatedBenchmarkService
 {
     private const string DefaultPrompt =
         "Summarize in one paragraph how local LLM GPU backend selection affects inference speed on Windows.";
+
+    private const string DefaultEmbedInput =
+        "Local LLM inference on Windows laptops benefits from choosing the right GPU backend. "
+        + "Vulkan provides broad AMD compatibility while ROCm can accelerate integrated graphics. "
+        + "Embedding models convert text into dense vectors for semantic search, retrieval augmented generation, "
+        + "and clustering applications across document collections.";
 
     private readonly ModeService _modeService;
     private readonly OllamaApiClient _apiClient;
@@ -35,6 +42,7 @@ public sealed class AutomatedBenchmarkService
         int modelIndex = 0,
         int modelCount = 1,
         string? aiSummarizerModel = null,
+        string? category = null,
         IProgress<string>? log = null,
         IProgress<BenchmarkProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
@@ -43,11 +51,19 @@ public sealed class AutomatedBenchmarkService
         outputDir ??= ProfileStoreService.NewGuiTestOutputDir(modelName);
         Directory.CreateDirectory(outputDir);
 
-        var header = BenchmarkProgressFormatter.ModelHeader(
-            modelName, modelIndex, modelCount, numCtx, numPredict, modes, aiSummarizerModel);
+        var isEmbed = CategoryNormalizer.IsEmbeddingModel(modelName, category);
+        var benchmarkKind = isEmbed ? BenchmarkKinds.Embed : BenchmarkKinds.Generate;
+
+        var header = isEmbed
+            ? BenchmarkProgressFormatter.EmbedModelHeader(
+                modelName, modelIndex, modelCount, modes, aiSummarizerModel)
+            : BenchmarkProgressFormatter.ModelHeader(
+                modelName, modelIndex, modelCount, numCtx, numPredict, modes, aiSummarizerModel);
+
         BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
         {
             Phase = BenchmarkProgressPhase.ModelStarted,
+            BenchmarkKind = benchmarkKind,
             Model = modelName,
             ModelIndex = modelIndex,
             ModelCount = modelCount,
@@ -60,8 +76,10 @@ public sealed class AutomatedBenchmarkService
 
         var report = new BenchmarkReportDocument
         {
+            BenchmarkKind = benchmarkKind,
+            EmbedInput = isEmbed ? DefaultEmbedInput : null,
             Model = modelName,
-            NumPredict = numPredict,
+            NumPredict = isEmbed ? 0 : numPredict,
             Runs = runs,
             OutputDir = outputDir,
             StartedAt = DateTimeOffset.Now.ToString("o"),
@@ -76,6 +94,7 @@ public sealed class AutomatedBenchmarkService
             BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
             {
                 Phase = BenchmarkProgressPhase.ModeApplying,
+                BenchmarkKind = benchmarkKind,
                 Model = modelName,
                 ModelIndex = modelIndex,
                 ModelCount = modelCount,
@@ -98,6 +117,7 @@ public sealed class AutomatedBenchmarkService
                 BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
                 {
                     Phase = BenchmarkProgressPhase.ModeBenchmarking,
+                    BenchmarkKind = benchmarkKind,
                     Model = modelName,
                     ModelIndex = modelIndex,
                     ModelCount = modelCount,
@@ -106,47 +126,85 @@ public sealed class AutomatedBenchmarkService
                     ModeCount = modes.Count,
                     NumCtx = numCtx,
                     NumPredict = numPredict,
-                    LogLine = BenchmarkProgressFormatter.ModeBenchmarking(modeIndex, modes.Count, mode)
+                    LogLine = isEmbed
+                        ? BenchmarkProgressFormatter.ModeEmbedBenchmarking(modeIndex, modes.Count, mode)
+                        : BenchmarkProgressFormatter.ModeBenchmarking(modeIndex, modes.Count, mode)
                 });
 
-                var bench = await _apiClient.BenchmarkGenerateAsync(
-                    modelName, DefaultPrompt, numPredict, numCtx, warmup: true, cancellationToken)
-                    .ConfigureAwait(false);
-
-                modeResult.Status = "Success";
-                modeResult.GenerationTps = bench.GenerationTps;
-                modeResult.PromptEvalTps = bench.PromptEvalTps;
-                modeResult.TtftMs = bench.TtftMs;
-                modeResult.Notes = $"gen_tokens={bench.EvalCount}; num_ctx={numCtx}";
-                modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
-
-                BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+                if (isEmbed)
                 {
-                    Phase = BenchmarkProgressPhase.ModeCompleted,
-                    Model = modelName,
-                    ModelIndex = modelIndex,
-                    ModelCount = modelCount,
-                    Mode = mode.ToString(),
-                    ModeIndex = modeIndex,
-                    ModeCount = modes.Count,
-                    NumCtx = numCtx,
-                    NumPredict = numPredict,
-                    GenerationTps = bench.GenerationTps,
-                    DurationSec = modeResult.DurationSec,
-                    LogLine = BenchmarkProgressFormatter.ModeCompleted(
-                        modeIndex, modes.Count, mode, bench.GenerationTps, modeResult.DurationSec)
-                });
+                    var bench = await _apiClient.BenchmarkEmbedAsync(
+                        modelName, DefaultEmbedInput, warmup: true, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    modeResult.Status = "Success";
+                    modeResult.EmbedLatencyMs = bench.LatencyMs;
+                    modeResult.PromptEvalTps = bench.PromptEvalTps;
+                    modeResult.Notes =
+                        $"prompt_tokens={bench.PromptEvalCount}; dims={bench.Dimensions}; embed_ms={bench.LatencyMs:F1}";
+                    modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
+
+                    BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+                    {
+                        Phase = BenchmarkProgressPhase.ModeCompleted,
+                        BenchmarkKind = benchmarkKind,
+                        Model = modelName,
+                        ModelIndex = modelIndex,
+                        ModelCount = modelCount,
+                        Mode = mode.ToString(),
+                        ModeIndex = modeIndex,
+                        ModeCount = modes.Count,
+                        EmbedLatencyMs = bench.LatencyMs,
+                        DurationSec = modeResult.DurationSec,
+                        LogLine = BenchmarkProgressFormatter.ModeEmbedCompleted(
+                            modeIndex, modes.Count, mode, bench.LatencyMs, modeResult.DurationSec)
+                    });
+                }
+                else
+                {
+                    var bench = await _apiClient.BenchmarkGenerateAsync(
+                        modelName, DefaultPrompt, numPredict, numCtx, warmup: true, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    modeResult.Status = "Success";
+                    modeResult.GenerationTps = bench.GenerationTps;
+                    modeResult.PromptEvalTps = bench.PromptEvalTps;
+                    modeResult.TtftMs = bench.TtftMs;
+                    modeResult.Notes = $"gen_tokens={bench.EvalCount}; num_ctx={numCtx}";
+                    modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
+
+                    BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+                    {
+                        Phase = BenchmarkProgressPhase.ModeCompleted,
+                        BenchmarkKind = benchmarkKind,
+                        Model = modelName,
+                        ModelIndex = modelIndex,
+                        ModelCount = modelCount,
+                        Mode = mode.ToString(),
+                        ModeIndex = modeIndex,
+                        ModeCount = modes.Count,
+                        NumCtx = numCtx,
+                        NumPredict = numPredict,
+                        GenerationTps = bench.GenerationTps,
+                        DurationSec = modeResult.DurationSec,
+                        LogLine = BenchmarkProgressFormatter.ModeCompleted(
+                            modeIndex, modes.Count, mode, bench.GenerationTps, modeResult.DurationSec)
+                    });
+                }
             }
             catch (Exception ex)
             {
                 modeResult.Status = "Failed";
                 modeResult.Error = ex.Message;
-                modeResult.Notes = $"Benchmark failed for mode {mode}.";
+                modeResult.Notes = isEmbed
+                    ? $"Embed benchmark failed for mode {mode}."
+                    : $"Benchmark failed for mode {mode}.";
                 modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
 
                 BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
                 {
                     Phase = BenchmarkProgressPhase.ModeFailed,
+                    BenchmarkKind = benchmarkKind,
                     Model = modelName,
                     ModelIndex = modelIndex,
                     ModelCount = modelCount,
@@ -164,10 +222,13 @@ public sealed class AutomatedBenchmarkService
             report.Results!.Add(modeResult);
         }
 
-        var winner = report.Results
+        var successes = report.Results
             .Where(r => r.Status.Equals("Success", StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(r => r.GenerationTps)
-            .FirstOrDefault();
+            .ToList();
+
+        BenchmarkReportModeResult? winner = isEmbed
+            ? successes.OrderBy(r => r.EmbedLatencyMs).FirstOrDefault()
+            : successes.OrderByDescending(r => r.GenerationTps).FirstOrDefault();
 
         if (winner is not null)
         {
@@ -176,6 +237,7 @@ public sealed class AutomatedBenchmarkService
                 Mode = winner.Mode,
                 GenerationTps = winner.GenerationTps,
                 TtftMs = winner.TtftMs,
+                EmbedLatencyMs = winner.EmbedLatencyMs,
                 VramMb = winner.VramMb
             };
             report.Quantization = "unknown";
@@ -183,13 +245,17 @@ public sealed class AutomatedBenchmarkService
             BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
             {
                 Phase = BenchmarkProgressPhase.ModelCompleted,
+                BenchmarkKind = benchmarkKind,
                 Model = modelName,
                 ModelIndex = modelIndex,
                 ModelCount = modelCount,
                 ModeCount = modes.Count,
                 BestMode = winner.Mode,
                 BestTps = winner.GenerationTps,
-                LogLine = BenchmarkProgressFormatter.ModelWinner(winner.Mode!, winner.GenerationTps)
+                BestEmbedMs = winner.EmbedLatencyMs,
+                LogLine = isEmbed
+                    ? BenchmarkProgressFormatter.EmbedModelWinner(winner.Mode!, winner.EmbedLatencyMs)
+                    : BenchmarkProgressFormatter.ModelWinner(winner.Mode!, winner.GenerationTps)
             });
         }
 
@@ -202,6 +268,7 @@ public sealed class AutomatedBenchmarkService
         BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
         {
             Phase = BenchmarkProgressPhase.ModelCompleted,
+            BenchmarkKind = benchmarkKind,
             Model = modelName,
             ModelIndex = modelIndex,
             ModelCount = modelCount,

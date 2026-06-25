@@ -116,4 +116,23 @@ public static class CategoryNormalizer
 
     public static int GetSortOrder(string category) =>
         SortOrder.TryGetValue(category, out var order) ? order : 9;
+
+    public static bool IsEmbeddingModel(string modelName, string? category = null)
+    {
+        if (!string.IsNullOrWhiteSpace(category)
+            && category.Trim().Equals("Embedding", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var baseName = modelName.Split(':')[0].ToLowerInvariant();
+        return baseName.Contains("embed", StringComparison.Ordinal)
+            || baseName.Contains("minilm", StringComparison.Ordinal)
+            || baseName.Contains("arctic-embed", StringComparison.Ordinal)
+            || baseName.Contains("nomic-embed", StringComparison.Ordinal)
+            || baseName.Contains("mxbai-embed", StringComparison.Ordinal)
+            || baseName.Contains("bge-", StringComparison.Ordinal)
+            || baseName.Contains("e5-", StringComparison.Ordinal)
+            || baseName.Contains("gte-", StringComparison.Ordinal);
+    }
 }

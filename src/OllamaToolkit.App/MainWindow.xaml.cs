@@ -841,7 +841,8 @@ public partial class MainWindow : Window
                     .ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    ModelRunStatus.Text = $"{model.Model} | Mode: {model.BestMode} ({model.BestTps:F1} tok/s) | Ready";
+                    ModelRunStatus.Text =
+                        $"{model.Model} | Mode: {model.BestMode} ({model.BestMetricDisplay}) | Ready";
                     ChatHistory.Text = string.Empty;
                     _chatMessages.Clear();
                     EndTaskFlashSuccess(sender, "Launched");
@@ -1048,6 +1049,39 @@ public partial class MainWindow : Window
         var categoriesMap = await GetCategoryMapAsync().ConfigureAwait(false);
         var library = model.Split(':')[0];
         var modelCategory = categoriesMap.TryGetValue(library, out var cat) ? cat : string.Empty;
+        if (string.IsNullOrWhiteSpace(summary.Category))
+        {
+            summary = new ModelProfileSummary
+            {
+                Model = summary.Model,
+                SizeGB = summary.SizeGB,
+                Category = modelCategory,
+                RecommendedCtx = summary.RecommendedCtx,
+                BenchmarkKind = summary.BenchmarkKind,
+                BestEmbedMs = summary.BestEmbedMs,
+                BestMode = summary.BestMode,
+                BestTps = summary.BestTps,
+                Digest = summary.Digest,
+                LastTested = summary.LastTested,
+                NeedsRetest = summary.NeedsRetest,
+                ParameterSize = summary.ParameterSize,
+                Quantization = summary.Quantization,
+                Results = summary.Results,
+                Status = summary.Status
+            };
+        }
+
+        if (CategoryNormalizer.IsEmbeddingModel(model, modelCategory))
+        {
+            await UiDispatcher.InvokeAsync(() =>
+            {
+                TestNumCtxBox.Text = "—";
+                TestNumPredictBox.Text = "—";
+                TestSettingsLabel.Text =
+                    "Embedding model — /api/embed benchmark (latency ms; no generation settings).";
+            }).ConfigureAwait(false);
+            return (0, 0);
+        }
 
         EnterAiActivity();
         BenchmarkSettingsEntry settings;
@@ -1182,18 +1216,27 @@ public partial class MainWindow : Window
     private void ApplyBenchmarkProgressUpdate(BenchmarkProgressUpdate update)
     {
         TestOverallProgress.Value = update.OverallPercent;
+        var isEmbed = update.BenchmarkKind.Equals(BenchmarkKinds.Embed, StringComparison.OrdinalIgnoreCase);
 
         if (!string.IsNullOrWhiteSpace(update.Model))
         {
+            var kindLabel = isEmbed ? "embed" : "generate";
             var aiLine = string.IsNullOrWhiteSpace(update.AiSummarizerModel)
                 ? "AI insights LLM: (none)"
                 : $"AI insights LLM: {update.AiSummarizerModel}";
             TestOverallLabel.Text =
-                $"Overall: {update.Model} ({update.ModelIndex + 1}/{update.ModelCount}) — {aiLine}";
+                $"Overall: {update.Model} ({update.ModelIndex + 1}/{update.ModelCount}) [{kindLabel}] — {aiLine}";
         }
 
         if (string.IsNullOrWhiteSpace(update.Mode) || !_testModeProgress.TryGetValue(update.Mode, out var row))
         {
+            if (update.Phase == BenchmarkProgressPhase.ModelCompleted && update.BestMode is not null)
+            {
+                TestStatusLabel.Text = isEmbed
+                    ? $"{update.Model} complete — winner: {update.BestMode} @ {update.BestEmbedMs:F1} ms/embed"
+                    : $"{update.Model} complete — winner: {update.BestMode} @ {update.BestTps:F2} tok/s";
+            }
+
             return;
         }
 
@@ -1207,12 +1250,14 @@ public partial class MainWindow : Window
                 break;
             case BenchmarkProgressPhase.ModeBenchmarking:
                 row.Bar.Value = update.CurrentModePercent;
-                row.Status.Text = "Benchmarking…";
+                row.Status.Text = isEmbed ? "Embedding…" : "Benchmarking…";
                 row.Status.Foreground = (Brush)FindResource("Brush.Warning");
                 break;
             case BenchmarkProgressPhase.ModeCompleted:
                 row.Bar.Value = 100;
-                row.Status.Text = $"{update.GenerationTps:F1} tok/s";
+                row.Status.Text = isEmbed
+                    ? $"{update.EmbedLatencyMs:F1} ms"
+                    : $"{update.GenerationTps:F1} tok/s";
                 row.Status.Foreground = (Brush)FindResource("Brush.Active");
                 break;
             case BenchmarkProgressPhase.ModeFailed:
@@ -1229,12 +1274,18 @@ public partial class MainWindow : Window
             {
                 BenchmarkProgressPhase.ModeApplying =>
                     $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — applying compute mode…",
+                BenchmarkProgressPhase.ModeBenchmarking when isEmbed =>
+                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — running embed benchmark on {update.Model}…",
                 BenchmarkProgressPhase.ModeBenchmarking =>
                     $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — running benchmark on {update.Model}…",
+                BenchmarkProgressPhase.ModeCompleted when isEmbed =>
+                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — {update.EmbedLatencyMs:F1} ms/embed",
                 BenchmarkProgressPhase.ModeCompleted =>
                     $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — {update.GenerationTps:F2} tok/s",
                 BenchmarkProgressPhase.ModeFailed =>
                     $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — failed",
+                BenchmarkProgressPhase.ModelCompleted when update.BestMode is not null && isEmbed =>
+                    $"{update.Model} complete — winner: {update.BestMode} @ {update.BestEmbedMs:F1} ms/embed",
                 BenchmarkProgressPhase.ModelCompleted when update.BestMode is not null =>
                     $"{update.Model} complete — winner: {update.BestMode} @ {update.BestTps:F2} tok/s",
                 _ => TestStatusLabel.Text
@@ -1558,13 +1609,19 @@ public partial class MainWindow : Window
 
             try
             {
+                var categoriesMap = await GetCategoryMapAsync().ConfigureAwait(false);
+                var library = model.Split(':')[0];
+                var modelCategory = categoriesMap.TryGetValue(library, out var cat) ? cat : string.Empty;
+                var isEmbed = CategoryNormalizer.IsEmbeddingModel(model, modelCategory);
+
                 var (numCtx, numPredict) = await ResolveBenchmarkSettingsForModelAsync(model, ct)
                     .ConfigureAwait(false);
 
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    TestStatusLabel.Text =
-                        $"Benchmarking {model} ({globalIndex + 1}/{totalModels}) — num_ctx={numCtx}, num_predict={numPredict}…";
+                    TestStatusLabel.Text = isEmbed
+                        ? $"Embedding benchmark {model} ({globalIndex + 1}/{totalModels}) — /api/embed latency test…"
+                        : $"Benchmarking {model} ({globalIndex + 1}/{totalModels}) — num_ctx={numCtx}, num_predict={numPredict}…";
                 }).ConfigureAwait(false);
 
                 var log = new Progress<string>(line =>
@@ -1589,6 +1646,7 @@ public partial class MainWindow : Window
                     modelIndex: globalIndex,
                     modelCount: totalModels,
                     aiSummarizerModel: aiSummarizer,
+                    category: modelCategory,
                     log: log,
                     progress: progress,
                     cancellationToken: ct)
@@ -2826,7 +2884,8 @@ public partial class MainWindow : Window
                     .ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    ModelRunStatus.Text = $"{model.Model} | Mode: {model.BestMode} ({model.BestTps:F1} tok/s) | Ready";
+                    ModelRunStatus.Text =
+                        $"{model.Model} | Mode: {model.BestMode} ({model.BestMetricDisplay}) | Ready";
                     ChatHistory.Text = string.Empty;
                     _chatMessages.Clear();
                 }).ConfigureAwait(false);

@@ -76,7 +76,7 @@
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="100" />
                             <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="80" />
                             <DataGridTextColumn Header="Best Mode" Binding="{Binding BestMode}" Width="80" />
-                            <DataGridTextColumn Header="tok/s" Binding="{Binding BestTps}" Width="60" />
+                            <DataGridTextColumn Header="Metric" Binding="{Binding BestMetricDisplay}" Width="70" />
                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
                             <DataGridTextColumn Header="Last Tested" Binding="{Binding LastTested}" Width="130" />
                         </DataGrid.Columns>
@@ -193,7 +193,7 @@
                             <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
                             <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="85" />
                             <DataGridTextColumn Header="Fastest Mode" Binding="{Binding BestMode}" Width="90" />
-                            <DataGridTextColumn Header="Best tok/s" Binding="{Binding BestTps}" Width="75" />
+                            <DataGridTextColumn Header="Best Metric" Binding="{Binding BestTps}" Width="85" />
                             <DataGridTextColumn Header="Installed" Binding="{Binding Installed}" Width="70" />
                         </DataGrid.Columns>
                     </DataGrid>
@@ -277,7 +277,7 @@
                             <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*" />
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="100" />
                             <DataGridTextColumn Header="Best" Binding="{Binding BestMode}" Width="60" />
-                            <DataGridTextColumn Header="tok/s" Binding="{Binding BestTps}" Width="55" />
+                            <DataGridTextColumn Header="Metric" Binding="{Binding BestMetricDisplay}" Width="65" />
                             <DataGridTextColumn Header="CPU" Binding="{Binding CpuResult}" Width="55"
                                                 CellStyle="{StaticResource TestResultWinnerCellCpu}" />
                             <DataGridTextColumn Header="APU" Binding="{Binding ApuResult}" Width="55"

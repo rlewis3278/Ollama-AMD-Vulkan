@@ -83,6 +83,47 @@ public sealed class OllamaApiClient : IDisposable
         return _tagsCache;
     }
 
+    public async Task<BenchmarkEmbedResult> BenchmarkEmbedAsync(
+        string model,
+        string input,
+        bool warmup = true,
+        CancellationToken cancellationToken = default)
+    {
+        if (warmup)
+        {
+            await EmbedRawAsync(model, "warmup", cancellationToken).ConfigureAwait(false);
+        }
+
+        var raw = await EmbedRawAsync(model, input, cancellationToken).ConfigureAwait(false);
+        var totalSeconds = raw.TotalDurationNs / 1_000_000_000.0;
+        var latencyMs = raw.TotalDurationNs / 1_000_000.0;
+        var promptTps = totalSeconds > 0 && raw.PromptEvalCount > 0
+            ? raw.PromptEvalCount / totalSeconds
+            : 0;
+
+        return new BenchmarkEmbedResult
+        {
+            LatencyMs = Math.Round(latencyMs, 2),
+            PromptEvalTps = Math.Round(promptTps, 2),
+            PromptEvalCount = raw.PromptEvalCount,
+            Dimensions = raw.Embeddings?.FirstOrDefault()?.Count ?? 0
+        };
+    }
+
+    private async Task<EmbedRawResponse> EmbedRawAsync(
+        string model,
+        string input,
+        CancellationToken cancellationToken)
+    {
+        var body = new { model, input };
+        using var response = await _httpClient.PostAsJsonAsync($"{_host}/api/embed", body, cancellationToken)
+            .ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        var payload = await response.Content.ReadFromJsonAsync<EmbedRawResponse>(JsonFileHelper.Options, cancellationToken)
+            .ConfigureAwait(false);
+        return payload ?? new EmbedRawResponse();
+    }
+
     public async Task<BenchmarkGenerateResult> BenchmarkGenerateAsync(
         string model,
         string prompt,
@@ -371,6 +412,32 @@ public sealed class BenchmarkGenerateResult
     public double PromptEvalTps { get; init; }
     public double TtftMs { get; init; }
     public int EvalCount { get; init; }
+}
+
+public sealed class BenchmarkEmbedResult
+{
+    public double LatencyMs { get; init; }
+    public double PromptEvalTps { get; init; }
+    public int PromptEvalCount { get; init; }
+    public int Dimensions { get; init; }
+}
+
+public sealed class EmbedRawResponse
+{
+    [JsonPropertyName("model")]
+    public string? Model { get; set; }
+
+    [JsonPropertyName("embeddings")]
+    public List<List<double>>? Embeddings { get; set; }
+
+    [JsonPropertyName("total_duration")]
+    public long TotalDurationNs { get; set; }
+
+    [JsonPropertyName("load_duration")]
+    public long LoadDurationNs { get; set; }
+
+    [JsonPropertyName("prompt_eval_count")]
+    public int PromptEvalCount { get; set; }
 }
 
 public sealed class ChatMessage
