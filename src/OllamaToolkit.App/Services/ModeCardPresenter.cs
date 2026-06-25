@@ -8,6 +8,14 @@ namespace OllamaToolkit.App.Services;
 
 public sealed class ModeCardPresenter
 {
+    private enum ModeCardVisual
+    {
+        Idle,
+        Active,
+        Superseded,
+        Pending
+    }
+
     private static readonly Color PendingTextColor = Color.FromRgb(24, 24, 24);
     private static readonly Color SupersededBgColor = Color.FromRgb(58, 18, 18);
     private static readonly Color SupersededBorderColor = Color.FromRgb(237, 28, 36);
@@ -15,9 +23,11 @@ public sealed class ModeCardPresenter
     private readonly Dictionary<string, Button> _cards = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, (TextBlock Title, TextBlock Subtitle)> _labels =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ModeCardVisual> _visuals = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly Brush _idleBg;
     private readonly Brush _idleBorder;
+    private readonly Brush _hoverBg;
     private readonly Brush _text;
     private readonly Brush _muted;
     private readonly Brush _activeBg;
@@ -32,12 +42,14 @@ public sealed class ModeCardPresenter
     private readonly DispatcherTimer _flashTimer;
     private bool _flashPhase;
     private string? _pendingMode;
+    private string? _hoveredMode;
     private bool _transitionActive;
 
     public ModeCardPresenter(Window window)
     {
         _idleBg = GetBrush(window, "Brush.Button");
         _idleBorder = GetBrush(window, "Brush.PanelBorder");
+        _hoverBg = GetBrush(window, "Brush.Bg");
         _text = GetBrush(window, "Brush.Text");
         _muted = GetBrush(window, "Brush.Muted");
         _activeBg = GetBrush(window, "Brush.ActiveBg");
@@ -59,6 +71,10 @@ public sealed class ModeCardPresenter
     {
         _cards[modeKey] = card;
         _labels[modeKey] = (title, subtitle);
+        _visuals[modeKey] = ModeCardVisual.Idle;
+
+        card.MouseEnter += (_, _) => OnCardMouseEnter(modeKey);
+        card.MouseLeave += (_, _) => OnCardMouseLeave(modeKey);
     }
 
     public static UIElement BuildContent(string title, string subtitle, out TextBlock titleBlock, out TextBlock subtitleBlock)
@@ -111,26 +127,19 @@ public sealed class ModeCardPresenter
         _transitionActive = true;
         _pendingMode = pendingMode;
         _flashPhase = true;
+        _hoveredMode = null;
 
-        foreach (var key in _cards.Keys)
-        {
-            _cards[key].IsEnabled = false;
-        }
-
-        if (_cards.TryGetValue(pendingMode, out var pendingCard))
-        {
-            pendingCard.IsEnabled = true;
-            ApplyPendingFlash(pendingCard, _labels[pendingMode], flashOn: true);
-        }
+        SetVisual(pendingMode, ModeCardVisual.Pending);
+        ApplyPendingFlash(_cards[pendingMode], _labels[pendingMode], flashOn: true);
 
         if (!string.IsNullOrWhiteSpace(previousMode)
             && !previousMode.Equals(pendingMode, StringComparison.OrdinalIgnoreCase)
-            && _cards.TryGetValue(previousMode, out var previousCard))
+            && _cards.ContainsKey(previousMode))
         {
-            ApplySuperseded(previousCard, _labels[previousMode]);
+            SetVisual(previousMode, ModeCardVisual.Superseded);
         }
 
-        foreach (var (key, card) in _cards)
+        foreach (var key in _cards.Keys)
         {
             if (key.Equals(pendingMode, StringComparison.OrdinalIgnoreCase)
                 || key.Equals(previousMode, StringComparison.OrdinalIgnoreCase))
@@ -138,7 +147,7 @@ public sealed class ModeCardPresenter
                 continue;
             }
 
-            ApplyIdle(card, _labels[key]);
+            SetVisual(key, ModeCardVisual.Idle);
         }
 
         _flashTimer.Start();
@@ -149,11 +158,6 @@ public sealed class ModeCardPresenter
         _flashTimer.Stop();
         _transitionActive = false;
         _pendingMode = null;
-
-        foreach (var card in _cards.Values)
-        {
-            card.IsEnabled = true;
-        }
     }
 
     public void ApplyActiveMode(string activeMode)
@@ -163,16 +167,11 @@ public sealed class ModeCardPresenter
             return;
         }
 
-        foreach (var (key, card) in _cards)
+        foreach (var key in _cards.Keys)
         {
-            if (key.Equals(activeMode, StringComparison.OrdinalIgnoreCase))
-            {
-                ApplyActive(card, _labels[key]);
-            }
-            else
-            {
-                ApplyIdle(card, _labels[key]);
-            }
+            SetVisual(key, key.Equals(activeMode, StringComparison.OrdinalIgnoreCase)
+                ? ModeCardVisual.Active
+                : ModeCardVisual.Idle);
         }
     }
 
@@ -181,22 +180,97 @@ public sealed class ModeCardPresenter
         _flashTimer.Stop();
         _transitionActive = false;
         _pendingMode = null;
+        _hoveredMode = null;
+    }
+
+    private void OnCardMouseEnter(string modeKey)
+    {
+        if (_transitionActive)
+        {
+            return;
+        }
+
+        if (!_visuals.TryGetValue(modeKey, out var visual)
+            || visual is ModeCardVisual.Pending or ModeCardVisual.Superseded)
+        {
+            return;
+        }
+
+        _hoveredMode = modeKey;
+        RenderCard(modeKey);
+    }
+
+    private void OnCardMouseLeave(string modeKey)
+    {
+        if (_hoveredMode?.Equals(modeKey, StringComparison.OrdinalIgnoreCase) == true)
+        {
+            _hoveredMode = null;
+        }
+
+        RenderCard(modeKey);
+    }
+
+    private void SetVisual(string modeKey, ModeCardVisual visual)
+    {
+        _visuals[modeKey] = visual;
+        RenderCard(modeKey);
+    }
+
+    private void RenderCard(string modeKey)
+    {
+        if (!_cards.TryGetValue(modeKey, out var card) || !_labels.TryGetValue(modeKey, out var labels))
+        {
+            return;
+        }
+
+        if (!_transitionActive
+            && _hoveredMode?.Equals(modeKey, StringComparison.OrdinalIgnoreCase) == true
+            && _visuals.TryGetValue(modeKey, out var hoveredVisual)
+            && hoveredVisual is ModeCardVisual.Idle or ModeCardVisual.Active)
+        {
+            ApplyHover(card, labels);
+            return;
+        }
+
+        switch (_visuals.GetValueOrDefault(modeKey, ModeCardVisual.Idle))
+        {
+            case ModeCardVisual.Active:
+                ApplyActive(card, labels);
+                break;
+            case ModeCardVisual.Superseded:
+                ApplySuperseded(card, labels);
+                break;
+            case ModeCardVisual.Pending:
+                ApplyPendingFlash(card, labels, _flashPhase);
+                break;
+            default:
+                ApplyIdle(card, labels);
+                break;
+        }
     }
 
     private void FlashTick()
     {
-        if (!_transitionActive || _pendingMode is null || !_cards.TryGetValue(_pendingMode, out var card))
+        if (!_transitionActive || _pendingMode is null)
         {
             return;
         }
 
         _flashPhase = !_flashPhase;
-        ApplyPendingFlash(card, _labels[_pendingMode], _flashPhase);
+        RenderCard(_pendingMode);
     }
 
     private void ApplyIdle(Button card, (TextBlock Title, TextBlock Subtitle) labels)
     {
         card.Background = _idleBg;
+        card.BorderBrush = _idleBorder;
+        labels.Title.Foreground = _text;
+        labels.Subtitle.Foreground = _muted;
+    }
+
+    private void ApplyHover(Button card, (TextBlock Title, TextBlock Subtitle) labels)
+    {
+        card.Background = _hoverBg;
         card.BorderBrush = _idleBorder;
         labels.Title.Foreground = _text;
         labels.Subtitle.Foreground = _muted;
