@@ -91,7 +91,8 @@
                     </Grid.RowDefinitions>
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                         <TextBox x:Name="CatalogSearchBox" Width="220" Padding="6,4" KeyUp="CatalogSearchBox_KeyUp" />
-                        <ComboBox x:Name="CategoryFilterCombo" Width="140" Margin="8,0,0,0" SelectionChanged="CategoryFilterCombo_SelectionChanged" />
+                        <TextBlock Text="Category:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="8,0,4,0" />
+                        <ComboBox x:Name="CategoryFilterCombo" Width="140" SelectionChanged="CategoryFilterCombo_SelectionChanged" />
                         <Button x:Name="DownloadDescriptionsModeBtn" Content="Download descriptions"
                                 Style="{StaticResource CatalogDescriptionModeActive}" Click="DownloadDescriptionsMode_Click" />
                         <Button x:Name="AiDescriptionsModeBtn" Content="AI descriptions"
