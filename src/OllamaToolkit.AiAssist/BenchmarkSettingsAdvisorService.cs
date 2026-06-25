@@ -22,6 +22,20 @@ public sealed class BenchmarkSettingsAdvisorService
     public async Task ClearAllAsync(CancellationToken cancellationToken = default) =>
         await SaveAsync(new BenchmarkSettingsDocument(), cancellationToken).ConfigureAwait(false);
 
+    public async Task ClearForModelAsync(string model, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            return;
+        }
+
+        var doc = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        if (doc.Models.Remove(model))
+        {
+            await SaveAsync(doc, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     public BenchmarkSettingsAdvisorService(
         AiSettingsService? settings = null,
         OllamaApiClient? apiClient = null,

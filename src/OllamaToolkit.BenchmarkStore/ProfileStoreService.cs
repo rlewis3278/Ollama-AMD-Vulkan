@@ -44,6 +44,58 @@ public sealed class ProfileStoreService
         return new ClearTestDataResult(reportDirsRemoved, reportFilesRemoved);
     }
 
+    public async Task<ClearTestDataResult> ClearTestDataForModelAsync(
+        string modelName,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(modelName))
+        {
+            return new ClearTestDataResult(0, 0);
+        }
+
+        var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        if (!store.Models.TryGetValue(modelName, out var profile))
+        {
+            return new ClearTestDataResult(0, 0);
+        }
+
+        var (reportDirsRemoved, reportFilesRemoved) = DeleteProfileReportArtifacts(profile);
+        store.Models.Remove(modelName);
+        await SaveAsync(store, cancellationToken).ConfigureAwait(false);
+        return new ClearTestDataResult(reportDirsRemoved, reportFilesRemoved);
+    }
+
+    private static (int ReportDirsRemoved, int ReportFilesRemoved) DeleteProfileReportArtifacts(ModelProfileEntry profile)
+    {
+        var reportDirsRemoved = 0;
+        var reportFilesRemoved = 0;
+
+        if (!string.IsNullOrWhiteSpace(profile.OutputDir) && Directory.Exists(profile.OutputDir))
+        {
+            Directory.Delete(profile.OutputDir, recursive: true);
+            reportDirsRemoved++;
+            return (reportDirsRemoved, reportFilesRemoved);
+        }
+
+        if (!string.IsNullOrWhiteSpace(profile.ReportPath))
+        {
+            if (File.Exists(profile.ReportPath))
+            {
+                File.Delete(profile.ReportPath);
+                reportFilesRemoved++;
+            }
+
+            var dir = Path.GetDirectoryName(profile.ReportPath);
+            if (dir is not null && Directory.Exists(dir))
+            {
+                Directory.Delete(dir, recursive: true);
+                reportDirsRemoved++;
+            }
+        }
+
+        return (reportDirsRemoved, reportFilesRemoved);
+    }
+
     public async Task<ModelProfileStoreDocument> LoadAsync(CancellationToken cancellationToken = default)
     {
         if (_cache is not null)

@@ -2387,3 +2387,39 @@ returned identical results on the same backend.
 [2026-06-25 13:10:19] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "GIT|commit b0d1ef5 docs Phase 13 archive; pushed csharp-wpf-greenfield to origin (65c9f6e+b0d1ef5)"; git add DEVELOPMENT-ARCHIVE-SESSION.log DEVELOPMENT-ARCHIVE-COMMANDS.txt; git commit -m "docs: append session log for Phase 13 git push"; git push
 [2026-06-25 13:10:19] [SYNC] Processed updates.jsonl lines 10102..10118
 [2026-06-25 13:10:19] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 13:13:02] [FEAT] Test Results per-row Clear button — removes profile, reports, AI insights for one model
+[2026-06-25 13:13:03] [TOOL] Grep - Grep
+[2026-06-25 13:13:03] [TOOL] Read - Read
+[2026-06-25 13:13:03] [TOOL] Read - Read
+[2026-06-25 13:13:03] [TOOL] Read - Read
+[2026-06-25 13:13:03] [TOOL] Grep - Grep
+[2026-06-25 13:13:03] [TOOL] Read - Read
+[2026-06-25 13:13:03] [TOOL] Read - Read
+[2026-06-25 13:13:03] [TOOL] Read - Read
+[2026-06-25 13:13:03] [TOOL] Grep - Grep
+[2026-06-25 13:13:03] [TOOL] Grep - Grep
+[2026-06-25 13:13:03] [TOOL] Read - Read
+[2026-06-25 13:13:03] [TOOL] Grep - Grep
+[2026-06-25 13:13:03] [TOOL] Grep - Grep
+[2026-06-25 13:13:03] [TOOL] Read - Read
+[2026-06-25 13:13:03] [TOOL] Read - Read
+[2026-06-25 13:13:03] [TOOL] Read - Read
+[2026-06-25 13:13:03] [TOOL] Read - Read
+[2026-06-25 13:13:03] [TOOL] Grep - Grep
+[2026-06-25 13:13:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 13:13:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 13:13:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 13:13:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 13:13:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 13:13:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 13:13:03] [TOOL] Read - Read
+[2026-06-25 13:13:03] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build
+[2026-06-25 13:13:03] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -o publish/OllamaToolkit.App; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "FEAT|Test Results per-row Clear button â€” removes profile, reports, AI insights for one model"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1"; git add src/OllamaToolkit.BenchmarkStore/ProfileStoreService.cs src/OllamaToolkit.AiAssist/BenchmarkInsightService.cs src/OllamaToolkit.AiAssist/BenchmarkSettingsAdvisorService.cs src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs DEVELOPMENT-ARCHIVE-SESSION.log DEVELOPMENT-ARCHIVE-COMMANDS.txt; git commit -m "feat: per-model Clear button on Test Results grid
+
+Add a Clear button on each Test Results row to remove that model's
+benchmark profile, report folder, AI insights, and settings advisor
+entry without wiping all test data."; git push
+[2026-06-25 13:13:03] [SYNC] Processed updates.jsonl lines 10119..10246
+[2026-06-25 13:13:03] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 13:13:04] [SYNC] Processed updates.jsonl lines 10247..10250
+[2026-06-25 13:13:04] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

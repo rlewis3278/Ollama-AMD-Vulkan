@@ -306,6 +306,15 @@
                                                 CellStyle="{StaticResource TestResultWinnerCellRocm}" />
                             <DataGridTextColumn Header="Insight" Binding="{Binding Insight}" Width="180" />
                             <DataGridTextColumn Header="Tested" Binding="{Binding LastTested}" Width="120" />
+                            <DataGridTemplateColumn Header="Clear" Width="58">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="Clear" Style="{StaticResource ToolkitButton}"
+                                                Padding="6,2" Margin="0" FontSize="12"
+                                                Click="ClearTestResultRow_Click" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                     <TextBlock x:Name="TestResultDetail" Grid.Row="2" Margin="0,8,0,0" TextWrapping="Wrap"

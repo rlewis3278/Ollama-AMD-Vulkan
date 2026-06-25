@@ -3026,8 +3026,10 @@ public partial class MainWindow : Window
             {
                 Model = row.Model,
                 Category = row.Category,
+                BenchmarkKind = row.BenchmarkKind,
                 BestMode = row.BestMode,
                 BestTps = row.BestTps,
+                BestEmbedMs = row.BestEmbedMs,
                 CpuResult = row.CpuResult,
                 ApuResult = row.ApuResult,
                 GpuResult = row.GpuResult,
@@ -3041,6 +3043,53 @@ public partial class MainWindow : Window
 
         TestResultsGrid.ItemsSource = enriched;
         ScheduleFitGridColumns(TestResultsGrid);
+    }
+
+    private async void ClearTestResultRow_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: TestResultRowViewModel row })
+        {
+            return;
+        }
+
+        var message =
+            $"Clear all test data for '{row.Model}'? Benchmark results, AI insights, and report files "
+            + "for this model will be removed and cannot be restored.";
+
+        if (!ToolkitConfirmDialog.ShowAccept(this, message, "Clear Test Data"))
+        {
+            return;
+        }
+
+        try
+        {
+            var cleared = await _svc.Profiles.ClearTestDataForModelAsync(row.Model).ConfigureAwait(true);
+            await _svc.BenchmarkInsights.ClearForModelAsync(row.Model).ConfigureAwait(true);
+            await _svc.BenchmarkSettingsAdvisor.ClearForModelAsync(row.Model).ConfigureAwait(true);
+            _svc.Profiles.ClearCache();
+            _svc.BenchmarkInsights.ClearCache();
+            _svc.BenchmarkSettingsAdvisor.ClearCache();
+
+            await UiDispatcher.InvokeAsync(async () =>
+            {
+                TestResultDetail.Text = string.Empty;
+                await RefreshModelsUiAsync().ConfigureAwait(true);
+                await RefreshTestResultsUiAsync().ConfigureAwait(true);
+                await RefreshCatalogUiAsync().ConfigureAwait(true);
+            }).ConfigureAwait(true);
+
+            _svc.ActivityLog.Write(
+                "Benchmark",
+                $"Cleared test data for {row.Model} ({cleared.ReportDirsRemoved} report dir(s))");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Failed to clear test data for {row.Model}: {ex.Message}",
+                "Clear Test Data",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
     }
 
     private async void RefreshTestResults_Click(object sender, RoutedEventArgs e)
