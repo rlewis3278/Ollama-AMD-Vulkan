@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -55,6 +56,8 @@ public partial class MainWindow : Window
     private bool _suppressCatalogUiEvents;
     private bool _catalogRefreshInProgress;
     private bool _descriptionRefreshInProgress;
+    private bool _catalogDownloadInProgress;
+    private CancellationTokenSource? _catalogDownloadCts;
     private CancellationTokenSource? _refreshCatalogCts;
     private CancellationTokenSource? _refreshDescriptionsCts;
     private CancellationTokenSource? _classificationCts;
@@ -293,9 +296,10 @@ public partial class MainWindow : Window
         _undownloadPurpleLibraries.Clear();
         foreach (var row in _catalogRows)
         {
-            if (row.IsTesting)
+            if (row.IsTesting || row.IsDownloading)
             {
                 row.IsTesting = false;
+                row.IsDownloading = false;
                 row.RefreshHighlight = CatalogRowRefreshHighlight.None;
                 row.RefreshState = CatalogRowRefreshState.None;
             }
@@ -1357,6 +1361,17 @@ public partial class MainWindow : Window
 
     private async Task RunUndownloadTestQueueAsync(object? flashSender = null)
     {
+        if (!await EnsureOllamaApiReadyAsync(CancellationToken.None, "Undownload test requires Ollama").ConfigureAwait(true))
+        {
+            await UiDispatcher.InvokeAsync(() =>
+            {
+                AppendTestLog("ABORT: Ollama API is not reachable at localhost:11434. Start Ollama and retry.");
+                TestStatusLabel.Text = "Undownload test aborted — Ollama API not reachable.";
+                FinishTestOperation(flashSender, success: false, cancelled: false);
+            }).ConfigureAwait(true);
+            return;
+        }
+
         var candidates = await _svc.Registry.GetUndownloadTestQueueAsync().ConfigureAwait(true);
         if (candidates.Count == 0)
         {
@@ -1534,12 +1549,22 @@ public partial class MainWindow : Window
                     }
                     catch (Exception ex)
                     {
+                        var connectionLost = IsOllamaConnectionError(ex);
                         await UiDispatcher.InvokeAsync(() =>
                         {
                             AppendTestLog($"FAIL ({pullTag}): {ex.Message}");
-                            TestStatusLabel.Text =
-                                $"Undownload test failed for {pullTag}: {ex.Message} — continuing queue…";
+                            TestStatusLabel.Text = connectionLost
+                                ? "Undownload test aborted — Ollama API connection lost."
+                                : $"Undownload test failed for {pullTag}: {ex.Message} — continuing queue…";
                         }).ConfigureAwait(false);
+
+                        if (connectionLost)
+                        {
+                            AppendTestLog(
+                                "ABORT: Ollama is not reachable at localhost:11434. Start Ollama and rerun Test Undownload.");
+                            cancelled = true;
+                            break;
+                        }
 
                         try
                         {
@@ -2093,6 +2118,7 @@ public partial class MainWindow : Window
         else
         {
             row.Installed = progress.IsInstalled;
+            row.InstalledDisplay = progress.IsInstalled ? "Yes" : "No";
             if (!string.IsNullOrWhiteSpace(progress.FileSize))
             {
                 row.FileSize = OllamaToolkit.Core.ModelSizeFormatter.FormatSizeLabel(progress.FileSize);
@@ -2169,9 +2195,11 @@ public partial class MainWindow : Window
         _refreshCatalogCts?.Cancel();
         _refreshDescriptionsCts?.Cancel();
         _classificationCts?.Cancel();
+        _catalogDownloadCts?.Cancel();
         CancelCatalogFileSizeEnrichment();
         _catalogRefreshInProgress = false;
         _descriptionRefreshInProgress = false;
+        _catalogDownloadInProgress = false;
         _catalogToolbarOperations = 0;
         UpdateCatalogStopButtonUi();
 
@@ -2179,7 +2207,9 @@ public partial class MainWindow : Window
         {
             _catalogRowAnimator.Stop();
             CatalogRowRefreshAnimator.ResetAll(_catalogRows);
+            HideCatalogDownloadProgress();
             EndTaskFlashIdle(RefreshCatalogBtn);
+            EndTaskFlashIdle(DownloadCatalogModelBtn);
             EndTaskFlashIdle(RefreshDescriptionsBtn);
             EndTaskFlashIdle(CatalogCategorizeAllBtn);
             EndTaskFlashIdle(ClearCatalogBtn);
@@ -2199,7 +2229,7 @@ public partial class MainWindow : Window
 
     private async Task RefreshCatalogUiAsync()
     {
-        if (_catalogRefreshInProgress || _descriptionRefreshInProgress)
+        if (_catalogRefreshInProgress || _descriptionRefreshInProgress || _catalogDownloadInProgress)
         {
             return;
         }
@@ -2663,6 +2693,82 @@ public partial class MainWindow : Window
         return null;
     }
 
+    private async Task<bool> EnsureOllamaApiReadyAsync(CancellationToken cancellationToken, string? statusPrefix = null)
+    {
+        if (await _svc.ApiClient.IsReadyAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return true;
+        }
+
+        var prefix = string.IsNullOrWhiteSpace(statusPrefix) ? "Ollama API not reachable" : statusPrefix;
+        await UiDispatcher.InvokeAsync(() =>
+            CatalogStatusLabel.Text = $"{prefix} — starting Ollama and waiting for localhost:11434…")
+            .ConfigureAwait(false);
+
+        try
+        {
+            await _svc.ModeService.Processes.WaitForApiReadyAsync(60, autoStart: true, cancellationToken)
+                .ConfigureAwait(false);
+            _svc.ApiClient.InvalidateCaches();
+            return await _svc.ApiClient.IsReadyAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsOllamaConnectionError(Exception ex)
+    {
+        for (var current = ex; current is not null; current = current.InnerException)
+        {
+            var message = current.Message;
+            if (message.Contains("actively refused", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("localhost:11434", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("No connection could be made", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return ex is HttpRequestException;
+    }
+
+    private void ShowCatalogDownloadProgress(string model, ModelPullProgress update)
+    {
+        CatalogDownloadProgressPanel.Visibility = Visibility.Visible;
+        CatalogDownloadProgress.Value = update.Percent ?? CatalogDownloadProgress.Value;
+        CatalogDownloadProgressLabel.Text = update.Percent is int percent
+            ? $"{model} — {update.Status} ({percent}%)"
+            : $"{model} — {update.Status}";
+        CatalogStatusLabel.Text = CatalogDownloadProgressLabel.Text;
+    }
+
+    private void HideCatalogDownloadProgress()
+    {
+        CatalogDownloadProgressPanel.Visibility = Visibility.Collapsed;
+        CatalogDownloadProgress.Value = 0;
+        CatalogDownloadProgressLabel.Text = string.Empty;
+    }
+
+    private void BeginCatalogDownloadRow(CatalogRowViewModel row)
+    {
+        row.IsDownloading = true;
+        _catalogRowAnimator.BeginRow(row);
+        CatalogGrid.SelectedItem = row;
+        CatalogGrid.ScrollIntoView(row);
+    }
+
+    private void EndCatalogDownloadRow(CatalogRowViewModel row, bool installed)
+    {
+        row.IsDownloading = false;
+        row.Installed = installed;
+        row.InstalledDisplay = installed ? "Yes" : "No";
+        _catalogRowAnimator.CompleteRow(
+            row,
+            installed ? CatalogRowRefreshHighlight.Installed : CatalogRowRefreshHighlight.None);
+    }
+
     private async void DownloadCatalogModel_Click(object sender, RoutedEventArgs e)
     {
         if (CatalogGrid.SelectedItem is not CatalogRowViewModel row)
@@ -2671,38 +2777,98 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (_catalogDownloadInProgress)
+        {
+            MessageBox.Show("Another catalog download is already in progress.", "Download",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
         if (!BeginTaskFlash(sender))
         {
             return;
         }
 
+        _catalogDownloadCts?.Cancel();
+        _catalogDownloadCts = new CancellationTokenSource();
+        var ct = _catalogDownloadCts.Token;
         var model = $"{row.Name}:latest";
-        CatalogStatusLabel.Text = $"Pulling {model}...";
-        await _svc.WorkQueue.EnqueueAsync(async ct =>
+
+        await _svc.WorkQueue.EnqueueAsync(async workCt =>
         {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(workCt, ct);
+            var token = linked.Token;
+            _catalogDownloadInProgress = true;
+
+            await UiDispatcher.InvokeAsync(() =>
+            {
+                BeginCatalogDownloadRow(row);
+                HideCatalogDownloadProgress();
+                CatalogStatusLabel.Text = $"Preparing download for {model}…";
+            }).ConfigureAwait(false);
+
             try
             {
-                var progress = new Progress<ModelPullProgress>(p =>
-                    _svc.ActivityLog.Write("Download", p.Status));
-                await _svc.ApiClient.PullAsync(model, progress, ct).ConfigureAwait(false);
-                _svc.ActivityLog.Write("Task", $"Downloaded {model}.");
+                if (!await EnsureOllamaApiReadyAsync(token, $"Cannot download {model}").ConfigureAwait(false))
+                {
+                    throw new InvalidOperationException(
+                        "Ollama API is not reachable at localhost:11434. Start Ollama and try again.");
+                }
+
+                var progress = new Progress<ModelPullProgress>(update =>
+                {
+                    UiDispatcher.InvokeAsync(() =>
+                    {
+                        ShowCatalogDownloadProgress(model, update);
+                        _svc.ActivityLog.Write("Download", update.Status);
+                    });
+                });
+
+                await _svc.ApiClient.PullAsync(model, progress, token).ConfigureAwait(false);
+                _svc.ApiClient.InvalidateCaches();
                 _svc.Profiles.ClearCache();
+
+                var installed = await _svc.ApiClient.IsModelInstalledAsync(model, token).ConfigureAwait(false);
+                if (!installed)
+                {
+                    throw new InvalidOperationException(
+                        $"Download finished but {model} was not found in the local Ollama model list.");
+                }
+
+                _svc.ActivityLog.Write("Task", $"Downloaded {model}.");
                 await UiDispatcher.InvokeAsync(async () =>
                 {
+                    EndCatalogDownloadRow(row, installed: true);
+                    HideCatalogDownloadProgress();
                     CatalogStatusLabel.Text = $"Downloaded {model}.";
                     await RefreshModelsUiAsync().ConfigureAwait(true);
-                    await RefreshCatalogUiAsync().ConfigureAwait(true);
                     EndTaskFlashSuccess(sender, "Downloaded", 10);
+                }).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    EndCatalogDownloadRow(row, row.Installed);
+                    HideCatalogDownloadProgress();
+                    CatalogStatusLabel.Text = $"Download cancelled for {model}.";
+                    EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, token).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
+                    EndCatalogDownloadRow(row, row.Installed);
+                    HideCatalogDownloadProgress();
                     CatalogStatusLabel.Text = msg;
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
+            }
+            finally
+            {
+                _catalogDownloadInProgress = false;
             }
         }).ConfigureAwait(true);
     }

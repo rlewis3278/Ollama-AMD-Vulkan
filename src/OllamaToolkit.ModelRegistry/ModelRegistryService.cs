@@ -40,8 +40,14 @@ public sealed class ModelRegistryService
         var entries = await _catalogStore.GetEntriesAsync(cancellationToken: cancellationToken)
             .ConfigureAwait(false);
         var categoryDoc = await _categories.LoadAsync(cancellationToken).ConfigureAwait(false);
-        var installed = await GetInstalledNameSetAsync(cancellationToken).ConfigureAwait(false);
-        var installedSizes = await GetInstalledFileSizeByLibraryAsync(cancellationToken).ConfigureAwait(false);
+        var tagsSnapshot = await _apiClient.FetchTagsSnapshotAsync(forceRefresh: false, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        var installed = tagsSnapshot.Reachable
+            ? tagsSnapshot.Tags.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var installedSizes = tagsSnapshot.Reachable
+            ? BuildInstalledFileSizeMap(tagsSnapshot.Tags)
+            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var descriptionDoc = await _descriptions.LoadAsync(cancellationToken).ConfigureAwait(false);
         var profileDoc = await _profiles.LoadAsync(cancellationToken).ConfigureAwait(false);
 
@@ -77,8 +83,8 @@ public sealed class ModelRegistryService
                 fileSize = installedSize;
             }
 
-            var isInstalled = installed.Contains(e.Name)
-                || installed.Any(n => n.StartsWith($"{e.Name}:", StringComparison.OrdinalIgnoreCase));
+            var isInstalled = tagsSnapshot.Reachable
+                && ModelInstallMatcher.IsLibraryInstalled(e.Name, installed);
             var (bestMode, bestTps) = ResolveCatalogBenchmarkDisplay(e.Name, profileDoc);
 
             rows.Add(new CatalogRowViewModel
@@ -94,6 +100,9 @@ public sealed class ModelRegistryService
                 FileSize = ModelSizeFormatter.FormatSizeLabel(fileSize),
                 Tags = e.Tags,
                 Installed = isInstalled,
+                InstalledDisplay = tagsSnapshot.Reachable
+                    ? isInstalled ? "Yes" : "No"
+                    : "Unknown",
                 BestMode = bestMode,
                 BestTps = bestTps,
                 SortOrder = CategoryNormalizer.GetSortOrder(category)
@@ -184,12 +193,10 @@ public sealed class ModelRegistryService
         return row.GenerationTps > 0 ? $"{row.GenerationTps:F1}" : row.Status;
     }
 
-    private async Task<Dictionary<string, string>> GetInstalledFileSizeByLibraryAsync(
-        CancellationToken cancellationToken)
+    private static Dictionary<string, string> BuildInstalledFileSizeMap(IReadOnlyList<OllamaModelTag> tags)
     {
-        var tags = await _apiClient.GetTagsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var group in tags.GroupBy(t => t.Name.Split(':')[0], StringComparer.OrdinalIgnoreCase))
+        foreach (var group in tags.GroupBy(t => ModelInstallMatcher.LibraryName(t.Name), StringComparer.OrdinalIgnoreCase))
         {
             var sizes = group.Where(t => t.Size > 0).Select(t => t.Size).ToList();
             if (sizes.Count == 0)
@@ -209,26 +216,40 @@ public sealed class ModelRegistryService
 
     public async Task<HashSet<string>> GetInstalledModelNamesAsync(CancellationToken cancellationToken = default)
     {
-        var tags = await _apiClient.GetTagsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-        return tags.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var snapshot = await _apiClient.FetchTagsSnapshotAsync(forceRefresh: false, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        return snapshot.Reachable
+            ? snapshot.Tags.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     }
 
-    private async Task<HashSet<string>> GetInstalledNameSetAsync(CancellationToken cancellationToken) =>
-        await GetInstalledModelNamesAsync(cancellationToken).ConfigureAwait(false);
+    private async Task<(bool Reachable, HashSet<string> Installed)> GetInstalledNameSetAsync(
+        CancellationToken cancellationToken)
+    {
+        var snapshot = await _apiClient.FetchTagsSnapshotAsync(forceRefresh: false, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        return snapshot.Reachable
+            ? (true, snapshot.Tags.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase))
+            : (false, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+    }
 
     public async Task<IReadOnlyList<UndownloadTestCandidate>> GetUndownloadTestQueueAsync(
         CancellationToken cancellationToken = default)
     {
         var entries = await _catalogStore.GetEntriesAsync(cancellationToken: cancellationToken)
             .ConfigureAwait(false);
-        var installed = await GetInstalledNameSetAsync(cancellationToken).ConfigureAwait(false);
+        var (reachable, installed) = await GetInstalledNameSetAsync(cancellationToken).ConfigureAwait(false);
+        if (!reachable)
+        {
+            return Array.Empty<UndownloadTestCandidate>();
+        }
+
         var profileDoc = await _profiles.LoadAsync(cancellationToken).ConfigureAwait(false);
 
         var candidates = new List<UndownloadTestCandidate>();
         foreach (var entry in entries)
         {
-            var isInstalled = installed.Contains(entry.Name)
-                || installed.Any(n => n.StartsWith($"{entry.Name}:", StringComparison.OrdinalIgnoreCase));
+            var isInstalled = ModelInstallMatcher.IsLibraryInstalled(entry.Name, installed);
             if (isInstalled)
             {
                 continue;

@@ -288,6 +288,5 @@ public sealed class LibraryCatalogStoreService
     }
 
     private static bool IsModelInstalled(string libraryName, IReadOnlySet<string> installedModelNames) =>
-        installedModelNames.Contains(libraryName)
-        || installedModelNames.Any(n => n.StartsWith($"{libraryName}:", StringComparison.OrdinalIgnoreCase));
+        OllamaToolkit.Core.Ollama.ModelInstallMatcher.IsLibraryInstalled(libraryName, installedModelNames);
 }

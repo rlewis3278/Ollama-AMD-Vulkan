@@ -88,7 +88,8 @@ This syncs new shell commands and tool events from `updates.jsonl` into the sess
 | 16 | **"make sure the archive of our conversation is up to date and git is up to date"** | Sync `updates.jsonl` → session log; extend this document; docs commit |
 | 17 | Asked what `num_ctx` / `num_predict` do in Testing Suite | Explained Ollama context window vs max output tokens; how toolkit uses them in benchmarks |
 | 18 | **Testing Suite UX + Test Undownload plan** (approved); **"update git and log before execute, then execute"** | Phase 9: labels, AI per-model settings, Stop Test, Clear All dialog, Test Undownload, catalog columns |
-| 19 | Embedding models fail generate benchmark (400); **implement complete embed benchmark solution** | Phase 10 (in progress): `/api/embed` path, latency metrics, UI/catalog columns, Test Undownload routing |
+| 19 | Embedding models fail generate benchmark (400); **implement complete embed benchmark solution** | Phase 10: `/api/embed` path, latency metrics, UI/catalog columns, Test Undownload routing |
+| 20 | Model Library download fails; Installed column wrong; undownload queue hammers 227 models when Ollama down | Phase 11: download progress bar, yellow/black row flash, Yes/No/Unknown installed, EnsureOllama + abort queue |
 
 ---
 
@@ -780,7 +781,10 @@ a261a8a  fix: Test Undownload pull verify, settings clamp, download progress
 090f39b  docs: pre-execution archive sync for Phase 10 embed benchmark
 782b470  docs: pre-execution archive sync for Phase 10 embed benchmark (session log)
 21177f0  feat: Phase 10 embedding model benchmark via /api/embed
+2cbdce7  docs: post-execution archive entry for Phase 10
 ```
+
+*(Phase 11 feature commit follows in same session.)*
 
 ### Archive files
 

@@ -2100,3 +2100,76 @@ EOF
 [2026-06-25 05:47:44] [FILE] Phase 10 embed benchmark — OllamaApiClient, AutomatedBenchmarkService, UI columns, Test Undownload routing
 [2026-06-25 05:47:44] [SYNC] Processed updates.jsonl lines 9027..9032
 [2026-06-25 05:47:44] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 05:57:42] [USER] Fix Model Library download UX: progress bar, yellow/black row flash, accurate Installed; abort undownload queue when Ollama unreachable
+[2026-06-25 05:57:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:57:43] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add DEVELOPMENT-ARCHIVE.md DEVELOPMENT-ARCHIVE-SESSION.log; git commit -m "docs: post-execution archive entry for Phase 10 (21177f0)"; git log -3 --oneline
+[2026-06-25 05:57:43] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 05:57:43] [TOOL] Grep - Grep
+[2026-06-25 05:57:43] [TOOL] Grep - Grep
+[2026-06-25 05:57:43] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git log -2 --oneline; git status --short
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Grep - Grep
+[2026-06-25 05:57:43] [TOOL] Grep - Grep
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [TOOL] Grep - Grep
+[2026-06-25 05:57:43] [TOOL] Read - Read
+[2026-06-25 05:57:43] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "USER|Fix Model Library download UX: progress bar, yellow/black row flash, accurate Installed; abort undownload queue when Ollama unreachable"
+[2026-06-25 05:57:43] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 05:57:43] [SYNC] Processed updates.jsonl lines 9033..9159
+[2026-06-25 05:57:43] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 05:58:43] [BUILD] Release build succeeded — Model Library download UX + Ollama readiness
+[2026-06-25 05:58:43] [TOOL] Write - Write
+[2026-06-25 05:58:43] [TOOL] Read - Read
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] Grep - Grep
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] Read - Read
+[2026-06-25 05:58:43] [TOOL] Read - Read
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] Grep - Grep
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:58:43] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "BUILD|Release build succeeded â€” Model Library download UX + Ollama readiness"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "FIX|Installed Yes/No/Unknown; catalog download progress+flash; abort undownload on connection refused"; git add -A; git commit -m "fix: Model Library download progress, installed accuracy, Ollama readiness for pulls"
+[2026-06-25 05:58:43] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 05:58:43] [SYNC] Processed updates.jsonl lines 9160..9283
+[2026-06-25 05:58:43] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 05:58:44] [FIX] Installed Yes/No/Unknown; catalog download progress+flash; abort undownload on connection refused
+[2026-06-25 05:58:44] [SYNC] Processed updates.jsonl lines 9284..9287
+[2026-06-25 05:58:44] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

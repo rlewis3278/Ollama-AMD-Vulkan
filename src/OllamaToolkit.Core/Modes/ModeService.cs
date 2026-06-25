@@ -21,6 +21,8 @@ public sealed class ModeService
 
     public ModeDefinitionService Definitions => _definitions;
 
+    public OllamaProcessService Processes => _processes;
+
     public string DetectCurrentMode()
     {
         var snapshot = _envBackup.ReadUserSnapshot();

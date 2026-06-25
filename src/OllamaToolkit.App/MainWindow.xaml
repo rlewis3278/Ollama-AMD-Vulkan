@@ -164,7 +164,20 @@
                                        Margin="12,0,0,0" />
                         </StackPanel>
                     </Grid>
-                    <TextBlock x:Name="CatalogStatusLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
+                    <StackPanel Grid.Row="1" Margin="0,0,0,8">
+                        <TextBlock x:Name="CatalogStatusLabel" Foreground="{StaticResource Brush.Muted}" />
+                        <Grid x:Name="CatalogDownloadProgressPanel" Margin="0,6,0,0" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ProgressBar x:Name="CatalogDownloadProgress" Height="14" Minimum="0" Maximum="100"
+                                         Foreground="{StaticResource Brush.Warning}" />
+                            <TextBlock x:Name="CatalogDownloadProgressLabel" Grid.Column="1"
+                                       Margin="10,0,0,0" VerticalAlignment="Center"
+                                       Foreground="{StaticResource Brush.Text}" />
+                        </Grid>
+                    </StackPanel>
                     <DataGrid x:Name="CatalogGrid" Grid.Row="2" Style="{StaticResource ToolkitDataGrid}"
                               RowStyle="{StaticResource CatalogInstalledRow}"
                               AutoGenerateColumns="False" IsReadOnly="True"
@@ -194,7 +207,7 @@
                             <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="85" />
                             <DataGridTextColumn Header="Fastest Mode" Binding="{Binding BestMode}" Width="90" />
                             <DataGridTextColumn Header="Best Metric" Binding="{Binding BestTps}" Width="85" />
-                            <DataGridTextColumn Header="Installed" Binding="{Binding Installed}" Width="70" />
+                            <DataGridTextColumn Header="Installed" Binding="{Binding InstalledDisplay}" Width="70" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>

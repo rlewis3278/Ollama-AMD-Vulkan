@@ -36,6 +36,8 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     private string _fileSize = "-";
     private string _tags = string.Empty;
     private bool _installed;
+    private string _installedDisplay = "Unknown";
+    private bool _isDownloading;
     private int _sortOrder;
     private CatalogRowRefreshState _refreshState = CatalogRowRefreshState.None;
     private CatalogRowRefreshHighlight _refreshHighlight = CatalogRowRefreshHighlight.None;
@@ -104,6 +106,18 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     {
         get => _installed;
         set => SetField(ref _installed, value);
+    }
+
+    public string InstalledDisplay
+    {
+        get => _installedDisplay;
+        set => SetField(ref _installedDisplay, value);
+    }
+
+    public bool IsDownloading
+    {
+        get => _isDownloading;
+        set => SetField(ref _isDownloading, value);
     }
 
     public int SortOrder

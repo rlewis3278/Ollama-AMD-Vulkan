@@ -76,11 +76,65 @@ public sealed class OllamaApiClient : IDisposable
         }
         catch
         {
-            _tagsCache = new List<OllamaModelTag>();
+            if (_tagsCache is null)
+            {
+                _tagsCache = new List<OllamaModelTag>();
+            }
         }
 
         _tagsCheckedAt = DateTime.UtcNow;
         return _tagsCache;
+    }
+
+    public async Task<OllamaTagsSnapshot> FetchTagsSnapshotAsync(
+        int timeoutSec = 10,
+        bool forceRefresh = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (!forceRefresh && _tagsCache is not null && (DateTime.UtcNow - _tagsCheckedAt).TotalSeconds < 15)
+        {
+            return new OllamaTagsSnapshot
+            {
+                Reachable = _readyCached,
+                Tags = _tagsCache
+            };
+        }
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
+
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<TagsResponse>(
+                $"{_host}/api/tags", JsonFileHelper.Options, cts.Token).ConfigureAwait(false);
+            _tagsCache = response?.Models ?? new List<OllamaModelTag>();
+            _readyCached = true;
+            _readyCheckedAt = DateTime.UtcNow;
+            _tagsCheckedAt = DateTime.UtcNow;
+            return new OllamaTagsSnapshot
+            {
+                Reachable = true,
+                Tags = _tagsCache
+            };
+        }
+        catch
+        {
+            _readyCached = false;
+            _readyCheckedAt = DateTime.UtcNow;
+            return new OllamaTagsSnapshot
+            {
+                Reachable = false,
+                Tags = _tagsCache ?? Array.Empty<OllamaModelTag>()
+            };
+        }
+    }
+
+    public void InvalidateCaches()
+    {
+        _tagsCache = null;
+        _tagsCheckedAt = DateTime.MinValue;
+        _readyCached = false;
+        _readyCheckedAt = DateTime.MinValue;
     }
 
     public async Task<BenchmarkEmbedResult> BenchmarkEmbedAsync(
@@ -373,6 +427,12 @@ public sealed class OllamaApiClient : IDisposable
         [JsonPropertyName("total")]
         public long? Total { get; set; }
     }
+}
+
+public sealed class OllamaTagsSnapshot
+{
+    public bool Reachable { get; init; }
+    public IReadOnlyList<OllamaModelTag> Tags { get; init; } = Array.Empty<OllamaModelTag>();
 }
 
 public sealed class OllamaModelTag
