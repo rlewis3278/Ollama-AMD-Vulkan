@@ -8,6 +8,7 @@ using System.Windows.Threading;
 using OllamaToolkit.AiAssist;
 using OllamaToolkit.AiAssist.Models;
 using OllamaToolkit.App.Services;
+using OllamaToolkit.BenchmarkRunner;
 using OllamaToolkit.BenchmarkStore.Models;
 using OllamaToolkit.Core.Modes;
 using OllamaToolkit.Core.Ollama;
@@ -31,6 +32,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _testSettingsTimer;
     private readonly ThrottledUpdater _chatUpdater;
     private readonly ThrottledUpdater _testLogUpdater;
+    private readonly Dictionary<string, (ProgressBar Bar, TextBlock Status)> _testModeProgress = new(StringComparer.OrdinalIgnoreCase);
     private List<string> _nlRankedCatalog = new();
     public MainWindow()
     {
@@ -494,24 +496,175 @@ public partial class MainWindow : Window
         return (ctx, pred);
     }
 
+    private void BuildTestModeProgressRows(IReadOnlyList<string> modes)
+    {
+        TestModeProgressPanel.Children.Clear();
+        _testModeProgress.Clear();
+
+        foreach (var mode in modes)
+        {
+            var grid = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(56) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+
+            var name = new TextBlock
+            {
+                Text = mode,
+                Foreground = (Brush)FindResource("Brush.Text"),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(name, 0);
+
+            var bar = new ProgressBar
+            {
+                Style = (Style)FindResource("ToolkitProgressBar"),
+                Height = 8,
+                Minimum = 0,
+                Maximum = 100,
+                Value = 0,
+                Margin = new Thickness(6, 0, 6, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(bar, 1);
+
+            var status = new TextBlock
+            {
+                Text = "Pending",
+                Foreground = (Brush)FindResource("Brush.Muted"),
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            Grid.SetColumn(status, 2);
+
+            grid.Children.Add(name);
+            grid.Children.Add(bar);
+            grid.Children.Add(status);
+            TestModeProgressPanel.Children.Add(grid);
+            _testModeProgress[mode] = (bar, status);
+        }
+    }
+
+    private void ResetTestProgressUi(string model, int modelIndex, int modelCount, IReadOnlyList<string> modes, string? aiSummarizer)
+    {
+        TestProgressPanel.Visibility = Visibility.Visible;
+        TestOverallProgress.Value = 0;
+        var aiLine = string.IsNullOrWhiteSpace(aiSummarizer)
+            ? "AI insights LLM: (none)"
+            : $"AI insights LLM: {aiSummarizer}";
+        TestOverallLabel.Text =
+            $"Overall: {model} ({modelIndex + 1}/{modelCount}) — {aiLine}";
+        BuildTestModeProgressRows(modes);
+
+        foreach (var (bar, status) in _testModeProgress.Values)
+        {
+            bar.Value = 0;
+            status.Text = "Pending";
+            status.Foreground = (Brush)FindResource("Brush.Muted");
+        }
+    }
+
+    private void ApplyBenchmarkProgressUpdate(BenchmarkProgressUpdate update)
+    {
+        TestOverallProgress.Value = update.OverallPercent;
+
+        if (!string.IsNullOrWhiteSpace(update.Model))
+        {
+            var aiLine = string.IsNullOrWhiteSpace(update.AiSummarizerModel)
+                ? "AI insights LLM: (none)"
+                : $"AI insights LLM: {update.AiSummarizerModel}";
+            TestOverallLabel.Text =
+                $"Overall: {update.Model} ({update.ModelIndex + 1}/{update.ModelCount}) — {aiLine}";
+        }
+
+        if (string.IsNullOrWhiteSpace(update.Mode) || !_testModeProgress.TryGetValue(update.Mode, out var row))
+        {
+            return;
+        }
+
+        row.Bar.Foreground = (Brush)FindResource("Brush.Accent");
+        switch (update.Phase)
+        {
+            case BenchmarkProgressPhase.ModeApplying:
+                row.Bar.Value = update.CurrentModePercent;
+                row.Status.Text = "Applying mode…";
+                row.Status.Foreground = (Brush)FindResource("Brush.Warning");
+                break;
+            case BenchmarkProgressPhase.ModeBenchmarking:
+                row.Bar.Value = update.CurrentModePercent;
+                row.Status.Text = "Benchmarking…";
+                row.Status.Foreground = (Brush)FindResource("Brush.Warning");
+                break;
+            case BenchmarkProgressPhase.ModeCompleted:
+                row.Bar.Value = 100;
+                row.Status.Text = $"{update.GenerationTps:F1} tok/s";
+                row.Status.Foreground = (Brush)FindResource("Brush.Active");
+                break;
+            case BenchmarkProgressPhase.ModeFailed:
+                row.Bar.Value = 100;
+                row.Bar.Foreground = (Brush)FindResource("Brush.Accent");
+                row.Status.Text = "Failed";
+                row.Status.Foreground = (Brush)FindResource("Brush.Accent");
+                break;
+        }
+
+        if (!string.IsNullOrWhiteSpace(update.Mode))
+        {
+            TestStatusLabel.Text = update.Phase switch
+            {
+                BenchmarkProgressPhase.ModeApplying =>
+                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — applying compute mode…",
+                BenchmarkProgressPhase.ModeBenchmarking =>
+                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — running benchmark on {update.Model}…",
+                BenchmarkProgressPhase.ModeCompleted =>
+                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — {update.GenerationTps:F2} tok/s",
+                BenchmarkProgressPhase.ModeFailed =>
+                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — failed",
+                BenchmarkProgressPhase.ModelCompleted when update.BestMode is not null =>
+                    $"{update.Model} complete — winner: {update.BestMode} @ {update.BestTps:F2} tok/s",
+                _ => TestStatusLabel.Text
+            };
+        }
+    }
+
     private async Task RunBenchmarkQueueAsync(IReadOnlyList<string> models)
     {
         _benchmarkCts?.Cancel();
         _benchmarkCts = new CancellationTokenSource();
         var ct = _benchmarkCts.Token;
         var (numCtx, numPredict) = ParseBenchmarkSpinners(TestNumCtxBox.Text, TestNumPredictBox.Text);
+        var benchmarkModes = new[] { "CPU", "APU", "GPU", "Hybrid", "ROCm" };
+        var aiSummarizer = await _svc.Summarizer.ResolveAsync(cancellationToken: ct).ConfigureAwait(true);
 
         await _svc.WorkQueue.EnqueueAsync(async token =>
         {
-            foreach (var model in models)
+            await UiDispatcher.InvokeAsync(() =>
             {
+                TestLogBox.Text += $"--- Benchmark queue started ({models.Count} model(s)) ---{Environment.NewLine}";
+                if (!string.IsNullOrWhiteSpace(aiSummarizer))
+                {
+                    TestLogBox.Text += $"AI insights LLM: {aiSummarizer}{Environment.NewLine}";
+                }
+
+                TestLogBox.CaretIndex = TestLogBox.Text.Length;
+                TestLogBox.ScrollToEnd();
+            }).ConfigureAwait(false);
+
+            for (var modelIndex = 0; modelIndex < models.Count; modelIndex++)
+            {
+                var model = models[modelIndex];
                 if (ct.IsCancellationRequested)
                 {
                     break;
                 }
 
-                await UiDispatcher.InvokeAsync(() => TestStatusLabel.Text = $"Testing {model}...").ConfigureAwait(false);
-                var progress = new Progress<string>(line =>
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    ResetTestProgressUi(model, modelIndex, models.Count, benchmarkModes, aiSummarizer);
+                    TestStatusLabel.Text = $"Starting benchmark for {model} ({modelIndex + 1}/{models.Count})…";
+                }).ConfigureAwait(false);
+
+                var log = new Progress<string>(line =>
                 {
                     _testLogUpdater.Append(line + Environment.NewLine, appended =>
                     {
@@ -521,17 +674,31 @@ public partial class MainWindow : Window
                     }, () => TestLogBox.Text, v => TestLogBox.Text = v);
                 });
 
+                var progress = new Progress<BenchmarkProgressUpdate>(update =>
+                {
+                    UiDispatcher.InvokeAsync(() => ApplyBenchmarkProgressUpdate(update));
+                });
+
                 try
                 {
                     await _svc.BenchmarkRunner.RunAsync(
-                        model, numPredict: numPredict, numCtx: numCtx, log: progress, cancellationToken: ct)
+                        model,
+                        numPredict: numPredict,
+                        numCtx: numCtx,
+                        modelIndex: modelIndex,
+                        modelCount: models.Count,
+                        aiSummarizerModel: aiSummarizer,
+                        log: log,
+                        progress: progress,
+                        cancellationToken: ct)
                         .ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     await UiDispatcher.InvokeAsync(() =>
                     {
-                        TestLogBox.Text += $"FAIL: {ex.Message}{Environment.NewLine}";
+                        TestLogBox.Text += $"FAIL ({model}): {ex.Message}{Environment.NewLine}";
+                        TestStatusLabel.Text = $"Benchmark failed for {model}: {ex.Message}";
                     }).ConfigureAwait(false);
                 }
             }
@@ -546,7 +713,10 @@ public partial class MainWindow : Window
 
             await UiDispatcher.InvokeAsync(async () =>
             {
-                TestStatusLabel.Text = "Benchmark queue complete.";
+                TestOverallProgress.Value = 100;
+                TestStatusLabel.Text = ct.IsCancellationRequested
+                    ? "Benchmark queue stopped."
+                    : "Benchmark queue complete.";
                 await RefreshModelsUiAsync().ConfigureAwait(true);
                 await RefreshTestResultsUiAsync().ConfigureAwait(true);
             }).ConfigureAwait(false);

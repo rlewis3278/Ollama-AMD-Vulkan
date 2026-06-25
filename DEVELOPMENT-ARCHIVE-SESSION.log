@@ -706,3 +706,42 @@ EOF
 [2026-06-24 20:01:40] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: human-readable configuration summary on Compute Modes tab"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|ModeEnvSummaryBuilder + Compute Modes friendly summary UI"
 [2026-06-24 20:01:40] [SYNC] Processed updates.jsonl lines 2637..2747
 [2026-06-24 20:01:40] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 20:05:49] [BUILD] ROCm mode: CLI verified HIP=0 ROCR=0 VULKAN=0; benchmark 5-mode suite
+[2026-06-24 20:05:50] [TOOL] Grep - Grep
+[2026-06-24 20:05:50] [TOOL] Read - Read
+[2026-06-24 20:05:50] [TOOL] Read - Read
+[2026-06-24 20:05:50] [TOOL] Grep - Grep
+[2026-06-24 20:05:50] [TOOL] Read - Read
+[2026-06-24 20:05:50] [TOOL] Read - Read
+[2026-06-24 20:05:50] [TOOL] Grep - Grep
+[2026-06-24 20:05:50] [TOOL] Read - Read
+[2026-06-24 20:05:50] [TOOL] Read - Read
+[2026-06-24 20:05:50] [TOOL] Read - Read
+[2026-06-24 20:05:50] [TOOL] Read - Read
+[2026-06-24 20:05:50] [TOOL] Read - Read
+[2026-06-24 20:05:50] [TOOL] WebSearch - WebSearch
+[2026-06-24 20:05:50] [TOOL] WebFetch - WebFetch
+[2026-06-24 20:05:50] [TOOL] Read - Read
+[2026-06-24 20:05:50] [TOOL] Grep - Grep
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [TOOL] Grep - Grep
+[2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:05:50] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-24 20:05:50] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- set-mode ROCm --no-restart 2>&1; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- status 2>&1 | Select-String "Detected|OLLAMA_VULKAN|HIP|ROCR|GGML"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- set-mode Hybrid --no-restart 2>&1 | Select-Object -Last 1
+[2026-06-24 20:05:50] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1
+[2026-06-24 20:05:50] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: add ROCm compute mode and integrate into benchmark testing"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|ROCm mode: CLI verified HIP=0 ROCR=0 VULKAN=0; benchmark 5-mode suite"
+[2026-06-24 20:05:50] [SYNC] Processed updates.jsonl lines 2748..2913
+[2026-06-24 20:05:50] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

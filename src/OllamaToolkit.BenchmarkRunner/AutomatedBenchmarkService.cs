@@ -32,12 +32,31 @@ public sealed class AutomatedBenchmarkService
         int numCtx = 8192,
         int runs = 1,
         string? outputDir = null,
+        int modelIndex = 0,
+        int modelCount = 1,
+        string? aiSummarizerModel = null,
         IProgress<string>? log = null,
+        IProgress<BenchmarkProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
     {
         modes ??= [ComputeMode.CPU, ComputeMode.APU, ComputeMode.GPU, ComputeMode.Hybrid, ComputeMode.ROCm];
         outputDir ??= ProfileStoreService.NewGuiTestOutputDir(modelName);
         Directory.CreateDirectory(outputDir);
+
+        var header = BenchmarkProgressFormatter.ModelHeader(
+            modelName, modelIndex, modelCount, numCtx, numPredict, modes, aiSummarizerModel);
+        BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+        {
+            Phase = BenchmarkProgressPhase.ModelStarted,
+            Model = modelName,
+            ModelIndex = modelIndex,
+            ModelCount = modelCount,
+            ModeCount = modes.Count,
+            NumCtx = numCtx,
+            NumPredict = numPredict,
+            AiSummarizerModel = aiSummarizerModel,
+            LogLine = header
+        });
 
         var report = new BenchmarkReportDocument
         {
@@ -49,10 +68,24 @@ public sealed class AutomatedBenchmarkService
             Results = new List<BenchmarkReportModeResult>()
         };
 
-        foreach (var mode in modes)
+        for (var modeIndex = 0; modeIndex < modes.Count; modeIndex++)
         {
+            var mode = modes[modeIndex];
             cancellationToken.ThrowIfCancellationRequested();
-            log?.Report($"Testing mode {mode}...");
+
+            BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+            {
+                Phase = BenchmarkProgressPhase.ModeApplying,
+                Model = modelName,
+                ModelIndex = modelIndex,
+                ModelCount = modelCount,
+                Mode = mode.ToString(),
+                ModeIndex = modeIndex,
+                ModeCount = modes.Count,
+                NumCtx = numCtx,
+                NumPredict = numPredict,
+                LogLine = BenchmarkProgressFormatter.ModeApplying(modeIndex, modes.Count, mode)
+            });
 
             var modeResult = new BenchmarkReportModeResult { Mode = mode.ToString() };
             var started = DateTime.UtcNow;
@@ -61,6 +94,20 @@ public sealed class AutomatedBenchmarkService
             {
                 await _modeService.ApplyModeAsync(mode, restartOllama: true, cancellationToken: cancellationToken)
                     .ConfigureAwait(false);
+
+                BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+                {
+                    Phase = BenchmarkProgressPhase.ModeBenchmarking,
+                    Model = modelName,
+                    ModelIndex = modelIndex,
+                    ModelCount = modelCount,
+                    Mode = mode.ToString(),
+                    ModeIndex = modeIndex,
+                    ModeCount = modes.Count,
+                    NumCtx = numCtx,
+                    NumPredict = numPredict,
+                    LogLine = BenchmarkProgressFormatter.ModeBenchmarking(modeIndex, modes.Count, mode)
+                });
 
                 var bench = await _apiClient.BenchmarkGenerateAsync(
                     modelName, DefaultPrompt, numPredict, numCtx, warmup: true, cancellationToken)
@@ -71,17 +118,49 @@ public sealed class AutomatedBenchmarkService
                 modeResult.PromptEvalTps = bench.PromptEvalTps;
                 modeResult.TtftMs = bench.TtftMs;
                 modeResult.Notes = $"gen_tokens={bench.EvalCount}; num_ctx={numCtx}";
-                log?.Report($"  {mode}: {bench.GenerationTps:F2} tok/s");
+                modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
+
+                BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+                {
+                    Phase = BenchmarkProgressPhase.ModeCompleted,
+                    Model = modelName,
+                    ModelIndex = modelIndex,
+                    ModelCount = modelCount,
+                    Mode = mode.ToString(),
+                    ModeIndex = modeIndex,
+                    ModeCount = modes.Count,
+                    NumCtx = numCtx,
+                    NumPredict = numPredict,
+                    GenerationTps = bench.GenerationTps,
+                    DurationSec = modeResult.DurationSec,
+                    LogLine = BenchmarkProgressFormatter.ModeCompleted(
+                        modeIndex, modes.Count, mode, bench.GenerationTps, modeResult.DurationSec)
+                });
             }
             catch (Exception ex)
             {
                 modeResult.Status = "Failed";
                 modeResult.Error = ex.Message;
                 modeResult.Notes = $"Benchmark failed for mode {mode}.";
-                log?.Report($"  {mode}: FAIL - {ex.Message}");
+                modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
+
+                BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+                {
+                    Phase = BenchmarkProgressPhase.ModeFailed,
+                    Model = modelName,
+                    ModelIndex = modelIndex,
+                    ModelCount = modelCount,
+                    Mode = mode.ToString(),
+                    ModeIndex = modeIndex,
+                    ModeCount = modes.Count,
+                    NumCtx = numCtx,
+                    NumPredict = numPredict,
+                    DurationSec = modeResult.DurationSec,
+                    Error = ex.Message,
+                    LogLine = BenchmarkProgressFormatter.ModeFailed(modeIndex, modes.Count, mode, ex.Message)
+                });
             }
 
-            modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
             report.Results!.Add(modeResult);
         }
 
@@ -100,6 +179,18 @@ public sealed class AutomatedBenchmarkService
                 VramMb = winner.VramMb
             };
             report.Quantization = "unknown";
+
+            BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+            {
+                Phase = BenchmarkProgressPhase.ModelCompleted,
+                Model = modelName,
+                ModelIndex = modelIndex,
+                ModelCount = modelCount,
+                ModeCount = modes.Count,
+                BestMode = winner.Mode,
+                BestTps = winner.GenerationTps,
+                LogLine = BenchmarkProgressFormatter.ModelWinner(winner.Mode!, winner.GenerationTps)
+            });
         }
 
         report.CompletedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -108,7 +199,16 @@ public sealed class AutomatedBenchmarkService
         await _profiles.UpdateFromReportAsync(reportPath, numCtx, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        log?.Report($"Report saved: {reportPath}");
+        BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+        {
+            Phase = BenchmarkProgressPhase.ModelCompleted,
+            Model = modelName,
+            ModelIndex = modelIndex,
+            ModelCount = modelCount,
+            ModeCount = modes.Count,
+            LogLine = BenchmarkProgressFormatter.ReportSaved(reportPath)
+        });
+
         return report;
     }
 }
