@@ -86,6 +86,8 @@ This syncs new shell commands and tool events from `updates.jsonl` into the sess
 | 14 | Follow-ups: full AI descriptions (`num_predict` 512), no tab auto-refresh after Clear, red multi-select, CTRL hint | `fd02fcc` |
 | 15 | STOP button (Categorize All → Clear Catalog), flash-only template, AI status yellow/black blink, description holdover timing | `83d0ecd` |
 | 16 | **"make sure the archive of our conversation is up to date and git is up to date"** | Sync `updates.jsonl` → session log; extend this document; docs commit |
+| 17 | Asked what `num_ctx` / `num_predict` do in Testing Suite | Explained Ollama context window vs max output tokens; how toolkit uses them in benchmarks |
+| 18 | **Testing Suite UX + Test Undownload plan** (approved); **"update git and log before execute, then execute"** | Pre-execution archive sync; Phase 9 implementation (pending) |
 
 ---
 
@@ -635,6 +637,16 @@ src/OllamaToolkit.ModelCatalog/LibraryCatalogStoreService.cs
 src/OllamaToolkit.ModelCatalog/DescriptionStoreService.cs
 src/OllamaToolkit.ModelCategory/UsageCategoryStoreService.cs
 ```
+
+---
+
+## Phase 9 — Testing Suite UX + Test Undownload (in progress)
+
+**User request:** Relabel benchmark controls; AI optimum settings per model before 5-mode test; red Stop Test; Clear All dialog (no rerun); Test Undownload (pull→test→delete); Model Library Fastest Mode / Best tok/s columns.
+
+**Plan:** `plan.md` (session `019ef98d-ebd9-7ea0-b305-ee7496b813b8`).
+
+**Status:** Pre-execution archive committed; implementation pending.
 
 ---
 

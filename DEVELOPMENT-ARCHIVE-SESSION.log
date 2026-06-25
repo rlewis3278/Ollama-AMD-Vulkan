@@ -1766,3 +1766,74 @@ EOF
 [2026-06-25 04:44:57] [SYNC] updates.jsonl lines 4998-7579 synced; archive narrative updated 2026-06-25
 [2026-06-25 04:44:57] [SYNC] Processed updates.jsonl lines 7645..7648
 [2026-06-25 04:44:57] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 05:22:09] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git status; git add DEVELOPMENT-ARCHIVE.md DEVELOPMENT-ARCHIVE-SESSION.log DEVELOPMENT-ARCHIVE-COMMANDS.txt; git commit -m "docs: sync development archive through 83d0ecd (Phase 8 Model Library UX)"; git status; git log --oneline -3
+[2026-06-25 05:22:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:22:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:22:09] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add DEVELOPMENT-ARCHIVE.md; git commit --amend --no-edit; git status; git log --oneline -2
+[2026-06-25 05:22:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:22:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:22:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:22:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 05:22:09] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add DEVELOPMENT-ARCHIVE.md; git commit --amend --no-edit; git log --oneline -2; git status
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Grep - Grep
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Glob - Glob
+[2026-06-25 05:22:09] [TOOL] AskQuestion - AskQuestion
+[2026-06-25 05:22:09] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 05:22:09] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git status; git log --oneline -3
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [TOOL] Read - Read
+[2026-06-25 05:22:09] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "USER|Approved Testing Suite UX + Test Undownload plan; pre-execution archive/git sync"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "REASONING|Phase 9 scope: labels, AI per-model settings, Stop Test red, Clear All dialog, Test Undownload pull-test-delete, catalog BestMode/tok/s columns"
+[2026-06-25 05:22:09] [SYNC] Processed updates.jsonl lines 7649..7901
+[2026-06-25 05:22:09] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 05:22:10] [USER] Approved Testing Suite UX + Test Undownload plan; pre-execution archive/git sync
+[2026-06-25 05:22:10] [SYNC] Processed updates.jsonl lines 7902..7908
+[2026-06-25 05:22:10] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 05:22:10] [REASONING] Phase 9 scope: labels, AI per-model settings, Stop Test red, Clear All dialog, Test Undownload pull-test-delete, catalog BestMode/tok/s columns
+[2026-06-25 05:22:11] [SYNC] Processed updates.jsonl lines 7909..7912
+[2026-06-25 05:22:11] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
