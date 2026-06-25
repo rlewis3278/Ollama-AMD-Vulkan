@@ -1,7 +1,7 @@
 # Ollama AMD Vulkan Manager — Agent Development Archive
 
-Complete record of AI-assisted greenfield development from initial planning through Phase 3.
-Generated: **2026-06-24** (session `019ef98d-ebd9-7ea0-b305-ee7496b813b8`).
+Complete record of AI-assisted greenfield development from initial planning through Model Library UX.
+Generated: **2026-06-24**; last narrative update **2026-06-25** (session `019ef98d-ebd9-7ea0-b305-ee7496b813b8`).
 
 > **Machine-readable full transcript:**  
 > `C:\Users\lewis\.grok\sessions\C%3A%5CUsers%5Clewis\019ef98d-ebd9-7ea0-b305-ee7496b813b8\updates.jsonl`  
@@ -79,6 +79,13 @@ This syncs new shell commands and tool events from `updates.jsonl` into the sess
 | 7 | **"add a file to archive every command and thought process"** | Created this `DEVELOPMENT-ARCHIVE.md` |
 | 8 | **"make sure this log is updated with everything you do"** | Added `DEVELOPMENT-ARCHIVE-SESSION.log`, `scripts/Update-DevelopmentArchive.ps1`, Section 0 maintenance protocol |
 | 9 | **"make sure this log is updated with everything you do"** (resumed) | Enforced Section 0 on every action; implemented AI functions 5–9 |
+| 10 | Continued autonomous build: theme/tab polish, file sizes, ROCm mode, testing log, compute mode cards | Commits `a546c68`–`5a1a0ce`: dark theme, File Size column, ROCm iGPU, benchmark log UX |
+| 11 | Model Library: description modes (Download / Official / AI), Refresh Descriptions with flash, auto-fit columns | `f8e8939`, theme/startup fixes `516e218`–`cacaff6`, toolbar `c1a2b0d` |
+| 12 | Refresh Catalog stuck in file-size enrich loop; per-row green/blue flash animations | `fd30db5`, `222daad`, `e6c7222`, `730ba4c`, `14e3326`, `aa236a8` |
+| 13 | Model Library refresh UX: A→Z blue descriptions, Clear Catalog, file-size only on explicit refresh | `f1b60c6`, `16bc435` |
+| 14 | Follow-ups: full AI descriptions (`num_predict` 512), no tab auto-refresh after Clear, red multi-select, CTRL hint | `fd02fcc` |
+| 15 | STOP button (Categorize All → Clear Catalog), flash-only template, AI status yellow/black blink, description holdover timing | `83d0ecd` |
+| 16 | **"make sure the archive of our conversation is up to date and git is up to date"** | Sync `updates.jsonl` → session log; extend this document; docs commit |
 
 ---
 
@@ -462,9 +469,18 @@ Chronological decision trail the agent followed:
 - Don't over-implement all 11 AI functions in one pass — prioritize catalog, insights, log scan; defer NL search, advisor, comparison, queue priority.
 - Chat streaming: append assistant text by replacing suffix after "Assistant: " marker to avoid full TextBox rewrite per token.
 
-### Current (archive request)
+### Phase 5–8 execution
+- AI functions 5–9 share one summarizer model and feature flags — implement services first, wire toolbar buttons second.
+- Model Library refresh must never block UI: split HTTP enrich from UI pass; cancel in-flight work on Clear Catalog or STOP.
+- File-size enrich runs only on explicit Refresh Catalog / Refresh Descriptions — not tab open or grid click.
+- Flash buttons use `ToolkitFlashButtonTemplate` during animation to avoid press/hover white flash on dark theme.
+- Description row blues held until Refresh Descriptions button restores (not when AI work finishes).
+- `AiProcessingFlashPresenter` ref-counts AI activity for footer status button yellow/black blink.
+
+### Archive maintenance (ongoing)
 - User wants complete audit trail → mine `updates.jsonl`, `chat_history.jsonl`, git log, terminal logs.
 - Store in repo so it versions with the code; link to raw session files for byte-level replay.
+- Run `Update-DevelopmentArchive.ps1` every turn; commit archive with code or docs-only when narrative changes.
 
 ---
 
@@ -524,7 +540,7 @@ Ensure a complete record of agent commands and reasoning from planning through b
 
 ---
 
-## Phase 5 — AI functions 5–9 (pending commit)
+## Phase 5 — AI functions 5–9 (`a9de95c`, `f1bfec1`)
 
 **User request:** Keep `DEVELOPMENT-ARCHIVE-SESSION.log` updated with every agent action; continue autonomous build.
 
@@ -539,6 +555,86 @@ Ensure a complete record of agent commands and reasoning from planning through b
 - Model Run: Ask AI button
 - Testing Suite: benchmark setting spinners + AI advisor
 - `ThrottledUpdater` wired to chat stream and test log (~30 fps)
+
+---
+
+## Phase 6 — Theme, tabs, ROCm, testing, compute modes (`a546c68`–`5a1a0ce`)
+
+**User request:** Continued autonomous polish across tabs after Phase 5.
+
+### Deliverables
+- Dark theme, tab order fix, `UiDispatcher` data-load fix, dark DataGrid (`a546c68`)
+- File Size column on Models & Launch and Model Library (`f48d906`)
+- Human-readable configuration summary on Compute Modes (`f42420b`)
+- ROCm compute mode + benchmark integration (`4f50dd8`)
+- Testing Suite descriptive log, per-mode progress bars, Clear & Rerun Tests (`4658b18`, `3d54538`)
+- Compute mode card alignment, hover black, no white disabled during switch (`0383403`, `54b20bd`, mode foreground experiments reverted)
+- Green row background for installed models; ROCm iGPU copy; green winner cells; 14pt typography (`56f4049`, `5a1a0ce`)
+- AI Settings tab feedback, error surfacing, classification progress (`4343612`)
+
+---
+
+## Phase 7 — Model Library descriptions & toolbar (`f8e8939`–`aa236a8`)
+
+**User request:** Model Library description modes, refresh animations, toolbar layout.
+
+### Deliverables
+- Download / Official / AI description toggle; Refresh Descriptions (web + AI) with flash button; wrapped description column; auto-fit grid columns (`f8e8939`)
+- Startup crash fix: `CatalogDescriptionModeActive` after `ToolkitButton` (`516e218`)
+- App-wide black button hover via `ToolkitButtonTemplate` (`d7b5d04`)
+- Dark ComboBox dropdown; category filter label (`cacaff6`)
+- Toolbar: flash buttons, catalog file sizes, multi-compare (`c1a2b0d`)
+- Row-2 button left alignment (`aa236a8`)
+- Description mode toggles, categorize preflight, per-row refresh animation (`14e3326`)
+- Refresh Catalog per-row flash with green hold for downloaded LLMs; scroll to top on finish (`e6c7222`, `730ba4c`)
+
+### Key files
+```
+src/OllamaToolkit.App/MainWindow.xaml(.cs)
+src/OllamaToolkit.App/Resources/Theme.xaml
+src/OllamaToolkit.App/Services/FlashButtonPresenter.cs
+src/OllamaToolkit.App/Services/CatalogRowRefreshAnimator.cs
+src/OllamaToolkit.ModelRegistry/ModelRegistryService.cs
+```
+
+---
+
+## Phase 8 — Model Library refresh UX (`fd30db5`–`83d0ecd`)
+
+**User request:** Fix Refresh Catalog loop; blue description refresh; Clear Catalog; STOP button; AI status feedback.
+
+### Problems fixed
+| Issue | Fix |
+|-------|-----|
+| Refresh Catalog blocked by background file-size enrich | Split HTTP enrich from UI pass; cancellation tokens; `fd30db5`, `222daad` |
+| File sizes fetched on tab open / grid click | Enrich only in `RefreshCatalog_Click` and `RefreshDescriptions_Click` |
+| AI descriptions truncated | `num_predict` 512; `NormalizeListDescription` (`fd02fcc`) |
+| Auto web refresh after Clear Catalog | `LoadCatalogTabAsync` only calls `RefreshCatalogUiAsync()` |
+| No way to cancel long refresh/classify | STOP button spanning Categorize All → Clear Catalog; `CancelActiveCatalogOperationsAsync` |
+| Refresh Catalog flash delayed | Flash starts immediately via flash-only button template (`83d0ecd`) |
+| Description blues cleared too early | `FinishDescriptionRefreshHoldover` when button restores |
+| No global AI activity indicator | `AiProcessingFlashPresenter` — yellow/black blink on `AiStatusButton` |
+
+### Deliverables
+- Refresh Descriptions: A→Z processing, blue row/button holdover (`f1b60c6`)
+- Refresh Catalog: button flashes until web + UI pass + file-size enrich complete (`f1b60c6`)
+- Clear Catalog: wipes catalog, AI descriptions, usage categories; cancels in-flight ops (`f1b60c6`, `16bc435`)
+- Red multi-select, Clear Selections, CTRL hint (`16bc435`, `fd02fcc`)
+- Refresh Descriptions auto-switches to AI Descriptions mode (`83d0ecd`)
+- Categorize All repositioned after Official Descriptions with wider gap
+
+### Key files
+```
+src/OllamaToolkit.App/MainWindow.xaml(.cs)
+src/OllamaToolkit.App/Resources/Theme.xaml
+src/OllamaToolkit.App/Services/FlashButtonPresenter.cs
+src/OllamaToolkit.App/Services/AiProcessingFlashPresenter.cs  (new)
+src/OllamaToolkit.App/Services/FlashButtonRegistry.cs
+src/OllamaToolkit.App/Services/CatalogRowRefreshAnimator.cs
+src/OllamaToolkit.ModelCatalog/LibraryCatalogStoreService.cs
+src/OllamaToolkit.ModelCatalog/DescriptionStoreService.cs
+src/OllamaToolkit.ModelCategory/UsageCategoryStoreService.cs
+```
 
 ---
 
@@ -597,7 +693,34 @@ bad4770  Fix GUI startup freeze (PowerShell)
 ce23914  Phase 3: catalog libraries + remaining tabs
 25292a1  docs: agent development archive (markdown + commands)
 7f6331e  docs: session log + sync script + maintenance protocol
-         (pending) feat: AI functions 5-9, Ask AI, Compare, category column, throttling
+a9de95c  Phase 5: AI functions 5-9, Ask AI, Compare, stream throttling
+f1bfec1  docs: append session log for Phase 5 turn
+a546c68  fix: tab order, black theme, UiDispatcher, dark DataGrid
+f48d906  feat: File Size column (Models & Launch, Model Library)
+f42420b  feat: Compute Modes configuration summary
+4f50dd8  feat: ROCm compute mode + benchmark integration
+4658b18  Testing Suite descriptive log + per-mode progress
+3d54538  feat: Clear & Rerun Tests
+0383403  ui: compute mode card flash alignment
+54b20bd  fix: mode card hover black, no white disabled
+5a1a0ce  feat: ROCm iGPU, green winners, Best Mode refresh, 14pt type
+4343612  fix: AI Settings feedback + classification progress
+f8e8939  feat: Model Library description modes + refresh flash
+516e218  fix: CatalogDescriptionModeActive startup crash
+d7b5d04  fix: black button hover app-wide
+cacaff6  fix: dark ComboBox dropdown
+c1a2b0d  feat: Model Library toolbar, flash, file sizes, multi-compare
+aa236a8  fix: Model Library row-2 button alignment
+14e3326  fix: description toggles, categorize preflight, row animation
+e6c7222  feat: Refresh Catalog per-row flash + green hold
+730ba4c  fix: green hold until button restores, scroll top
+fd30db5  fix: Refresh Catalog loop — split enrich from UI pass
+222daad  Fix Refresh Catalog blocked by file-size enrich loop
+f1b60c6  feat: refresh UX — blue descriptions, enrich, clear catalog
+16bc435  fix: no auto file-size, red selection, clear cancels ops
+fd02fcc  fix: full AI descriptions, no tab auto-refresh, CTRL hint
+83d0ecd  feat: STOP button, flash fixes, AI status blink
+         docs: archive sync through 83d0ecd — see branch HEAD on csharp-wpf-greenfield
 ```
 
 ### Archive files
@@ -611,4 +734,4 @@ ce23914  Phase 3: catalog libraries + remaining tabs
 
 ---
 
-*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated: 2026-06-24 — session log + sync script.*
+*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated: 2026-06-25 — Phase 8 Model Library refresh UX through `83d0ecd`; session log synced to updates.jsonl.*
