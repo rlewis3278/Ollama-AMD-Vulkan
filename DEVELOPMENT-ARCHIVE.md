@@ -88,6 +88,7 @@ This syncs new shell commands and tool events from `updates.jsonl` into the sess
 | 16 | **"make sure the archive of our conversation is up to date and git is up to date"** | Sync `updates.jsonl` → session log; extend this document; docs commit |
 | 17 | Asked what `num_ctx` / `num_predict` do in Testing Suite | Explained Ollama context window vs max output tokens; how toolkit uses them in benchmarks |
 | 18 | **Testing Suite UX + Test Undownload plan** (approved); **"update git and log before execute, then execute"** | Phase 9: labels, AI per-model settings, Stop Test, Clear All dialog, Test Undownload, catalog columns |
+| 19 | Embedding models fail generate benchmark (400); **implement complete embed benchmark solution** | Phase 10 (in progress): `/api/embed` path, latency metrics, UI/catalog columns, Test Undownload routing |
 
 ---
 
@@ -749,6 +750,10 @@ fd02fcc  fix: full AI descriptions, no tab auto-refresh, CTRL hint
 d3a7b06  docs: archive sync through 83d0ecd (Phase 8)
 090f39a  docs: pre-execution archive sync for Phase 9 plan
 5625807  feat: Phase 9 Testing Suite UX, Test Undownload, catalog benchmark columns
+aab235b  docs: post-execution archive entry for Phase 9
+6ebcad1  fix: Test Undownload UI thread access
+a261a8a  fix: Test Undownload pull verify, settings clamp, download progress
+090f39b  docs: pre-execution archive sync for Phase 10 embed benchmark
 ```
 
 ### Archive files
@@ -762,4 +767,4 @@ d3a7b06  docs: archive sync through 83d0ecd (Phase 8)
 
 ---
 
-*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated: 2026-06-25 — Phase 9 Testing Suite UX + Test Undownload; session log synced to updates.jsonl.*
+*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated: 2026-06-25 — Phase 10 embed benchmark (pre-execution); session log synced to updates.jsonl.*

@@ -1988,3 +1988,59 @@ EOF
 [2026-06-25 05:38:00] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "FIX|Test Undownload: clamp num_ctx, verify pull, download bar, purple batch rows, descriptive log"; git add -A; git commit -m "fix: Test Undownload pull verify, settings clamp, download progress, purple batch rows"
 [2026-06-25 05:38:00] [SYNC] Processed updates.jsonl lines 8409..8624
 [2026-06-25 05:38:00] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 05:45:39] [USER] Implement complete embedding-model benchmark via /api/embed; update git and log before start
+[2026-06-25 05:45:40] [TOOL] Grep - Grep
+[2026-06-25 05:45:40] [TOOL] Grep - Grep
+[2026-06-25 05:45:40] [TOOL] Grep - Grep
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] WebSearch - WebSearch
+[2026-06-25 05:45:40] [TOOL] WebFetch - WebFetch
+[2026-06-25 05:45:40] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git status && git branch --show-current && git log -3 --oneline
+[2026-06-25 05:45:40] [TOOL] Glob - Glob
+[2026-06-25 05:45:40] [TOOL] Glob - Glob
+[2026-06-25 05:45:40] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git status && git branch --show-current && git log -3 --oneline
+[2026-06-25 05:45:40] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git status; git branch --show-current; git log -5 --oneline
+[2026-06-25 05:45:40] [TOOL] Grep - Grep
+[2026-06-25 05:45:40] [TOOL] Grep - Grep
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Glob - Glob
+[2026-06-25 05:45:40] [TOOL] Grep - Grep
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Grep - Grep
+[2026-06-25 05:45:40] [TOOL] Grep - Grep
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Grep - Grep
+[2026-06-25 05:45:40] [TOOL] Glob - Glob
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Grep - Grep
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [TOOL] Read - Read
+[2026-06-25 05:45:40] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "USER|Implement complete embedding-model benchmark via /api/embed; update git and log before start"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "REASONING|Branch generate vs embed benchmarks by model category; metrics: embed latency ms and prompt tok/s; winner = lowest latency per mode"
+[2026-06-25 05:45:40] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 05:45:40] [SYNC] Processed updates.jsonl lines 8625..8835
+[2026-06-25 05:45:40] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 05:45:40] [REASONING] Branch generate vs embed benchmarks by model category; metrics: embed latency ms and prompt tok/s; winner = lowest latency per mode
+[2026-06-25 05:45:40] [SYNC] Processed updates.jsonl lines 8836..8841
+[2026-06-25 05:45:40] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
