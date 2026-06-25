@@ -299,9 +299,29 @@ public sealed class ProfileStoreService
 
     public async Task<IReadOnlyList<ModelProfileSummary>> GetUntestedAsync(
         CancellationToken cancellationToken = default) =>
-        (await GetAllSummariesAsync(cancellationToken).ConfigureAwait(false))
-        .Where(s => s.NeedsRetest)
-        .ToList();
+        await GetLocalRetestQueueAsync(cancellationToken).ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<ModelProfileSummary>> GetLocalRetestQueueAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var summaries = await GetAllSummariesAsync(cancellationToken).ConfigureAwait(false);
+        var localNames = (await GetLocalModelsAsync(cancellationToken).ConfigureAwait(false))
+            .Select(m => m.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return summaries
+            .Where(s => localNames.Contains(s.Model))
+            .Where(s => s.NeedsRetest || HasFailedModeResults(s))
+            .OrderBy(s => s.Model, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static bool HasFailedModeResults(ModelProfileSummary summary) =>
+        summary.Results?.Values.Any(r => IsFailedModeStatus(r.Status)) == true;
+
+    private static bool IsFailedModeStatus(string status) =>
+        status.Equals("Failed", StringComparison.OrdinalIgnoreCase)
+        || status.Equals("FAIL", StringComparison.OrdinalIgnoreCase);
 
     public static string SafeReportDirName(string name) =>
         string.Concat(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).TrimEnd('.');

@@ -43,7 +43,6 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _catalogSearchTimer;
     private readonly DispatcherTimer _testSettingsTimer;
     private readonly ThrottledUpdater _chatUpdater;
-    private readonly ThrottledUpdater _testLogUpdater;
     private readonly Dictionary<string, (ProgressBar Bar, TextBlock Status)> _testModeProgress = new(StringComparer.OrdinalIgnoreCase);
     private List<string> _nlRankedCatalog = new();
     private bool _suppressSummarizerComboSave;
@@ -93,7 +92,6 @@ public partial class MainWindow : Window
             await SuggestBenchmarkSettingsAsync().ConfigureAwait(true);
         };
         _chatUpdater = new ThrottledUpdater(TimeSpan.FromMilliseconds(33), Dispatcher);
-        _testLogUpdater = new ThrottledUpdater(TimeSpan.FromMilliseconds(33), Dispatcher);
         DataGridColumnHelper.AttachAutoFit(ModelsGrid, FitGridColumns);
         DataGridColumnHelper.AttachAutoFit(CatalogGrid, FitGridColumns);
         DataGridColumnHelper.AttachAutoFit(TestResultsGrid, FitGridColumns);
@@ -324,28 +322,37 @@ public partial class MainWindow : Window
 
     private void AppendTestLog(string line)
     {
-        if (string.IsNullOrEmpty(line))
+        if (!Dispatcher.CheckAccess())
         {
-            _testLogUpdater.Append(Environment.NewLine, _ => ScrollTestLogToEnd(), null, null);
+            Dispatcher.BeginInvoke(() => AppendTestLog(line));
             return;
         }
 
-        _testLogUpdater.Append(line + Environment.NewLine, appended =>
+        if (string.IsNullOrEmpty(line))
         {
-            TestLogBox.AppendText(appended);
-            ScrollTestLogToEnd();
-        }, null, null);
+            TestLogBox.AppendText(Environment.NewLine);
+        }
+        else
+        {
+            TestLogBox.AppendText(line + Environment.NewLine);
+        }
+
+        ScrollTestLogToEnd();
     }
 
     private void ScrollTestLogToEnd()
     {
         TestLogBox.CaretIndex = TestLogBox.Text.Length;
-        TestLogBox.ScrollToEnd();
-        TestLogBox.Dispatcher.BeginInvoke(() =>
+        TestLogScroll.ScrollToEnd();
+        TestLogScroll.Dispatcher.BeginInvoke(() =>
         {
             TestLogBox.CaretIndex = TestLogBox.Text.Length;
-            TestLogBox.ScrollToEnd();
+            TestLogScroll.ScrollToVerticalOffset(TestLogScroll.ExtentHeight);
         }, DispatcherPriority.Loaded);
+        TestLogScroll.Dispatcher.BeginInvoke(() =>
+        {
+            TestLogScroll.ScrollToVerticalOffset(TestLogScroll.ExtentHeight);
+        }, DispatcherPriority.ApplicationIdle);
     }
 
     private void InitModeCards()
@@ -992,22 +999,28 @@ public partial class MainWindow : Window
 
     private async Task RunUntestedBenchmarkQueueAsync(object? flashSender = null)
     {
-        var untested = await _svc.Profiles.GetUntestedAsync().ConfigureAwait(true);
-        var names = untested.Select(u => u.Model).ToList();
+        var retestQueue = await _svc.Profiles.GetLocalRetestQueueAsync().ConfigureAwait(true);
+        var names = retestQueue.Select(u => u.Model).ToList();
         if (names.Count == 0)
         {
             await UiDispatcher.InvokeAsync(() =>
             {
-                TestStatusLabel.Text = "No untested models.";
+                TestStatusLabel.Text = "No local models need testing or failed-mode retest.";
                 FinishTestOperation(flashSender, success: false, cancelled: false);
             }).ConfigureAwait(true);
             return;
         }
 
+        var failedRetests = retestQueue.Count(s => !s.NeedsRetest);
         var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
         var queue = await _svc.QueueAdvisor.PrioritizeAsync(names, summaries).ConfigureAwait(true);
         await UiDispatcher.InvokeAsync(() =>
-            TestStatusLabel.Text = $"AI ordered queue: {string.Join(" -> ", queue.Models)}").ConfigureAwait(true);
+        {
+            var queueLabel = failedRetests > 0
+                ? $"AI ordered queue ({failedRetests} failed retest(s)): {string.Join(" -> ", queue.Models)}"
+                : $"AI ordered queue: {string.Join(" -> ", queue.Models)}";
+            TestStatusLabel.Text = queueLabel;
+        }).ConfigureAwait(true);
         _svc.ActivityLog.Write("AI", queue.Rationale);
         await RunBenchmarkQueueAsync(queue.Models, flashSender).ConfigureAwait(true);
     }
