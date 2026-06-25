@@ -94,6 +94,9 @@ public partial class MainWindow : Window
         };
         _chatUpdater = new ThrottledUpdater(TimeSpan.FromMilliseconds(33), Dispatcher);
         _testLogUpdater = new ThrottledUpdater(TimeSpan.FromMilliseconds(33), Dispatcher);
+        DataGridColumnHelper.AttachAutoFit(ModelsGrid, FitGridColumns);
+        DataGridColumnHelper.AttachAutoFit(CatalogGrid, FitGridColumns);
+        DataGridColumnHelper.AttachAutoFit(TestResultsGrid, FitGridColumns);
         Loaded += OnLoadedAsync;
         Closed += (_, _) =>
         {
@@ -1902,14 +1905,16 @@ public partial class MainWindow : Window
         if (e.AddedItems.Contains(ModelLibraryTab))
         {
             await LoadCatalogTabAsync().ConfigureAwait(true);
+            DataGridColumnHelper.ScheduleAutoFit(CatalogGrid);
         }
         else if (MainTabs.SelectedItem == ModelsLaunchTab)
         {
-            ScheduleFitGridColumns(ModelsGrid);
+            DataGridColumnHelper.ScheduleAutoFit(ModelsGrid);
         }
         else if (MainTabs.SelectedItem == TestResultsTab)
         {
             await RefreshTestResultsUiAsync().ConfigureAwait(true);
+            DataGridColumnHelper.ScheduleAutoFit(TestResultsGrid);
         }
         else if (MainTabs.SelectedItem == AiSettingsTab)
         {
@@ -1920,7 +1925,7 @@ public partial class MainWindow : Window
 
     private void ScheduleFitGridColumns(DataGrid grid)
     {
-        Dispatcher.BeginInvoke(() => FitGridColumns(grid), DispatcherPriority.Loaded);
+        DataGridColumnHelper.ScheduleAutoFit(grid);
     }
 
     private void FitGridColumns(DataGrid grid)

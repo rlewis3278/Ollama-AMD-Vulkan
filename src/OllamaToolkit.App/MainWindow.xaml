@@ -305,7 +305,12 @@
                                                 CellStyle="{StaticResource TestResultWinnerCellHybrid}" />
                             <DataGridTextColumn Header="ROCm" Binding="{Binding RocmResult}" Width="55"
                                                 CellStyle="{StaticResource TestResultWinnerCellRocm}" />
-                            <DataGridTextColumn Header="Insight" Binding="{Binding Insight}" Width="180" />
+                            <DataGridTextColumn Header="Insight" Binding="{Binding Insight}" Width="180"
+                                                MinWidth="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridWrapCell}" />
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="Tested" Binding="{Binding LastTested}" Width="120" />
                             <DataGridTemplateColumn Header="Clear" Width="58">
                                 <DataGridTemplateColumn.CellTemplate>
