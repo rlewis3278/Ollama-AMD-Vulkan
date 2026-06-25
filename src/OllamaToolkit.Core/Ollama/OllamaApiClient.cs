@@ -58,31 +58,50 @@ public sealed class OllamaApiClient : IDisposable
             return _tagsCache;
         }
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
+        var attempts = forceRefresh ? 3 : 1;
+        Exception? lastError = null;
+        for (var attempt = 1; attempt <= attempts; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
 
-        try
-        {
-            var response = await _httpClient.GetFromJsonAsync<TagsResponse>(
-                $"{_host}/api/tags", JsonFileHelper.Options, cts.Token).ConfigureAwait(false);
-            _tagsCache = response?.Models is { Count: > 0 } models
-                ? models
-                : new List<OllamaModelTag>();
-            if (_tagsCache.Count > 0)
+            try
             {
-                _readyCached = true;
-                _readyCheckedAt = DateTime.UtcNow;
+                var response = await _httpClient.GetFromJsonAsync<TagsResponse>(
+                    $"{_host}/api/tags", JsonFileHelper.Options, cts.Token).ConfigureAwait(false);
+                _tagsCache = response?.Models ?? new List<OllamaModelTag>();
+                _tagsCheckedAt = DateTime.UtcNow;
+                if (_tagsCache.Count > 0)
+                {
+                    _readyCached = true;
+                    _readyCheckedAt = DateTime.UtcNow;
+                }
+
+                return _tagsCache;
             }
-        }
-        catch
-        {
-            if (_tagsCache is null)
+            catch (Exception ex) when (attempt < attempts)
             {
-                _tagsCache = new List<OllamaModelTag>();
+                lastError = ex;
+                await Task.Delay(TimeSpan.FromMilliseconds(400 * attempt), cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                lastError = ex;
             }
         }
 
         _tagsCheckedAt = DateTime.UtcNow;
+        if (_tagsCache is null)
+        {
+            _tagsCache = new List<OllamaModelTag>();
+        }
+
+        if (lastError is not null)
+        {
+            System.Diagnostics.Debug.WriteLine($"GetTagsAsync failed after {attempts} attempt(s): {lastError.Message}");
+        }
+
         return _tagsCache;
     }
 
@@ -100,33 +119,13 @@ public sealed class OllamaApiClient : IDisposable
             };
         }
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(timeoutSec));
-
-        try
+        var tags = await GetTagsAsync(timeoutSec, ttlSec: 0, forceRefresh, cancellationToken)
+            .ConfigureAwait(false);
+        return new OllamaTagsSnapshot
         {
-            var response = await _httpClient.GetFromJsonAsync<TagsResponse>(
-                $"{_host}/api/tags", JsonFileHelper.Options, cts.Token).ConfigureAwait(false);
-            _tagsCache = response?.Models ?? new List<OllamaModelTag>();
-            _readyCached = true;
-            _readyCheckedAt = DateTime.UtcNow;
-            _tagsCheckedAt = DateTime.UtcNow;
-            return new OllamaTagsSnapshot
-            {
-                Reachable = true,
-                Tags = _tagsCache
-            };
-        }
-        catch
-        {
-            _readyCached = false;
-            _readyCheckedAt = DateTime.UtcNow;
-            return new OllamaTagsSnapshot
-            {
-                Reachable = false,
-                Tags = _tagsCache ?? Array.Empty<OllamaModelTag>()
-            };
-        }
+            Reachable = _readyCached,
+            Tags = tags
+        };
     }
 
     public void InvalidateCaches()
@@ -463,6 +462,9 @@ public sealed class OllamaModelTag
 
     [JsonPropertyName("details")]
     public OllamaModelDetails? Details { get; set; }
+
+    [JsonPropertyName("remote_host")]
+    public string? RemoteHost { get; set; }
 }
 
 public sealed class OllamaModelDetails

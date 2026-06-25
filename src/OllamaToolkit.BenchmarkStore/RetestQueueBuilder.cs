@@ -16,7 +16,11 @@ public sealed class RetestQueueBuildResult
 {
     public IReadOnlyList<ModelProfileSummary> Queue { get; init; } = [];
     public IReadOnlyList<RetestQueueModelDecision> Decisions { get; init; } = [];
+    public int RawTagCount { get; init; }
     public int LocalModelCount { get; init; }
+    public int ProfileCount { get; init; }
+    public bool ApiReachable { get; init; }
+    public string? TagsError { get; init; }
     public int IncludedCount => Queue.Count;
     public int ExcludedCount => Decisions.Count(d => !d.Included);
 }

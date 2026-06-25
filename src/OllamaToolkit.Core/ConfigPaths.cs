@@ -43,7 +43,7 @@ public static class ConfigPaths
             "Ollama", "ollama.exe");
     }
 
-    public static string DefaultOllamaHost => "http://localhost:11434";
+    public static string DefaultOllamaHost => "http://127.0.0.1:11434";
 
     public static readonly string[] ManagedEnvironmentVariables =
     [

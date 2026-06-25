@@ -33,7 +33,7 @@ public sealed class ProfileStoreService
                 reportDirsRemoved++;
             }
 
-            foreach (var file in Directory.EnumerateFiles(ToolkitPaths.ReportsRoot, "report.json", SearchOption.TopDirectoryOnly))
+            foreach (var file in Directory.EnumerateFiles(ToolkitPaths.ReportsRoot, "report.json", SearchOption.AllDirectories))
             {
                 File.Delete(file);
                 reportFilesRemoved++;
@@ -323,10 +323,108 @@ public sealed class ProfileStoreService
         CancellationToken cancellationToken = default)
     {
         _apiClient.InvalidateCaches();
-        var localModels = await GetLocalModelsAsync(forceRefresh: true, cancellationToken)
-            .ConfigureAwait(false);
-        var summaries = await GetAllSummariesAsync(cancellationToken).ConfigureAwait(false);
-        return RetestQueueBuilder.Build(localModels, summaries);
+        var snapshot = await _apiClient.FetchTagsSnapshotAsync(
+            timeoutSec: 15,
+            forceRefresh: true,
+            cancellationToken).ConfigureAwait(false);
+        var rawTags = snapshot.Tags;
+        var localModels = LocalModelFilter.FilterBenchmarkable(rawTags);
+        var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        var summaries = BuildSummaries(rawTags, store);
+        var build = RetestQueueBuilder.Build(localModels, summaries);
+        return new RetestQueueBuildResult
+        {
+            Queue = build.Queue,
+            Decisions = build.Decisions,
+            RawTagCount = rawTags.Count,
+            LocalModelCount = localModels.Count,
+            ProfileCount = store.Models.Count,
+            ApiReachable = snapshot.Reachable,
+            TagsError = snapshot.Reachable || rawTags.Count > 0 ? null : "Ollama /api/tags unreachable or returned no models"
+        };
+    }
+
+    private static IReadOnlyList<ModelProfileSummary> BuildSummaries(
+        IReadOnlyList<OllamaModelTag> local,
+        ModelProfileStoreDocument store)
+    {
+        var summaries = new List<ModelProfileSummary>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var model in local)
+        {
+            seen.Add(model.Name);
+            store.Models.TryGetValue(model.Name, out var profile);
+            summaries.Add(BuildSummaryFromLocalModel(model, profile));
+        }
+
+        foreach (var (name, profile) in store.Models)
+        {
+            if (!seen.Contains(name))
+            {
+                summaries.Add(BuildSummaryFromProfile(name, profile, sizeGb: 0, digest: profile.Digest ?? string.Empty));
+            }
+        }
+
+        return summaries.OrderBy(s => s.Model).ToList();
+    }
+
+    private static ModelProfileSummary BuildSummaryFromLocalModel(
+        OllamaModelTag model,
+        ModelProfileEntry? profile)
+    {
+        var sizeGb = Math.Round(model.Size / 1_073_741_824.0, 2);
+        var digest = string.Empty;
+        var status = "Untested";
+        var bestMode = string.Empty;
+        var bestTps = 0.0;
+        var bestEmbedMs = 0.0;
+        var benchmarkKind = BenchmarkKinds.Generate;
+        var lastTested = string.Empty;
+        var needsRetest = true;
+
+        if (profile is not null)
+        {
+            benchmarkKind = string.IsNullOrWhiteSpace(profile.BenchmarkKind)
+                ? BenchmarkKinds.Generate
+                : profile.BenchmarkKind;
+            bestEmbedMs = profile.BestEmbedMs;
+
+            if (!string.IsNullOrEmpty(profile.Digest) && !string.IsNullOrEmpty(digest)
+                && !string.Equals(profile.Digest, digest, StringComparison.Ordinal))
+            {
+                status = "Updated - retest needed";
+            }
+            else if (!string.IsNullOrEmpty(profile.BestMode))
+            {
+                status = "Tested";
+                bestMode = profile.BestMode;
+                bestTps = profile.BestTps;
+                lastTested = profile.LastTested ?? string.Empty;
+                needsRetest = false;
+            }
+            else
+            {
+                status = "Test failed";
+            }
+        }
+
+        return new ModelProfileSummary
+        {
+            Model = model.Name,
+            SizeGB = sizeGb,
+            BenchmarkKind = benchmarkKind,
+            Quantization = model.Details?.QuantizationLevel ?? "-",
+            ParameterSize = model.Details?.ParameterSize ?? "-",
+            Digest = digest,
+            Status = status,
+            BestMode = bestMode,
+            BestTps = bestTps,
+            BestEmbedMs = bestEmbedMs,
+            LastTested = lastTested,
+            NeedsRetest = needsRetest,
+            RecommendedCtx = GetRecommendedBenchmarkNumCtx(sizeGb),
+            Results = profile?.Results
+        };
     }
 
     public async Task<IReadOnlyList<ModelProfileSummary>> GetLocalRetestQueueAsync(

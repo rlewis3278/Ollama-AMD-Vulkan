@@ -67,6 +67,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _classificationCts;
     private int _catalogToolbarOperations;
     private int _aiActivityDepth;
+    private bool _suppressReportImport;
 
     public MainWindow()
     {
@@ -510,7 +511,17 @@ public partial class MainWindow : Window
         {
             try
             {
-                var imported = await _svc.ReportImporter.ImportReportsAsync(cancellationToken: ct).ConfigureAwait(false);
+                ImportReportsResult imported;
+                if (_suppressReportImport)
+                {
+                    imported = new ImportReportsResult();
+                    _svc.Diagnostics.Write("Import", "Startup import skipped (test data was just cleared)");
+                }
+                else
+                {
+                    imported = await _svc.ReportImporter.ImportReportsAsync(cancellationToken: ct).ConfigureAwait(false);
+                }
+
                 if (imported.Count > 0)
                 {
                     _svc.Profiles.ClearCache();
@@ -1102,6 +1113,7 @@ public partial class MainWindow : Window
             $"ClearAll requested — profiles before: {profileCountBefore}");
 
         var cleared = await _svc.Profiles.ClearAllTestDataAsync().ConfigureAwait(true);
+        _suppressReportImport = true;
         await _svc.BenchmarkInsights.ClearAllAsync().ConfigureAwait(true);
         await _svc.BenchmarkSettingsAdvisor.ClearAllAsync().ConfigureAwait(true);
         _svc.Profiles.ClearCache();
@@ -1159,18 +1171,24 @@ public partial class MainWindow : Window
         }
 
         _svc.Diagnostics.Write("Testing",
-            $"Retest queue built: {build.IncludedCount} included, {build.ExcludedCount} excluded, " +
-            $"{build.LocalModelCount} local gguf model(s)");
+            $"Retest queue built: rawTags={build.RawTagCount}, local={build.LocalModelCount}, " +
+            $"included={build.IncludedCount}, excluded={build.ExcludedCount}, " +
+            $"profiles={build.ProfileCount}, apiReachable={build.ApiReachable}");
+        if (!string.IsNullOrWhiteSpace(build.TagsError))
+        {
+            _svc.Diagnostics.Write("Ollama", build.TagsError);
+        }
 
         if (names.Count == 0)
         {
-            var store = await _svc.Profiles.LoadAsync().ConfigureAwait(true);
             await UiDispatcher.InvokeAsync(() =>
             {
                 var detail = build.LocalModelCount == 0
-                    ? "Retest queue empty: no local gguf models detected (is Ollama running?)."
-                    : $"Retest queue empty: {build.LocalModelCount} local gguf model(s), " +
-                      $"{build.ExcludedCount} excluded, {store.Models.Count} profile(s) in store.";
+                    ? build.RawTagCount == 0
+                        ? "Retest queue empty: Ollama returned 0 models (is Ollama running? Try Refresh on Models tab)."
+                        : $"Retest queue empty: Ollama returned {build.RawTagCount} model(s) but 0 passed local filter."
+                    : $"Retest queue empty: {build.LocalModelCount} local model(s), " +
+                      $"{build.ExcludedCount} excluded, {build.ProfileCount} profile(s) in store.";
                 AppendTestLog(detail);
                 foreach (var excluded in build.Decisions.Where(d => !d.Included).Take(10))
                 {
@@ -2999,6 +3017,10 @@ public partial class MainWindow : Window
     {
         if (await _svc.ApiClient.IsReadyAsync(cancellationToken).ConfigureAwait(false))
         {
+            _svc.ApiClient.InvalidateCaches();
+            var warmed = await _svc.ApiClient.GetTagsAsync(
+                timeoutSec: 15, forceRefresh: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+            _svc.Diagnostics.Write("Ollama", $"API ready; warmed tags cache ({warmed.Count} model(s))");
             return (true, "Ollama API is ready.");
         }
 
