@@ -220,3 +220,23 @@ cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Up
 & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" --help 2>&1; & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" run --help 2>&1
 & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" stop --help 2>&1; & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" rm --help 2>&1; & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" ps 2>&1
 Get-Process OllamaToolkit.App -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "FEAT|CLI model sessions ollama run/stop/rm; no server restart on launch/benchmark; uninstall button"; git add -A; git commit -m "feat: Ollama CLI model sessions, stop server restart loop, uninstall LLM button"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan" && dotnet build --no-restore 2>&1 || dotnet build 2>&1
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -o publish/OllamaToolkit.App
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git status
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.BenchmarkRunner/AutomatedBenchmarkService.cs src/OllamaToolkit.BenchmarkRunner/BenchmarkProgressFormatter.cs src/OllamaToolkit.Core/Modes/ModeService.cs src/OllamaToolkit.Core/Ollama/OllamaProcessService.cs; git commit -m "Fix compute mode benchmarks: restart Ollama per mode change
+
+Ollama only reads OLLAMA_VULKAN, HIP, and related env vars at process
+startup. Benchmarks were applying env without restarting, so all five modes
+returned identical results on the same backend.
+
+- Restart Ollama when switching benchmark modes; reload model after restart
+- Start ollama serve with explicit managed env vars on ProcessStartInfo
+- RestartAsync now starts serve directly instead of tray app fallback
+- Compute Mode buttons default to restart-on-apply with warning if unchecked
+- Launch Best Mode uses ApplyModeWithRestartAsync so backend actually changes
+- Log env summary in benchmark progress and report notes"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git status; git log --oneline -5
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git remote -v; git branch -vv
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --oneline ac77a9b..HEAD; git show 65c9f6e --stat
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "USER|post update to git and update the log"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "FIX|Phase 13 commit 65c9f6e â€” restart Ollama per benchmark mode; serve env vars; compute mode buttons"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "FILE|DEVELOPMENT-ARCHIVE.md â€” Phase 11-13 sections, commit map through 65c9f6e"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1"

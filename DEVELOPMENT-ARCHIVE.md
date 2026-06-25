@@ -90,6 +90,8 @@ This syncs new shell commands and tool events from `updates.jsonl` into the sess
 | 18 | **Testing Suite UX + Test Undownload plan** (approved); **"update git and log before execute, then execute"** | Phase 9: labels, AI per-model settings, Stop Test, Clear All dialog, Test Undownload, catalog columns |
 | 19 | Embedding models fail generate benchmark (400); **implement complete embed benchmark solution** | Phase 10: `/api/embed` path, latency metrics, UI/catalog columns, Test Undownload routing |
 | 20 | Model Library download fails; Installed column wrong; undownload queue hammers 227 models when Ollama down | Phase 11: download progress bar, yellow/black row flash, Yes/No/Unknown installed, EnsureOllama + abort queue |
+| 21 | Ollama restart loop counterproductive; want `ollama run` / `ollama stop` / uninstall | Phase 12: CLI model sessions, no server restart on launch/benchmark, Uninstall button |
+| 22 | All 5 benchmark modes return identical results; compute mode buttons don't change backend | Phase 13: restart Ollama per mode change; serve starts with managed env vars |
 
 ---
 
@@ -690,6 +692,63 @@ src/OllamaToolkit.App/MainWindow.xaml(.cs)
 
 ---
 
+## Phase 11 — Model Library download UX and Ollama readiness (`5a470fb`, `019bff4`)
+
+**User request:** Model Library downloads fail with connection refused; Installed column inaccurate; need download progress and row flash.
+
+**Deliverables:**
+- Download progress bar and yellow/black row flash during pull
+- Installed column: Yes / No / Unknown (API unreachable)
+- `EnsureOllamaApiReadyAsync` before pulls; Test Undownload aborts when API down
+- Connection error helper for user-facing messages
+
+**Key commits:** `5a470fb`, `019bff4`, `1d8458a` (archive)
+
+---
+
+## Phase 12 — CLI model sessions, stop restart loop (`ac77a9b`)
+
+**User request:** Stop restarting Ollama on every model launch/test; use `ollama run` / `ollama stop`; add Uninstall button.
+
+**Deliverables:**
+- `OllamaCliService` — `run`, `stop`, `rm` wrappers
+- `OllamaModelSessionService` — load/unload without server restart
+- Launch Best Mode and benchmarks use `ollama run` warm load + `ollama stop` unload
+- Model Library **Uninstall Selected LLM** button (`ollama rm`)
+- `RestartCheck` default False (later reverted to True in Phase 13 for mode apply)
+
+**Key files:**
+```
+src/OllamaToolkit.Core/Ollama/OllamaCliService.cs
+src/OllamaToolkit.Core/Ollama/OllamaModelSessionService.cs
+src/OllamaToolkit.App/MainWindow.xaml(.cs)
+```
+
+---
+
+## Phase 13 — Compute mode benchmark accuracy (`65c9f6e`)
+
+**User request:** All five benchmark modes return identical results; compute mode buttons must actually change the backend.
+
+**Root cause:** Ollama reads `OLLAMA_VULKAN`, `HIP_VISIBLE_DEVICES`, `GGML_VK_VISIBLE_DEVICES`, etc. only at process startup. Phase 12 applied env vars without restart during benchmarks.
+
+**Deliverables:**
+- `AutomatedBenchmarkService`: per-mode `ApplyModeWithRestartAsync`, invalidate API cache, reload model after restart
+- `OllamaProcessService.RestartAsync`: start `ollama serve` directly with managed env on `ProcessStartInfo`
+- Compute Mode buttons: restart-on-apply default True; warning if unchecked
+- Launch Best Mode: `ApplyModeWithRestartAsync` so winning backend is active
+- Env summary logged in benchmark progress and `report.json` notes
+
+**Key files:**
+```
+src/OllamaToolkit.BenchmarkRunner/AutomatedBenchmarkService.cs
+src/OllamaToolkit.Core/Ollama/OllamaProcessService.cs
+src/OllamaToolkit.Core/Modes/ModeService.cs
+src/OllamaToolkit.App/MainWindow.xaml(.cs)
+```
+
+---
+
 ## 11. Remaining plan items
 
 From `plan.md` — not yet implemented:
@@ -782,9 +841,12 @@ a261a8a  fix: Test Undownload pull verify, settings clamp, download progress
 782b470  docs: pre-execution archive sync for Phase 10 embed benchmark (session log)
 21177f0  feat: Phase 10 embedding model benchmark via /api/embed
 2cbdce7  docs: post-execution archive entry for Phase 10
-```
-
 5a470fb  fix: Model Library download progress, installed accuracy, Ollama readiness for pulls
+1d8458a  docs: post-execution archive entry for Phase 11 (5a470fb)
+019bff4  fix: robust Ollama API startup and connection error handling for downloads
+ac77a9b  feat: Ollama CLI model sessions, stop server restart loop, uninstall LLM button
+65c9f6e  fix: compute mode benchmarks restart Ollama per mode change
+```
 
 ### Archive files
 
@@ -797,4 +859,4 @@ a261a8a  fix: Test Undownload pull verify, settings clamp, download progress
 
 ---
 
-*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated: 2026-06-25 — Phase 10 embed benchmark complete; session log synced to updates.jsonl.*
+*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated: 2026-06-25 — Phase 13 compute mode benchmark fix (`65c9f6e`); published to `publish/OllamaToolkit.App`.*
