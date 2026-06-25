@@ -158,4 +158,70 @@ public sealed class LibraryCatalogStoreService
 
         return enriched;
     }
+
+    public async Task<int> ProcessCatalogEntriesWithProgressAsync(
+        IReadOnlySet<string> installedModelNames,
+        IProgress<string>? progress = null,
+        IProgress<CatalogRefreshItemProgress>? itemProgress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        var enriched = 0;
+        var items = store.Items;
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var entry = items[i];
+            var isInstalled = IsModelInstalled(entry.Name, installedModelNames);
+
+            progress?.Report($"Refreshing catalog {i + 1}/{items.Count}: {entry.Name}");
+            itemProgress?.Report(new CatalogRefreshItemProgress
+            {
+                ModelName = entry.Name,
+                Phase = CatalogRefreshPhase.Started,
+                IsInstalled = isInstalled
+            });
+
+            if (string.IsNullOrWhiteSpace(entry.FileSize) || entry.FileSize == "-")
+            {
+                try
+                {
+                    var url = $"{CatalogUrl}/{entry.Name}";
+                    using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                        var size = OllamaLibraryDetailParser.ParseFileSizeRange(html);
+                        if (size != "-" && !string.IsNullOrWhiteSpace(size))
+                        {
+                            entry.FileSize = size;
+                            enriched++;
+                        }
+                    }
+                }
+                catch
+                {
+                    // Best-effort per-model enrichment.
+                }
+            }
+
+            itemProgress?.Report(new CatalogRefreshItemProgress
+            {
+                ModelName = entry.Name,
+                Phase = CatalogRefreshPhase.Completed,
+                IsInstalled = isInstalled,
+                FileSize = entry.FileSize,
+                Description = entry.Description,
+                ParameterSize = entry.ParameterSize
+            });
+        }
+
+        await SaveAsync(store, cancellationToken).ConfigureAwait(false);
+        return enriched;
+    }
+
+    private static bool IsModelInstalled(string libraryName, IReadOnlySet<string> installedModelNames) =>
+        installedModelNames.Contains(libraryName)
+        || installedModelNames.Any(n => n.StartsWith($"{libraryName}:", StringComparison.OrdinalIgnoreCase));
 }

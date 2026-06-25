@@ -49,7 +49,7 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     public string DownloadDescription
     {
         get => _downloadDescription;
-        init => SetField(ref _downloadDescription, value);
+        set => SetField(ref _downloadDescription, value);
     }
 
     public string AiDescription
@@ -79,7 +79,7 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     public string FileSize
     {
         get => _fileSize;
-        init => SetField(ref _fileSize, value);
+        set => SetField(ref _fileSize, value);
     }
 
     public string Tags
@@ -91,7 +91,7 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     public bool Installed
     {
         get => _installed;
-        init => SetField(ref _installed, value);
+        set => SetField(ref _installed, value);
     }
 
     public int SortOrder

@@ -188,9 +188,12 @@ public sealed class ModelRegistryService
         return map;
     }
 
-    private async Task<HashSet<string>> GetInstalledNameSetAsync(CancellationToken cancellationToken)
+    public async Task<HashSet<string>> GetInstalledModelNamesAsync(CancellationToken cancellationToken = default)
     {
         var tags = await _apiClient.GetTagsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         return tags.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
+
+    private async Task<HashSet<string>> GetInstalledNameSetAsync(CancellationToken cancellationToken) =>
+        await GetInstalledModelNamesAsync(cancellationToken).ConfigureAwait(false);
 }

@@ -34,9 +34,11 @@ public sealed class CatalogRowRefreshAnimator
         }
     }
 
-    public void CompleteRow(CatalogRowViewModel row)
+    public void CompleteRow(CatalogRowViewModel row, bool highlightComplete = true)
     {
-        row.RefreshState = CatalogRowRefreshState.Complete;
+        row.RefreshState = highlightComplete
+            ? CatalogRowRefreshState.Complete
+            : CatalogRowRefreshState.None;
         row.RefreshFlashPhase = false;
         if (_activeRow == row)
         {

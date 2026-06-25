@@ -1176,7 +1176,7 @@ public partial class MainWindow : Window
                     .ConfigureAwait(false);
 
                 await UiDispatcher.InvokeAsync(async () =>
-                    await BindFullCatalogForDescriptionRefreshAsync().ConfigureAwait(true)).ConfigureAwait(false);
+                    await BindFullCatalogGridAsync("Refreshing descriptions").ConfigureAwait(true)).ConfigureAwait(false);
 
                 var progress = new Progress<string>(msg =>
                     UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
@@ -1227,7 +1227,7 @@ public partial class MainWindow : Window
         ScheduleFitGridColumns(CatalogGrid);
     }
 
-    private async Task BindFullCatalogForDescriptionRefreshAsync()
+    private async Task BindFullCatalogGridAsync(string statusPrefix)
     {
         CategoryFilterCombo.SelectedIndex = 0;
         CatalogSearchBox.Text = string.Empty;
@@ -1236,7 +1236,7 @@ public partial class MainWindow : Window
             categoryFilter: "All",
             descriptionMode: _catalogDescriptionMode).ConfigureAwait(true);
         BindCatalogRows(rows);
-        CatalogStatusLabel.Text = $"Refreshing descriptions for {rows.Count} model(s)...";
+        CatalogStatusLabel.Text = $"{statusPrefix} for {rows.Count} model(s)...";
     }
 
     private void ScrollCatalogGridToTop()
@@ -1260,6 +1260,47 @@ public partial class MainWindow : Window
     {
         CatalogRowRefreshAnimator.ResetAll(_catalogRows);
         _ = RefreshCatalogUiAsync();
+    }
+
+    private void FinishCatalogRefreshHoldover()
+    {
+        CatalogRowRefreshAnimator.ResetAll(_catalogRows);
+        _ = RefreshCatalogUiAsync();
+    }
+
+    private void HandleCatalogRefreshProgress(CatalogRefreshItemProgress progress)
+    {
+        if (!_catalogRowByName.TryGetValue(progress.ModelName, out var row))
+        {
+            return;
+        }
+
+        if (progress.Phase == CatalogRefreshPhase.Started)
+        {
+            _catalogRowAnimator.BeginRow(row);
+            CatalogGrid.ScrollIntoView(row);
+            CatalogGrid.SelectedItem = row;
+            CatalogGrid.UpdateLayout();
+        }
+        else
+        {
+            row.Installed = progress.IsInstalled;
+            if (!string.IsNullOrWhiteSpace(progress.FileSize))
+            {
+                row.FileSize = OllamaToolkit.Core.ModelSizeFormatter.FormatSizeLabel(progress.FileSize);
+            }
+
+            if (!string.IsNullOrWhiteSpace(progress.Description))
+            {
+                row.DownloadDescription = progress.Description.Trim();
+                if (_catalogDescriptionMode == CatalogDescriptionDisplayMode.Download)
+                {
+                    row.DisplayDescription = row.DownloadDescription;
+                }
+            }
+
+            _catalogRowAnimator.CompleteRow(row, highlightComplete: progress.IsInstalled);
+        }
     }
 
     private void HandleDescriptionRefreshProgress(DescriptionRefreshItemProgress progress)
@@ -1377,18 +1418,30 @@ public partial class MainWindow : Window
                 await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
                 _svc.CatalogStore.ClearCache();
 
+                await UiDispatcher.InvokeAsync(async () =>
+                    await BindFullCatalogGridAsync("Refreshing catalog").ConfigureAwait(true)).ConfigureAwait(false);
+
+                var installed = await _svc.Registry.GetInstalledModelNamesAsync(ct).ConfigureAwait(false);
                 var progress = new Progress<string>(msg =>
                     UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
-                var enriched = await _svc.CatalogStore.EnrichFileSizesAsync(progress, ct).ConfigureAwait(false);
+                var itemProgress = new Progress<CatalogRefreshItemProgress>(p =>
+                    UiDispatcher.InvokeAsync(() => HandleCatalogRefreshProgress(p)));
+
+                var enriched = await _svc.CatalogStore.ProcessCatalogEntriesWithProgressAsync(
+                    installed,
+                    progress,
+                    itemProgress,
+                    ct).ConfigureAwait(false);
                 _svc.CatalogStore.ClearCache();
 
-                await UiDispatcher.InvokeAsync(async () =>
+                await UiDispatcher.InvokeAsync(() =>
                 {
-                    await RefreshCatalogUiAsync().ConfigureAwait(true);
+                    _catalogRowAnimator.Stop();
+                    ScrollCatalogGridToTop();
                     CatalogStatusLabel.Text = enriched > 0
                         ? $"Catalog refreshed — file sizes added for {enriched} model(s)."
                         : "Catalog refreshed.";
-                    EndTaskFlashSuccess(sender, "Refreshed", 10);
+                    EndTaskFlashSuccess(sender, "Refreshed", 10, FinishCatalogRefreshHoldover);
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -1397,6 +1450,8 @@ public partial class MainWindow : Window
                 _svc.ActivityLog.Write("Error", msg);
                 await UiDispatcher.InvokeAsync(() =>
                 {
+                    _catalogRowAnimator.Stop();
+                    CatalogRowRefreshAnimator.ResetAll(_catalogRows);
                     CatalogStatusLabel.Text = msg;
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
