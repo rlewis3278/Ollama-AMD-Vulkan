@@ -1152,3 +1152,49 @@ EOF
 [2026-06-25 02:22:43] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/Services/BackgroundWorkQueue.cs src/OllamaToolkit.App/Services/AppServices.cs; git commit -m "fix: AI Settings tab feedback, error surfacing, and classification progress"
 [2026-06-25 02:22:43] [SYNC] Processed updates.jsonl lines 4575..4803
 [2026-06-25 02:22:43] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 02:34:02] [NOTE] Model Library: Download/AI description toggle, Refresh Descriptions (web+AI) with flash button, wrapped description column, auto-fit grid columns on tab open.
+[2026-06-25 02:34:02] [TOOL] Grep - Grep
+[2026-06-25 02:34:02] [TOOL] Grep - Grep
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Grep - Grep
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Grep - Grep
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Grep - Grep
+[2026-06-25 02:34:02] [TOOL] Grep - Grep
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Grep - Grep
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Write - Write
+[2026-06-25 02:34:02] [TOOL] Write - Write
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] Read - Read
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [TOOL] Grep - Grep
+[2026-06-25 02:34:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:34:02] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" -c Release 2>&1
+[2026-06-25 02:34:02] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"; powershell -NoProfile -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "Model Library: Download/AI description toggle, Refresh Descriptions (web+AI) with flash button, wrapped description column, auto-fit grid columns on tab open."
+[2026-06-25 02:34:02] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git commit -m "feat: Model Library description modes, refresh with flash, auto-fit columns"
+[2026-06-25 02:34:02] [SYNC] Processed updates.jsonl lines 4804..4997
+[2026-06-25 02:34:02] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

@@ -98,4 +98,64 @@ public sealed class LibraryCatalogStoreService
 
         return store.Items;
     }
+
+    public async Task<int> EnrichFileSizesAsync(
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        var missing = store.Items
+            .Where(e => string.IsNullOrWhiteSpace(e.FileSize) || e.FileSize == "-")
+            .ToList();
+        if (missing.Count == 0)
+        {
+            return 0;
+        }
+
+        var enriched = 0;
+        using var gate = new SemaphoreSlim(4);
+        var completed = 0;
+        var tasks = missing.Select(async entry =>
+        {
+            await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var url = $"{CatalogUrl}/{entry.Name}";
+                using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
+                {
+                    return;
+                }
+
+                var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                var size = OllamaLibraryDetailParser.ParseFileSizeRange(html);
+                if (size != "-" && !string.IsNullOrWhiteSpace(size))
+                {
+                    entry.FileSize = size;
+                    Interlocked.Increment(ref enriched);
+                }
+            }
+            catch
+            {
+                // Best-effort enrichment; skip models that fail to load.
+            }
+            finally
+            {
+                gate.Release();
+                var done = Interlocked.Increment(ref completed);
+                if (done % 10 == 0 || done == missing.Count)
+                {
+                    progress?.Report($"Fetching catalog file sizes ({done}/{missing.Count})...");
+                }
+            }
+        });
+
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+        if (enriched > 0)
+        {
+            await SaveAsync(store, cancellationToken).ConfigureAwait(false);
+        }
+
+        return enriched;
+    }
 }

@@ -61,7 +61,8 @@
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                         <Button Content="Launch (Best Mode)" Style="{StaticResource ToolkitButton}" Click="LaunchBestMode_Click" />
                         <Button x:Name="AskAiModelsBtn" Content="Ask AI" Style="{StaticResource ToolkitButton}" Click="AskAiModels_Click" />
-                        <Button x:Name="CompareModelsBtn" Content="Compare with AI" Style="{StaticResource ToolkitButton}" Click="CompareModels_Click" />
+                        <Button x:Name="CompareModelsBtn" Content="Compare with AI" Style="{StaticResource ToolkitButton}"
+                                Click="CompareModels_Click" ToolTip="Select at least 2 LLM models to compare" />
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModels_Click" />
                         <Button Content="Import Reports" Style="{StaticResource ToolkitButton}" Click="ImportReports_Click" />
                     </StackPanel>
@@ -89,21 +90,61 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBox x:Name="CatalogSearchBox" Width="220" Padding="6,4" KeyUp="CatalogSearchBox_KeyUp" />
-                        <TextBlock Text="Category:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="8,0,4,0" />
-                        <ComboBox x:Name="CategoryFilterCombo" Width="140" SelectionChanged="CategoryFilterCombo_SelectionChanged" />
-                        <Button x:Name="DownloadDescriptionsModeBtn" Content="Download descriptions"
-                                Style="{StaticResource CatalogDescriptionModeActive}" Click="DownloadDescriptionsMode_Click" />
-                        <Button x:Name="AiDescriptionsModeBtn" Content="AI descriptions"
-                                Style="{StaticResource ToolkitButton}" Click="AiDescriptionsMode_Click" />
-                        <Button x:Name="RefreshDescriptionsBtn" Content="Refresh Descriptions"
-                                Style="{StaticResource ToolkitButton}" Click="RefreshDescriptions_Click" />
-                        <Button Content="Refresh Catalog" Style="{StaticResource ToolkitButton}" Click="RefreshCatalog_Click" />
-                        <Button Content="Categorize All" Style="{StaticResource ToolkitButton}" Click="CategorizeAll_Click" />
-                        <Button Content="Download Selected" Style="{StaticResource ToolkitButton}" Click="DownloadCatalogModel_Click" />
-                        <Button x:Name="CompareCatalogBtn" Content="Compare with AI" Style="{StaticResource ToolkitButton}" Click="CompareCatalog_Click" />
-                    </StackPanel>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="140" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Grid.Row="0" Grid.Column="0">
+                            <TextBox x:Name="CatalogSearchBox" Padding="6,4" KeyUp="CatalogSearchBox_KeyUp" />
+                            <TextBlock Text="Search" IsHitTestVisible="False"
+                                       Foreground="{StaticResource Brush.Muted}"
+                                       Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=CatalogSearchBox}" Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="Category:" VerticalAlignment="Center"
+                                   Foreground="{StaticResource Brush.Text}" Margin="8,0,4,0" />
+                        <ComboBox x:Name="CategoryFilterCombo" Grid.Row="0" Grid.Column="2"
+                                  SelectionChanged="CategoryFilterCombo_SelectionChanged" />
+                        <Button x:Name="CatalogCategorizeAllBtn" Grid.Row="0" Grid.Column="4" Content="Categorize All"
+                                Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="CategorizeAll_Click" />
+                        <Button x:Name="AiDescriptionsModeBtn" Grid.Row="0" Grid.Column="5" Content="AI Descriptions"
+                                Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="AiDescriptionsMode_Click" />
+                        <Button x:Name="DownloadDescriptionsModeBtn" Grid.Row="0" Grid.Column="6" Content="Official Descriptions"
+                                Style="{StaticResource CatalogDescriptionModeActive}" Margin="0,0,4,0"
+                                Click="DownloadDescriptionsMode_Click" />
+                        <Button x:Name="RefreshDescriptionsBtn" Grid.Row="0" Grid.Column="7" Content="Refresh Descriptions"
+                                Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="RefreshDescriptions_Click" />
+                        <Button x:Name="RefreshCatalogBtn" Grid.Row="0" Grid.Column="8" Content="Refresh Catalog"
+                                Style="{StaticResource ToolkitButton}" Click="RefreshCatalog_Click" />
+                        <Button x:Name="DownloadCatalogModelBtn" Grid.Row="1" Grid.Column="6" Content="Download Selected LLM"
+                                Style="{StaticResource ToolkitButton}" Margin="0,6,4,0" Click="DownloadCatalogModel_Click" />
+                        <Button x:Name="CompareCatalogBtn" Grid.Row="1" Grid.Column="7" Content="Compare with AI"
+                                Style="{StaticResource ToolkitButton}" Margin="0,6,0,0" Click="CompareCatalog_Click"
+                                ToolTip="Select at least 2 LLM models to compare" />
+                    </Grid>
                     <TextBlock x:Name="CatalogStatusLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
                     <DataGrid x:Name="CatalogGrid" Grid.Row="2" Style="{StaticResource ToolkitDataGrid}"
                               RowStyle="{StaticResource CatalogInstalledRow}"

@@ -88,6 +88,75 @@ public sealed class ModelComparisonService
         }
     }
 
+    public async Task<string> CompareManyAsync(
+        IReadOnlyList<(string Model, string? Category, ModelProfileSummary? Summary)> models,
+        CancellationToken cancellationToken = default)
+    {
+        if (models.Count < 2)
+        {
+            return "Select at least two models to compare.";
+        }
+
+        if (models.Count == 2)
+        {
+            return await CompareAsync(
+                models[0].Model,
+                models[1].Model,
+                models[0].Summary,
+                models[1].Summary,
+                models[0].Category,
+                models[1].Category,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!await _settings.IsFeatureEnabledAsync(AiFeatureKeys.ModelComparison, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return FallbackCompareMany(models);
+        }
+
+        var summarizer = await _summarizer.ResolveAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        if (summarizer is null || !await _apiClient.IsReadyAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return FallbackCompareMany(models);
+        }
+
+        var lines = models.Select((m, i) =>
+            $"{i + 1}. {m.Model} | {m.Category ?? "unknown"} | {FormatBench(m.Summary)}");
+        var prompt = $"""
+            Compare these {models.Count} Ollama models for an AMD Vulkan Windows laptop user.
+            Summarize strengths, trade-offs, and best use cases in clear prose (one short paragraph per model, then an overall recommendation).
+            Models:
+            {string.Join(Environment.NewLine, lines)}
+            Comparison:
+            """;
+
+        try
+        {
+            var text = await _apiClient.GenerateAsync(summarizer, prompt, 512, 8192, cancellationToken)
+                .ConfigureAwait(false);
+            return text.Trim();
+        }
+        catch
+        {
+            return FallbackCompareMany(models);
+        }
+    }
+
+    private static string FallbackCompareMany(
+        IReadOnlyList<(string Model, string? Category, ModelProfileSummary? Summary)> models)
+    {
+        var parts = models.Select(m =>
+        {
+            var summary = m.Summary;
+            return summary?.NeedsRetest == false
+                ? $"{m.Model} best on {summary.BestMode} at {summary.BestTps:F1} tok/s."
+                : $"{m.Model} is not benchmarked yet.";
+        });
+        return string.Join(" ", parts);
+    }
+
     private static string FallbackCompare(
         string modelA,
         string modelB,

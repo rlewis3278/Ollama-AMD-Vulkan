@@ -37,11 +37,12 @@ public partial class MainWindow : Window
     private List<string> _nlRankedCatalog = new();
     private bool _suppressSummarizerComboSave;
     private CatalogDescriptionDisplayMode _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
-    private FlashButtonPresenter? _refreshDescriptionsPresenter;
+    private readonly FlashButtonRegistry _flashButtons;
 
     public MainWindow()
     {
         InitializeComponent();
+        _flashButtons = new FlashButtonRegistry(this);
         _modeCardPresenter = new ModeCardPresenter(this);
         _modeCards["CPU"] = CpuCard;
         _modeCards["APU"] = ApuCard;
@@ -72,13 +73,12 @@ public partial class MainWindow : Window
             _catalogSearchTimer.Stop();
             _testSettingsTimer.Stop();
             _modeCardPresenter.Stop();
-            _refreshDescriptionsPresenter?.Stop();
+            _flashButtons.StopAll();
         };
     }
 
     private async void OnLoadedAsync(object sender, RoutedEventArgs e)
     {
-        _refreshDescriptionsPresenter = new FlashButtonPresenter(RefreshDescriptionsBtn, this);
         ApplyCatalogDescriptionModeUi();
         InitModeCards();
         InitAiFeatureToggles();
@@ -92,6 +92,34 @@ public partial class MainWindow : Window
     {
         CategoryFilterCombo.ItemsSource = new[] { "All" }.Concat(CategoryNormalizer.AllCategories).ToList();
         CategoryFilterCombo.SelectedIndex = 0;
+    }
+
+    private static Button? TaskButton(object sender) => sender as Button;
+
+    private bool BeginTaskFlash(object sender)
+    {
+        if (TaskButton(sender) is not { } button)
+        {
+            return true;
+        }
+
+        return _flashButtons.TryBegin(button);
+    }
+
+    private void EndTaskFlashSuccess(object sender, string successLabel = "Done", int holdSeconds = 10)
+    {
+        if (TaskButton(sender) is { } button)
+        {
+            _flashButtons.EndSuccess(button, successLabel, holdSeconds);
+        }
+    }
+
+    private void EndTaskFlashIdle(object sender)
+    {
+        if (TaskButton(sender) is { } button)
+        {
+            _flashButtons.EndIdle(button);
+        }
     }
 
     private void InitModeCards()
@@ -410,21 +438,65 @@ public partial class MainWindow : Window
         }).ConfigureAwait(true);
     }
 
-    private async void RefreshModes_Click(object sender, RoutedEventArgs e) =>
-        await RefreshModesUiAsync().ConfigureAwait(true);
+    private async void RefreshModes_Click(object sender, RoutedEventArgs e)
+    {
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        try
+        {
+            await RefreshModesUiAsync().ConfigureAwait(true);
+            EndTaskFlashSuccess(sender, "Refreshed");
+        }
+        catch
+        {
+            EndTaskFlashIdle(sender);
+            throw;
+        }
+    }
 
     private async void RefreshModels_Click(object sender, RoutedEventArgs e)
     {
-        _svc.Profiles.ClearCache();
-        await RefreshModelsUiAsync().ConfigureAwait(true);
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        try
+        {
+            _svc.Profiles.ClearCache();
+            await RefreshModelsUiAsync().ConfigureAwait(true);
+            EndTaskFlashSuccess(sender, "Refreshed");
+        }
+        catch
+        {
+            EndTaskFlashIdle(sender);
+            throw;
+        }
     }
 
     private async void ImportReports_Click(object sender, RoutedEventArgs e)
     {
-        var count = await _svc.ReportImporter.ImportReportsAsync().ConfigureAwait(true);
-        _svc.ActivityLog.Write("Task", $"Manual import: {count} report(s).");
-        _svc.Profiles.ClearCache();
-        await RefreshModelsUiAsync().ConfigureAwait(true);
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        try
+        {
+            var count = await _svc.ReportImporter.ImportReportsAsync().ConfigureAwait(true);
+            _svc.ActivityLog.Write("Task", $"Manual import: {count} report(s).");
+            _svc.Profiles.ClearCache();
+            await RefreshModelsUiAsync().ConfigureAwait(true);
+            EndTaskFlashSuccess(sender, "Imported");
+        }
+        catch
+        {
+            EndTaskFlashIdle(sender);
+            throw;
+        }
     }
 
     private ModelProfileSummary? GetSelectedModel()
@@ -464,6 +536,11 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
         MainTabs.SelectedItem = ModelRunTab;
         _runModel = model.Model;
         ModelRunStatus.Text = $"Applying best mode {model.BestMode} for {model.Model}...";
@@ -479,12 +556,17 @@ public partial class MainWindow : Window
                     ModelRunStatus.Text = $"{model.Model} | Mode: {model.BestMode} ({model.BestTps:F1} tok/s) | Ready";
                     ChatHistory.Text = string.Empty;
                     _chatMessages.Clear();
+                    EndTaskFlashSuccess(sender, "Launched");
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
-                await UiDispatcher.InvokeAsync(() => ModelRunStatus.Text = msg).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    ModelRunStatus.Text = msg;
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }
@@ -497,11 +579,23 @@ public partial class MainWindow : Window
             return;
         }
 
-        await RunBenchmarkQueueAsync(new[] { model }).ConfigureAwait(true);
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        await RunBenchmarkQueueAsync(new[] { model }, sender).ConfigureAwait(true);
     }
 
-    private async void TestUntested_Click(object sender, RoutedEventArgs e) =>
-        await RunUntestedBenchmarkQueueAsync().ConfigureAwait(true);
+    private async void TestUntested_Click(object sender, RoutedEventArgs e)
+    {
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        await RunUntestedBenchmarkQueueAsync(sender).ConfigureAwait(true);
+    }
 
     private async void ClearAndRerunTests_Click(object sender, RoutedEventArgs e)
     {
@@ -512,6 +606,11 @@ public partial class MainWindow : Window
                 "Clear & Rerun Tests",
                 MessageBoxButton.YesNo,
                 MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        if (!BeginTaskFlash(sender))
         {
             return;
         }
@@ -536,16 +635,23 @@ public partial class MainWindow : Window
         }).ConfigureAwait(true);
 
         _svc.ActivityLog.Write("Benchmark", $"Cleared test data: {cleared.ReportDirsRemoved} report dirs");
-        await RunUntestedBenchmarkQueueAsync().ConfigureAwait(true);
+        await RunUntestedBenchmarkQueueAsync(sender).ConfigureAwait(true);
     }
 
-    private async Task RunUntestedBenchmarkQueueAsync()
+    private async Task RunUntestedBenchmarkQueueAsync(object? flashSender = null)
     {
         var untested = await _svc.Profiles.GetUntestedAsync().ConfigureAwait(true);
         var names = untested.Select(u => u.Model).ToList();
         if (names.Count == 0)
         {
-            await UiDispatcher.InvokeAsync(() => TestStatusLabel.Text = "No untested models.").ConfigureAwait(true);
+            await UiDispatcher.InvokeAsync(() =>
+            {
+                TestStatusLabel.Text = "No untested models.";
+                if (flashSender is not null)
+                {
+                    EndTaskFlashIdle(flashSender);
+                }
+            }).ConfigureAwait(true);
             return;
         }
 
@@ -554,7 +660,7 @@ public partial class MainWindow : Window
         await UiDispatcher.InvokeAsync(() =>
             TestStatusLabel.Text = $"AI ordered queue: {string.Join(" -> ", queue.Models)}").ConfigureAwait(true);
         _svc.ActivityLog.Write("AI", queue.Rationale);
-        await RunBenchmarkQueueAsync(queue.Models).ConfigureAwait(true);
+        await RunBenchmarkQueueAsync(queue.Models, flashSender).ConfigureAwait(true);
     }
 
     private void TestModelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -726,7 +832,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RunBenchmarkQueueAsync(IReadOnlyList<string> models)
+    private async Task RunBenchmarkQueueAsync(IReadOnlyList<string> models, object? flashSender = null)
     {
         _benchmarkCts?.Cancel();
         _benchmarkCts = new CancellationTokenSource();
@@ -823,13 +929,24 @@ public partial class MainWindow : Window
                 TestStatusLabel.Text = ct.IsCancellationRequested
                     ? "Benchmark queue stopped."
                     : "Benchmark queue complete.";
+                if (flashSender is not null)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        EndTaskFlashIdle(flashSender);
+                    }
+                    else
+                    {
+                        EndTaskFlashSuccess(flashSender, "Complete", 10);
+                    }
+                }
             }).ConfigureAwait(false);
         }).ConfigureAwait(true);
     }
 
     private void StopTest_Click(object sender, RoutedEventArgs e) => _benchmarkCts?.Cancel();
 
-    private async void SendChat_Click(object sender, RoutedEventArgs e) => await SendChatAsync().ConfigureAwait(true);
+    private async void SendChat_Click(object sender, RoutedEventArgs e) => await SendChatAsync(sender).ConfigureAwait(true);
 
     private async void ChatInput_KeyDown(object sender, KeyEventArgs e)
     {
@@ -839,7 +956,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task SendChatAsync()
+    private async Task SendChatAsync(object? flashSender = null)
     {
         if (string.IsNullOrWhiteSpace(_runModel))
         {
@@ -849,6 +966,11 @@ public partial class MainWindow : Window
 
         var text = ChatInput.Text.Trim();
         if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
+        if (flashSender is not null && !BeginTaskFlash(flashSender))
         {
             return;
         }
@@ -889,11 +1011,23 @@ public partial class MainWindow : Window
                 }
 
                 _chatMessages.Add(new ChatMessage { Role = "assistant", Content = streamBuffer.Trim() });
+                if (flashSender is not null)
+                {
+                    await UiDispatcher.InvokeAsync(() => EndTaskFlashSuccess(flashSender, "Sent", 5))
+                        .ConfigureAwait(false);
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
-                await UiDispatcher.InvokeAsync(() => ChatHistory.Text += msg).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    ChatHistory.Text += msg;
+                    if (flashSender is not null)
+                    {
+                        EndTaskFlashIdle(flashSender);
+                    }
+                }).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }
@@ -992,26 +1126,53 @@ public partial class MainWindow : Window
 
     private async void DownloadDescriptionsMode_Click(object sender, RoutedEventArgs e)
     {
-        _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
-        ApplyCatalogDescriptionModeUi();
-        await RefreshCatalogUiAsync().ConfigureAwait(true);
-    }
-
-    private async void AiDescriptionsMode_Click(object sender, RoutedEventArgs e)
-    {
-        _catalogDescriptionMode = CatalogDescriptionDisplayMode.Ai;
-        ApplyCatalogDescriptionModeUi();
-        await RefreshCatalogUiAsync().ConfigureAwait(true);
-    }
-
-    private async void RefreshDescriptions_Click(object sender, RoutedEventArgs e)
-    {
-        if (_refreshDescriptionsPresenter?.IsFlashing == true)
+        if (!BeginTaskFlash(sender))
         {
             return;
         }
 
-        _refreshDescriptionsPresenter?.BeginFlash();
+        try
+        {
+            _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
+            ApplyCatalogDescriptionModeUi();
+            await RefreshCatalogUiAsync().ConfigureAwait(true);
+            EndTaskFlashSuccess(sender, "Official");
+        }
+        catch
+        {
+            EndTaskFlashIdle(sender);
+            throw;
+        }
+    }
+
+    private async void AiDescriptionsMode_Click(object sender, RoutedEventArgs e)
+    {
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        try
+        {
+            _catalogDescriptionMode = CatalogDescriptionDisplayMode.Ai;
+            ApplyCatalogDescriptionModeUi();
+            await RefreshCatalogUiAsync().ConfigureAwait(true);
+            EndTaskFlashSuccess(sender, "AI");
+        }
+        catch
+        {
+            EndTaskFlashIdle(sender);
+            throw;
+        }
+    }
+
+    private async void RefreshDescriptions_Click(object sender, RoutedEventArgs e)
+    {
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
         CatalogStatusLabel.Text = "Refreshing descriptions from ollama.com...";
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
@@ -1021,6 +1182,11 @@ public partial class MainWindow : Window
                 await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
                 _svc.CatalogStore.ClearCache();
                 _svc.Descriptions.ClearCache();
+
+                var sizeProgress = new Progress<string>(msg =>
+                    UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
+                await _svc.CatalogStore.EnrichFileSizesAsync(sizeProgress, ct).ConfigureAwait(false);
+                _svc.CatalogStore.ClearCache();
 
                 var entries = await _svc.CatalogStore.GetEntriesAsync(cancellationToken: ct)
                     .ConfigureAwait(false);
@@ -1039,7 +1205,7 @@ public partial class MainWindow : Window
                 {
                     await RefreshCatalogUiAsync().ConfigureAwait(true);
                     CatalogStatusLabel.Text = $"Descriptions refreshed — {count} AI summary(s) updated.";
-                    _refreshDescriptionsPresenter?.EndSuccess("Refreshed", 10);
+                    EndTaskFlashSuccess(sender, "Refreshed", 10);
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -1049,7 +1215,7 @@ public partial class MainWindow : Window
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     CatalogStatusLabel.Text = msg;
-                    _refreshDescriptionsPresenter?.EndIdle();
+                    EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
@@ -1074,6 +1240,16 @@ public partial class MainWindow : Window
             if (await _svc.CatalogStore.IsStaleAsync(ct).ConfigureAwait(false))
             {
                 await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
+                _svc.CatalogStore.ClearCache();
+            }
+
+            var entries = await _svc.CatalogStore.GetEntriesAsync(cancellationToken: ct).ConfigureAwait(false);
+            if (entries.Any(e => string.IsNullOrWhiteSpace(e.FileSize) || e.FileSize == "-"))
+            {
+                var progress = new Progress<string>(msg =>
+                    UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
+                await _svc.CatalogStore.EnrichFileSizesAsync(progress, ct).ConfigureAwait(false);
+                _svc.CatalogStore.ClearCache();
             }
 
             await UiDispatcher.InvokeAsync(async () => await RefreshCatalogUiAsync().ConfigureAwait(true))
@@ -1121,19 +1297,51 @@ public partial class MainWindow : Window
 
     private async void RefreshCatalog_Click(object sender, RoutedEventArgs e)
     {
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
         CatalogStatusLabel.Text = "Refreshing from ollama.com...";
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
-            await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
-            _svc.CatalogStore.ClearCache();
-            await UiDispatcher.InvokeAsync(async () => await RefreshCatalogUiAsync().ConfigureAwait(true))
-                .ConfigureAwait(false);
+            try
+            {
+                await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
+                _svc.CatalogStore.ClearCache();
+
+                var progress = new Progress<string>(msg =>
+                    UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
+                var enriched = await _svc.CatalogStore.EnrichFileSizesAsync(progress, ct).ConfigureAwait(false);
+                _svc.CatalogStore.ClearCache();
+
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    await RefreshCatalogUiAsync().ConfigureAwait(true);
+                    CatalogStatusLabel.Text = enriched > 0
+                        ? $"Catalog refreshed — file sizes added for {enriched} model(s)."
+                        : "Catalog refreshed.";
+                    EndTaskFlashSuccess(sender, "Refreshed", 10);
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                _svc.ActivityLog.Write("Error", msg);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    CatalogStatusLabel.Text = msg;
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
         }).ConfigureAwait(true);
     }
 
     private async void CategorizeAll_Click(object sender, RoutedEventArgs e) =>
-        await RunClassificationAsync(recategorize: false, fromAiSettings: MainTabs.SelectedItem == AiSettingsTab)
-            .ConfigureAwait(true);
+        await RunClassificationAsync(
+            recategorize: false,
+            fromAiSettings: MainTabs.SelectedItem == AiSettingsTab,
+            sender).ConfigureAwait(true);
 
     private async void RecategorizeAll_Click(object sender, RoutedEventArgs e)
     {
@@ -1143,12 +1351,39 @@ public partial class MainWindow : Window
             return;
         }
 
-        await RunClassificationAsync(recategorize: true, fromAiSettings: MainTabs.SelectedItem == AiSettingsTab)
-            .ConfigureAwait(true);
+        await RunClassificationAsync(
+            recategorize: true,
+            fromAiSettings: MainTabs.SelectedItem == AiSettingsTab,
+            sender).ConfigureAwait(true);
     }
 
-    private async Task RunClassificationAsync(bool recategorize, bool fromAiSettings)
+    private async Task RunClassificationAsync(bool recategorize, bool fromAiSettings, object? sender = null)
     {
+        if (sender is not null && !BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        if (!await _svc.AiSettings.IsFeatureEnabledAsync(AiFeatureKeys.CatalogCategorization).ConfigureAwait(true))
+        {
+            var disabledMessage = "Catalog categorization is disabled in AI Settings.";
+            if (fromAiSettings)
+            {
+                SetAiSettingsActionStatus(disabledMessage);
+            }
+            else
+            {
+                CatalogStatusLabel.Text = disabledMessage;
+            }
+
+            if (sender is not null)
+            {
+                EndTaskFlashIdle(sender);
+            }
+
+            return;
+        }
+
         if (fromAiSettings)
         {
             SetAiSettingsActionStatus("Classifying catalog models...");
@@ -1196,6 +1431,10 @@ public partial class MainWindow : Window
 
                     await RefreshCatalogUiAsync().ConfigureAwait(true);
                     await RefreshCategoryStatusAsync().ConfigureAwait(true);
+                    if (sender is not null)
+                    {
+                        EndTaskFlashSuccess(sender, "Categorized", 10);
+                    }
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -1211,6 +1450,11 @@ public partial class MainWindow : Window
                     else
                     {
                         CatalogStatusLabel.Text = msg;
+                    }
+
+                    if (sender is not null)
+                    {
+                        EndTaskFlashIdle(sender);
                     }
                 }).ConfigureAwait(false);
             }
@@ -1232,6 +1476,11 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
         var model = $"{row.Name}:latest";
         CatalogStatusLabel.Text = $"Pulling {model}...";
         await _svc.WorkQueue.EnqueueAsync(async ct =>
@@ -1247,12 +1496,17 @@ public partial class MainWindow : Window
                     CatalogStatusLabel.Text = $"Downloaded {model}.";
                     await RefreshModelsUiAsync().ConfigureAwait(true);
                     await RefreshCatalogUiAsync().ConfigureAwait(true);
+                    EndTaskFlashSuccess(sender, "Downloaded", 10);
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
-                await UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    CatalogStatusLabel.Text = msg;
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }
@@ -1313,8 +1567,24 @@ public partial class MainWindow : Window
         ScheduleFitGridColumns(TestResultsGrid);
     }
 
-    private async void RefreshTestResults_Click(object sender, RoutedEventArgs e) =>
-        await RefreshTestResultsUiAsync().ConfigureAwait(true);
+    private async void RefreshTestResults_Click(object sender, RoutedEventArgs e)
+    {
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        try
+        {
+            await RefreshTestResultsUiAsync().ConfigureAwait(true);
+            EndTaskFlashSuccess(sender, "Refreshed");
+        }
+        catch
+        {
+            EndTaskFlashIdle(sender);
+            throw;
+        }
+    }
 
     private async void TestResultsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -1367,16 +1637,31 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
         var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
         var match = summaries.FirstOrDefault(s => s.Model.Equals(row.Model, StringComparison.OrdinalIgnoreCase));
         if (match is null)
         {
+            EndTaskFlashIdle(sender);
             return;
         }
 
         ModelsGrid.ItemsSource = summaries;
         ModelsGrid.SelectedItem = match;
-        await LaunchBestMode_Click_Internal(match).ConfigureAwait(true);
+        try
+        {
+            await LaunchBestMode_Click_Internal(match).ConfigureAwait(true);
+            EndTaskFlashSuccess(sender, "Launched");
+        }
+        catch
+        {
+            EndTaskFlashIdle(sender);
+            throw;
+        }
     }
 
     private async Task LaunchBestMode_Click_Internal(ModelProfileSummary model)
@@ -1477,17 +1762,24 @@ public partial class MainWindow : Window
 
     private async void RefreshSummarizerList_Click(object sender, RoutedEventArgs e)
     {
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
         SetAiSettingsActionStatus("Refreshing summarizer list...");
         SetAiSettingsButtonsEnabled(false);
         try
         {
             await RefreshAiSettingsUiAsync().ConfigureAwait(true);
             SetAiSettingsActionStatus("Summarizer list refreshed.");
+            EndTaskFlashSuccess(sender, "Refreshed");
         }
         catch (Exception ex)
         {
             SetAiSettingsActionStatus($"Refresh failed: {ex.Message}");
             _svc.ActivityLog.Write("Error", ex.Message);
+            EndTaskFlashIdle(sender);
         }
         finally
         {
@@ -1503,6 +1795,11 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(model))
         {
             SetAiSettingsActionStatus("Select a summarizer or suggested model to download.");
+            return;
+        }
+
+        if (!BeginTaskFlash(sender))
+        {
             return;
         }
 
@@ -1523,13 +1820,18 @@ public partial class MainWindow : Window
                 {
                     SetAiSettingsActionStatus($"Downloaded {model}.");
                     await RefreshAiSettingsUiAsync().ConfigureAwait(true);
+                    EndTaskFlashSuccess(sender, "Downloaded", 10);
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
-                await UiDispatcher.InvokeAsync(() => SetAiSettingsActionStatus(msg)).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    SetAiSettingsActionStatus(msg);
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
             }
             finally
             {
@@ -1548,6 +1850,11 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
         SetAiSettingsActionStatus($"Testing summarizer ({model})...");
         SummarizerTestResult.Text = string.Empty;
         SetAiSettingsButtonsEnabled(false);
@@ -1563,6 +1870,7 @@ public partial class MainWindow : Window
                 {
                     SummarizerTestResult.Text = $"Test OK: {result.Trim()}";
                     SetAiSettingsActionStatus("Summarizer test complete.");
+                    EndTaskFlashSuccess(sender, "Tested", 10);
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -1572,6 +1880,7 @@ public partial class MainWindow : Window
                 {
                     SummarizerTestResult.Text = msg;
                     SetAiSettingsActionStatus(msg);
+                    EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
             }
             finally
@@ -1583,29 +1892,52 @@ public partial class MainWindow : Window
 
     private async void ScanLogs_Click(object sender, RoutedEventArgs e)
     {
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
-            var doc = await _svc.LogAnomalies.ScanAsync(ct).ConfigureAwait(false);
-            await UiDispatcher.InvokeAsync(() =>
+            try
             {
-                AnomalySummary.Text = doc.Anomalies.Count == 0
-                    ? "No anomalies detected."
-                    : string.Join(" | ", doc.Anomalies.Select(a => $"{a.Pattern} ({a.Count}): {a.Summary}"));
-                RefreshActivityLog();
-            }).ConfigureAwait(false);
+                var doc = await _svc.LogAnomalies.ScanAsync(ct).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    AnomalySummary.Text = doc.Anomalies.Count == 0
+                        ? "No anomalies detected."
+                        : string.Join(" | ", doc.Anomalies.Select(a => $"{a.Pattern} ({a.Count}): {a.Summary}"));
+                    RefreshActivityLog();
+                    EndTaskFlashSuccess(sender, "Scanned", 10);
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    AnomalySummary.Text = msg;
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
         }).ConfigureAwait(true);
     }
 
     private async void AskAiModels_Click(object sender, RoutedEventArgs e) =>
-        await RunAskAiAsync(fromModelRun: false).ConfigureAwait(true);
+        await RunAskAiAsync(fromModelRun: false, sender).ConfigureAwait(true);
 
     private async void AskAiRun_Click(object sender, RoutedEventArgs e) =>
-        await RunAskAiAsync(fromModelRun: true).ConfigureAwait(true);
+        await RunAskAiAsync(fromModelRun: true, sender).ConfigureAwait(true);
 
-    private async Task RunAskAiAsync(bool fromModelRun)
+    private async Task RunAskAiAsync(bool fromModelRun, object? sender = null)
     {
         var intent = PromptForIntent("What do you want to do?");
         if (string.IsNullOrWhiteSpace(intent))
+        {
+            return;
+        }
+
+        if (sender is not null && !BeginTaskFlash(sender))
         {
             return;
         }
@@ -1619,79 +1951,133 @@ public partial class MainWindow : Window
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
-            var recs = await _svc.ModelAdvisor.RecommendInstalledAsync(intent, summaries, categories, ct)
-                .ConfigureAwait(false);
-            var body = recs.Count == 0
-                ? "No installed models matched."
-                : string.Join(Environment.NewLine, recs.Select(r =>
-                    $"{r.Rank}. {r.Model}  {r.BestMode}  {r.BestTps:F1} tok/s  ({r.Category})"));
-            _svc.ActivityLog.Write("AI", $"Advisor: {intent} -> {recs.Count} model(s)");
-            await UiDispatcher.InvokeAsync(() =>
+            try
             {
-                AiFlyoutBody.Text = body;
-                if (fromModelRun && recs.Count > 0)
+                var recs = await _svc.ModelAdvisor.RecommendInstalledAsync(intent, summaries, categories, ct)
+                    .ConfigureAwait(false);
+                var body = recs.Count == 0
+                    ? "No installed models matched."
+                    : string.Join(Environment.NewLine, recs.Select(r =>
+                        $"{r.Rank}. {r.Model}  {r.BestMode}  {r.BestTps:F1} tok/s  ({r.Category})"));
+                _svc.ActivityLog.Write("AI", $"Advisor: {intent} -> {recs.Count} model(s)");
+                await UiDispatcher.InvokeAsync(() =>
                 {
-                    ModelRunStatus.Text = $"Top pick: {recs[0].Model}";
-                }
-            }).ConfigureAwait(false);
+                    AiFlyoutBody.Text = body;
+                    if (fromModelRun && recs.Count > 0)
+                    {
+                        ModelRunStatus.Text = $"Top pick: {recs[0].Model}";
+                    }
+
+                    if (sender is not null)
+                    {
+                        EndTaskFlashSuccess(sender, "Done", 10);
+                    }
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    AiFlyoutBody.Text = msg;
+                    if (sender is not null)
+                    {
+                        EndTaskFlashIdle(sender);
+                    }
+                }).ConfigureAwait(false);
+            }
         }).ConfigureAwait(true);
     }
 
     private async void CompareModels_Click(object sender, RoutedEventArgs e)
     {
-        var selected = ModelsGrid.SelectedItems.Cast<ModelProfileSummary>().Take(2).ToList();
+        var selected = ModelsGrid.SelectedItems.Cast<ModelProfileSummary>().ToList();
         if (selected.Count < 2)
         {
-            MessageBox.Show("Select exactly two models (Ctrl+click).", "Compare", MessageBoxButton.OK,
+            MessageBox.Show("Select at least two models (Ctrl+click).", "Compare", MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
         }
 
-        await RunCompareAsync(selected[0], selected[1]).ConfigureAwait(true);
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        var models = selected
+            .Select(s => (s.Model, (string?)s.Category, (ModelProfileSummary?)s))
+            .ToList();
+        await RunCompareManyAsync(models, sender).ConfigureAwait(true);
     }
 
     private async void CompareCatalog_Click(object sender, RoutedEventArgs e)
     {
-        var selected = CatalogGrid.SelectedItems.Cast<CatalogRowViewModel>().Take(2).ToList();
+        var selected = CatalogGrid.SelectedItems.Cast<CatalogRowViewModel>().ToList();
         if (selected.Count < 2)
         {
-            MessageBox.Show("Select exactly two catalog models (Ctrl+click).", "Compare", MessageBoxButton.OK,
+            MessageBox.Show("Select at least two catalog models (Ctrl+click).", "Compare", MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
         }
 
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
         var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
-        var a = summaries.FirstOrDefault(s =>
-            s.Model.StartsWith($"{selected[0].Name}:", StringComparison.OrdinalIgnoreCase)
-            || s.Model.Equals(selected[0].Name, StringComparison.OrdinalIgnoreCase));
-        var b = summaries.FirstOrDefault(s =>
-            s.Model.StartsWith($"{selected[1].Name}:", StringComparison.OrdinalIgnoreCase)
-            || s.Model.Equals(selected[1].Name, StringComparison.OrdinalIgnoreCase));
-        await RunCompareAsync(
-            a ?? new ModelProfileSummary { Model = selected[0].Name, Category = selected[0].Category },
-            b ?? new ModelProfileSummary { Model = selected[1].Name, Category = selected[1].Category },
-            selected[0].Category,
-            selected[1].Category).ConfigureAwait(true);
+        var models = new List<(string Model, string? Category, ModelProfileSummary? Summary)>();
+        foreach (var row in selected)
+        {
+            var summary = summaries.FirstOrDefault(s =>
+                s.Model.StartsWith($"{row.Name}:", StringComparison.OrdinalIgnoreCase)
+                || s.Model.Equals(row.Name, StringComparison.OrdinalIgnoreCase));
+            models.Add((
+                row.Name,
+                row.Category,
+                summary ?? new ModelProfileSummary { Model = row.Name, Category = row.Category }));
+        }
+
+        await RunCompareManyAsync(models, sender).ConfigureAwait(true);
     }
 
-    private async Task RunCompareAsync(
-        ModelProfileSummary modelA,
-        ModelProfileSummary modelB,
-        string? categoryA = null,
-        string? categoryB = null)
+    private async Task RunCompareManyAsync(
+        IReadOnlyList<(string Model, string? Category, ModelProfileSummary? Summary)> models,
+        object? sender = null)
     {
-        categoryA ??= modelA.Category;
-        categoryB ??= modelB.Category;
-        AiFlyoutTitle.Text = $"{modelA.Model} vs {modelB.Model}";
+        AiFlyoutTitle.Text = models.Count == 2
+            ? $"{models[0].Model} vs {models[1].Model}"
+            : $"Comparing {models.Count} models";
         AiFlyoutBody.Text = "Comparing...";
         AiFlyoutPopup.IsOpen = true;
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
-            var text = await _svc.ModelComparison.CompareAsync(
-                modelA.Model, modelB.Model, modelA, modelB, categoryA, categoryB, ct).ConfigureAwait(false);
-            _svc.ActivityLog.Write("AI", $"Compared {modelA.Model} vs {modelB.Model}");
-            await UiDispatcher.InvokeAsync(() => AiFlyoutBody.Text = text).ConfigureAwait(false);
+            try
+            {
+                var text = await _svc.ModelComparison.CompareManyAsync(models, ct).ConfigureAwait(false);
+                _svc.ActivityLog.Write("AI", $"Compared {models.Count} model(s): {string.Join(", ", models.Select(m => m.Model))}");
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    AiFlyoutBody.Text = text;
+                    if (sender is not null)
+                    {
+                        EndTaskFlashSuccess(sender, "Compared", 10);
+                    }
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    AiFlyoutBody.Text = msg;
+                    if (sender is not null)
+                    {
+                        EndTaskFlashIdle(sender);
+                    }
+                }).ConfigureAwait(false);
+            }
         }).ConfigureAwait(true);
     }
 
