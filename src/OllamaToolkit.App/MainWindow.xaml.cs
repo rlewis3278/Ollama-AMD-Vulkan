@@ -324,12 +324,28 @@ public partial class MainWindow : Window
 
     private void AppendTestLog(string line)
     {
+        if (string.IsNullOrEmpty(line))
+        {
+            _testLogUpdater.Append(Environment.NewLine, _ => ScrollTestLogToEnd(), null, null);
+            return;
+        }
+
         _testLogUpdater.Append(line + Environment.NewLine, appended =>
         {
-            TestLogBox.Text += appended;
+            TestLogBox.AppendText(appended);
+            ScrollTestLogToEnd();
+        }, null, null);
+    }
+
+    private void ScrollTestLogToEnd()
+    {
+        TestLogBox.CaretIndex = TestLogBox.Text.Length;
+        TestLogBox.ScrollToEnd();
+        TestLogBox.Dispatcher.BeginInvoke(() =>
+        {
             TestLogBox.CaretIndex = TestLogBox.Text.Length;
             TestLogBox.ScrollToEnd();
-        }, () => TestLogBox.Text, v => TestLogBox.Text = v);
+        }, DispatcherPriority.Loaded);
     }
 
     private void InitModeCards()
@@ -964,8 +980,7 @@ public partial class MainWindow : Window
         {
             TestProgressPanel.Visibility = Visibility.Collapsed;
             TestOverallProgress.Value = 0;
-            TestLogBox.Text +=
-                $"--- Cleared all test data ({cleared.ReportDirsRemoved} report folder(s)) ---{Environment.NewLine}";
+            AppendTestLog($"--- Cleared all test data ({cleared.ReportDirsRemoved} report folder(s)) ---");
             TestStatusLabel.Text = "All test data cleared.";
             await RefreshModelsUiAsync().ConfigureAwait(true);
             await RefreshTestResultsUiAsync().ConfigureAwait(true);
@@ -1340,14 +1355,11 @@ public partial class MainWindow : Window
 
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    TestLogBox.Text += $"--- Benchmark queue started ({models.Count} model(s)) ---{Environment.NewLine}";
+                    AppendTestLog($"--- Benchmark queue started ({models.Count} model(s)) ---");
                     if (!string.IsNullOrWhiteSpace(aiSummarizer))
                     {
-                        TestLogBox.Text += $"AI insights LLM: {aiSummarizer}{Environment.NewLine}";
+                        AppendTestLog($"AI insights LLM: {aiSummarizer}");
                     }
-
-                    TestLogBox.CaretIndex = TestLogBox.Text.Length;
-                    TestLogBox.ScrollToEnd();
                 }).ConfigureAwait(false);
 
                 try
@@ -1691,15 +1703,7 @@ public partial class MainWindow : Window
                         : $"Benchmarking {model} ({globalIndex + 1}/{totalModels}) — num_ctx={numCtx}, num_predict={numPredict}…";
                 }).ConfigureAwait(false);
 
-                var log = new Progress<string>(line =>
-                {
-                    _testLogUpdater.Append(line + Environment.NewLine, appended =>
-                    {
-                        TestLogBox.Text += appended;
-                        TestLogBox.CaretIndex = TestLogBox.Text.Length;
-                        TestLogBox.ScrollToEnd();
-                    }, () => TestLogBox.Text, v => TestLogBox.Text = v);
-                });
+                var log = new Progress<string>(AppendTestLog);
 
                 var progress = new Progress<BenchmarkProgressUpdate>(update =>
                 {
@@ -1736,7 +1740,7 @@ public partial class MainWindow : Window
             {
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    TestLogBox.Text += $"FAIL ({model}): {ex.Message}{Environment.NewLine}";
+                    AppendTestLog($"FAIL ({model}): {ex.Message}");
                     TestStatusLabel.Text = $"Benchmark failed for {model}: {ex.Message}";
                 }).ConfigureAwait(false);
             }

@@ -21,15 +21,20 @@ public sealed class ThrottledUpdater
         {
             if (_apply is not null && _pending.Length > 0)
             {
-                _apply(_pending);
+                var batch = _pending;
                 _pending = string.Empty;
+                _apply(batch);
             }
 
             _timer.Stop();
         };
     }
 
-    public void Append(string chunk, Action<string> apply, Func<string> getCurrent, Action<string> setCurrent)
+    public void Append(
+        string chunk,
+        Action<string> apply,
+        Func<string>? getCurrent = null,
+        Action<string>? setCurrent = null)
     {
         if (!_dispatcher.CheckAccess())
         {
@@ -37,11 +42,7 @@ public sealed class ThrottledUpdater
             return;
         }
 
-        _apply = value =>
-        {
-            setCurrent(getCurrent() + value);
-        };
-
+        _apply = apply ?? (pending => setCurrent!(getCurrent!() + pending));
         _pending += chunk;
         if (!_timer.IsEnabled)
         {
