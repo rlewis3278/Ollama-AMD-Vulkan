@@ -1715,7 +1715,14 @@ public partial class MainWindow : Window
             VerticalAlignment = VerticalAlignment.Top,
             Height = 32
         };
-        var ok = new Button { Content = "OK", Width = 80, Margin = new Thickness(0, 0, 12, 12), HorizontalAlignment = HorizontalAlignment.Right };
+        var ok = new Button
+        {
+            Content = "OK",
+            Width = 80,
+            Margin = new Thickness(0, 0, 12, 12),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Style = (Style)Application.Current.FindResource("ToolkitButton")
+        };
         var panel = new Grid();
         panel.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
