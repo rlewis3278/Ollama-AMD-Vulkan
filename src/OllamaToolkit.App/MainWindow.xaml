@@ -139,11 +139,15 @@
                                 Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="RefreshDescriptions_Click" />
                         <Button x:Name="RefreshCatalogBtn" Grid.Row="0" Grid.Column="8" Content="Refresh Catalog"
                                 Style="{StaticResource ToolkitButton}" Click="RefreshCatalog_Click" />
-                        <Button x:Name="DownloadCatalogModelBtn" Grid.Row="1" Grid.Column="6" Content="Download Selected LLM"
-                                Style="{StaticResource ToolkitButton}" Margin="0,6,4,0" Click="DownloadCatalogModel_Click" />
-                        <Button x:Name="CompareCatalogBtn" Grid.Row="1" Grid.Column="7" Content="Compare with AI"
-                                Style="{StaticResource ToolkitButton}" Margin="0,6,0,0" Click="CompareCatalog_Click"
-                                ToolTip="Select at least 2 LLM models to compare" />
+                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="9"
+                                    Orientation="Horizontal" Margin="0,6,0,0">
+                            <Button x:Name="DownloadCatalogModelBtn" Content="Download Selected LLM"
+                                    Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
+                                    Click="DownloadCatalogModel_Click" />
+                            <Button x:Name="CompareCatalogBtn" Content="Compare with AI"
+                                    Style="{StaticResource ToolkitButton}" Click="CompareCatalog_Click"
+                                    ToolTip="Select at least 2 LLM models to compare" />
+                        </StackPanel>
                     </Grid>
                     <TextBlock x:Name="CatalogStatusLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
                     <DataGrid x:Name="CatalogGrid" Grid.Row="2" Style="{StaticResource ToolkitDataGrid}"
