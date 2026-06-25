@@ -655,3 +655,30 @@ EOF
 [2026-06-24 19:45:02] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
 [2026-06-24 19:45:02] [SYNC] Processed updates.jsonl lines 2518..2518
 [2026-06-24 19:45:02] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 19:53:23] [FILE] File Size columns + ModelSizeFormatter + catalog size enrichment
+[2026-06-24 19:53:24] [TOOL] Grep - Grep
+[2026-06-24 19:53:24] [TOOL] Read - Read
+[2026-06-24 19:53:24] [TOOL] Read - Read
+[2026-06-24 19:53:24] [TOOL] Read - Read
+[2026-06-24 19:53:24] [SHELL] $cat = Get-Content "$env:USERPROFILE\.ollama-amd-vulkan\library-catalog-store.json" -Raw | ConvertFrom-Json; $cat.items | Select-Object -First 5 name, fileSize | Format-Table
+[2026-06-24 19:53:24] [TOOL] Read - Read
+[2026-06-24 19:53:24] [TOOL] Grep - Grep
+[2026-06-24 19:53:24] [TOOL] Read - Read
+[2026-06-24 19:53:24] [TOOL] Write - Write
+[2026-06-24 19:53:24] [TOOL] StrReplace - StrReplace
+[2026-06-24 19:53:24] [TOOL] StrReplace - StrReplace
+[2026-06-24 19:53:24] [TOOL] StrReplace - StrReplace
+[2026-06-24 19:53:24] [TOOL] StrReplace - StrReplace
+[2026-06-24 19:53:24] [TOOL] Read - Read
+[2026-06-24 19:53:24] [TOOL] StrReplace - StrReplace
+[2026-06-24 19:53:24] [TOOL] StrReplace - StrReplace
+[2026-06-24 19:53:24] [TOOL] StrReplace - StrReplace
+[2026-06-24 19:53:24] [TOOL] StrReplace - StrReplace
+[2026-06-24 19:53:24] [TOOL] StrReplace - StrReplace
+[2026-06-24 19:53:24] [TOOL] StrReplace - StrReplace
+[2026-06-24 19:53:24] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1
+[2026-06-24 19:53:24] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: File Size column on Models and Launch and Model Library tabs"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|File Size columns + ModelSizeFormatter + catalog size enrichment"; .\scripts\Update-DevelopmentArchive.ps1
+[2026-06-24 19:53:24] [SYNC] Processed updates.jsonl lines 2519..2633
+[2026-06-24 19:53:24] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 19:53:24] [SYNC] Processed updates.jsonl lines 2634..2636
+[2026-06-24 19:53:24] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

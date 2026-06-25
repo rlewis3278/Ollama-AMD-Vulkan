@@ -84,7 +84,8 @@ public partial class MainWindow : Window
     private void InitModeCards()
     {
         var map = _svc.ModeDefinitions.DeviceMap;
-        VulkanLabel.Text = $"Vulkan: APU index {map.ApuVulkanIndex} ({map.ApuName}) | GPU index {map.GpuVulkanIndex} ({map.GpuName})";
+        VulkanLabel.Text =
+            $"Your GPUs: Integrated {map.ApuName} (Vulkan #{map.ApuVulkanIndex}) · Discrete {map.GpuName} (Vulkan #{map.GpuVulkanIndex})";
         foreach (var def in _svc.ModeDefinitions.Definitions.Values)
         {
             if (_modeCards.TryGetValue(def.Mode.ToString(), out var card))
@@ -192,7 +193,12 @@ public partial class MainWindow : Window
     {
         var detected = _svc.ModeService.DetectCurrentMode();
         var apiReady = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
-        ModeStatusLabel.Text = $"Current mode: {detected} | Ollama API: {(apiReady ? "ready" : "not reachable")}";
+        var modeLabel = _svc.ModeDefinitions.TryParse(detected, out var mode)
+            ? _svc.ModeDefinitions.Get(mode).ShortLabel
+            : detected;
+        ModeStatusLabel.Text = apiReady
+            ? $"Active: {modeLabel} — Ollama is running and ready"
+            : $"Active: {modeLabel} — Ollama API not reachable (start Ollama if needed)";
 
         foreach (var pair in _modeCards)
         {
@@ -203,8 +209,11 @@ public partial class MainWindow : Window
         }
 
         var snapshot = _svc.EnvBackup.ReadUserSnapshot();
-        EnvBox.Text = string.Join(Environment.NewLine,
-            snapshot.OrderBy(k => k.Key).Select(e => $"{e.Key} = {e.Value ?? "(not set)"}"));
+        EnvBox.Text = ModeEnvSummaryBuilder.Build(
+            detected,
+            snapshot,
+            _svc.ModeDefinitions.DeviceMap,
+            _svc.ModeDefinitions);
     }
 
     private async Task<Dictionary<string, string>> GetCategoryMapAsync()
