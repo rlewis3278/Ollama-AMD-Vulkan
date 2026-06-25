@@ -72,6 +72,7 @@ public static class ModeEnvSummaryBuilder
             yield return "  • AMD ROCm / HIP path is active — Vulkan is off.";
             yield return $"  • Discrete GPU via ROCm (HIP device 0): {map.GpuName}.";
             yield return "  • Requires ROCm v7 / HIP7-capable AMD drivers on Windows.";
+            yield return $"  • Integrated GPU ({map.ApuName}) is not used with ROCm on Windows — use APU mode for iGPU.";
             yield break;
         }
 

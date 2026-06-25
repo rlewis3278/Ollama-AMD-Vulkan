@@ -130,7 +130,7 @@ public sealed class ModeDefinitionService
                 Mode = ComputeMode.ROCm,
                 Label = $"ROCm / HIP ({map.GpuName})",
                 ShortLabel = "ROCm",
-                CardSubtitle = "HIP on discrete GPU · Vulkan disabled",
+                CardSubtitle = "HIP on dGPU only · 680M iGPU: use APU mode",
                 Description =
                     "AMD ROCm HIP on discrete GPU — Vulkan disabled. Requires ROCm v7 / HIP7 drivers on Windows.",
                 Variables = new Dictionary<string, string>

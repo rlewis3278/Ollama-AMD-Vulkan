@@ -233,6 +233,11 @@ public partial class MainWindow : Window
 
     private async Task RefreshModelsUiAsync()
     {
+        var selectedModel = ModelsGrid.SelectedItem is ModelProfileSummary selected
+            ? selected.Model
+            : null;
+        var testComboSelection = TestModelCombo.SelectedItem as string;
+
         var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
         var categories = await GetCategoryMapAsync().ConfigureAwait(true);
         var enriched = summaries.Select(s =>
@@ -260,7 +265,36 @@ public partial class MainWindow : Window
         }).ToList();
         ModelsGrid.ItemsSource = enriched;
         TestModelCombo.ItemsSource = enriched.Select(s => s.Model).ToList();
-        if (TestModelCombo.Items.Count > 0)
+
+        if (!string.IsNullOrEmpty(selectedModel))
+        {
+            var match = enriched.FirstOrDefault(e =>
+                e.Model.Equals(selectedModel, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                ModelsGrid.SelectedItem = match;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(testComboSelection))
+        {
+            var comboIndex = -1;
+            for (var i = 0; i < TestModelCombo.Items.Count; i++)
+            {
+                if (TestModelCombo.Items[i]?.ToString()
+                        ?.Equals(testComboSelection, StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    comboIndex = i;
+                    break;
+                }
+            }
+
+            if (comboIndex >= 0)
+            {
+                TestModelCombo.SelectedIndex = comboIndex;
+            }
+        }
+        else if (TestModelCombo.Items.Count > 0 && TestModelCombo.SelectedIndex < 0)
         {
             TestModelCombo.SelectedIndex = 0;
         }
@@ -748,6 +782,21 @@ public partial class MainWindow : Window
                         progress: progress,
                         cancellationToken: ct)
                         .ConfigureAwait(false);
+
+                    _svc.Profiles.ClearCache();
+                    var summary = (await _svc.Profiles.GetAllSummariesAsync(ct).ConfigureAwait(false))
+                        .FirstOrDefault(s => s.Model.Equals(model, StringComparison.OrdinalIgnoreCase));
+                    if (summary is not null)
+                    {
+                        await _svc.BenchmarkInsights.InterpretProfileAsync(summary, ct).ConfigureAwait(false);
+                        await _svc.BenchmarkInsights.DiagnoseFailuresAsync(summary, ct).ConfigureAwait(false);
+                    }
+
+                    await UiDispatcher.InvokeAsync(async () =>
+                    {
+                        await RefreshModelsUiAsync().ConfigureAwait(true);
+                        await RefreshTestResultsUiAsync().ConfigureAwait(true);
+                    }).ConfigureAwait(false);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -759,22 +808,12 @@ public partial class MainWindow : Window
                 }
             }
 
-            _svc.Profiles.ClearCache();
-            var summaries = await _svc.Profiles.GetAllSummariesAsync(ct).ConfigureAwait(false);
-            foreach (var summary in summaries.Where(s => models.Contains(s.Model)))
-            {
-                await _svc.BenchmarkInsights.InterpretProfileAsync(summary, ct).ConfigureAwait(false);
-                await _svc.BenchmarkInsights.DiagnoseFailuresAsync(summary, ct).ConfigureAwait(false);
-            }
-
-            await UiDispatcher.InvokeAsync(async () =>
+            await UiDispatcher.InvokeAsync(() =>
             {
                 TestOverallProgress.Value = 100;
                 TestStatusLabel.Text = ct.IsCancellationRequested
                     ? "Benchmark queue stopped."
                     : "Benchmark queue complete.";
-                await RefreshModelsUiAsync().ConfigureAwait(true);
-                await RefreshTestResultsUiAsync().ConfigureAwait(true);
             }).ConfigureAwait(false);
         }).ConfigureAwait(true);
     }
@@ -1035,6 +1074,33 @@ public partial class MainWindow : Window
         }).ConfigureAwait(true);
     }
 
+    private async Task<string> FormatInsightColumnAsync(string? insight)
+    {
+        if (!string.IsNullOrWhiteSpace(insight))
+        {
+            return insight.Length > 60 ? insight[..57] + "..." : insight;
+        }
+
+        var settings = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
+        if (!settings.ToolkitAiEnabled)
+        {
+            return "(AI disabled)";
+        }
+
+        if (!await _svc.AiSettings.IsFeatureEnabledAsync(AiFeatureKeys.BenchmarkInterpreter).ConfigureAwait(true))
+        {
+            return "(interpreter off)";
+        }
+
+        var ready = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
+        if (!ready || string.IsNullOrWhiteSpace(settings.PreferredSummarizerModel))
+        {
+            return "(AI inactive)";
+        }
+
+        return string.Empty;
+    }
+
     private async Task RefreshTestResultsUiAsync()
     {
         var rows = await _svc.Registry.GetTestResultRowsAsync().ConfigureAwait(true);
@@ -1042,9 +1108,7 @@ public partial class MainWindow : Window
         foreach (var row in rows)
         {
             var insight = await _svc.BenchmarkInsights.GetInsightAsync(row.Model).ConfigureAwait(true);
-            var shortInsight = insight is null
-                ? string.Empty
-                : (insight.Length > 60 ? insight[..57] + "..." : insight);
+            var shortInsight = await FormatInsightColumnAsync(insight).ConfigureAwait(true);
             enriched.Add(new TestResultRowViewModel
             {
                 Model = row.Model,
@@ -1076,10 +1140,40 @@ public partial class MainWindow : Window
             return;
         }
 
-        var full = await _svc.BenchmarkInsights.GetInsightAsync(row.Model).ConfigureAwait(true);
-        TestResultDetail.Text = string.IsNullOrWhiteSpace(full)
-            ? $"No AI insight for {row.Model}."
-            : full;
+        var entry = await _svc.BenchmarkInsights.GetEntryAsync(row.Model).ConfigureAwait(true);
+        if (entry is null || (string.IsNullOrWhiteSpace(entry.Interpretation)
+            && entry.FailureDiagnosis is not { Count: > 0 }))
+        {
+            TestResultDetail.Text = await FormatInsightColumnAsync(entry?.Interpretation).ConfigureAwait(true);
+            if (string.IsNullOrWhiteSpace(TestResultDetail.Text))
+            {
+                TestResultDetail.Text = $"No AI insight for {row.Model} yet.";
+            }
+
+            return;
+        }
+
+        var detail = new System.Text.StringBuilder();
+        if (!string.IsNullOrWhiteSpace(entry.Interpretation))
+        {
+            detail.Append(entry.Interpretation);
+        }
+
+        if (entry.FailureDiagnosis is { Count: > 0 })
+        {
+            if (detail.Length > 0)
+            {
+                detail.AppendLine().AppendLine();
+            }
+
+            detail.AppendLine("Failure diagnosis:");
+            foreach (var diagnosis in entry.FailureDiagnosis)
+            {
+                detail.AppendLine($"  {diagnosis.Key}: {diagnosis.Value}");
+            }
+        }
+
+        TestResultDetail.Text = detail.ToString().TrimEnd();
     }
 
     private async void LaunchFromResults_Click(object sender, RoutedEventArgs e)

@@ -909,3 +909,168 @@ EOF
 [2026-06-25 01:32:50] [SHELL] powershell -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "FIX|Mode switch: Ollama starts minimized, toolkit keeps foreground"
 [2026-06-25 01:32:50] [SYNC] Processed updates.jsonl lines 3512..3632
 [2026-06-25 01:32:50] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 01:35:26] [REVERT] Removed Ollama minimize/foreground guard on mode switch
+[2026-06-25 01:35:26] [TOOL] Read - Read
+[2026-06-25 01:35:26] [TOOL] Read - Read
+[2026-06-25 01:35:26] [TOOL] Grep - Grep
+[2026-06-25 01:35:26] [TOOL] Write - Write
+[2026-06-25 01:35:26] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:35:26] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:35:26] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:35:26] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:35:26] [TOOL] Delete - Delete
+[2026-06-25 01:35:26] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-25 01:35:26] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-25 01:35:26] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git commit -m "revert: remove Ollama minimize and foreground guard on mode switch"
+[2026-06-25 01:35:26] [SHELL] powershell -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "REVERT|Removed Ollama minimize/foreground guard on mode switch"
+[2026-06-25 01:35:26] [SYNC] Processed updates.jsonl lines 3633..3714
+[2026-06-25 01:35:26] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 01:38:07] [FIX] Toolkit foreground guard scoped to Compute Modes restart only
+[2026-06-25 01:38:08] [TOOL] Read - Read
+[2026-06-25 01:38:08] [TOOL] Read - Read
+[2026-06-25 01:38:08] [TOOL] Read - Read
+[2026-06-25 01:38:08] [TOOL] Grep - Grep
+[2026-06-25 01:38:08] [TOOL] Read - Read
+[2026-06-25 01:38:08] [TOOL] Read - Read
+[2026-06-25 01:38:08] [TOOL] Write - Write
+[2026-06-25 01:38:08] [TOOL] Write - Write
+[2026-06-25 01:38:08] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:38:08] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:38:08] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:38:08] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:38:08] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-25 01:38:08] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-25 01:38:08] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.Core/Windows/WindowsForeground.cs src/OllamaToolkit.Core/Ollama/OllamaProcessService.cs src/OllamaToolkit.Core/Modes/ModeService.cs src/OllamaToolkit.App/MainWindow.xaml.cs; git commit -m "fix: bring toolkit to foreground during Compute Modes restart only"
+[2026-06-25 01:38:08] [SHELL] powershell -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "FIX|Toolkit foreground guard scoped to Compute Modes restart only"
+[2026-06-25 01:38:08] [SYNC] Processed updates.jsonl lines 3715..3810
+[2026-06-25 01:38:08] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 02:12:13] [NOTE] ROCm iGPU copy; Test Results green winner cells; per-model Best Mode refresh during benchmarks; Insight column empty states + failure diagnosis in detail panel; 14pt min typography (mode cards 16/14pt).
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Write - Write
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] Delete - Delete
+[2026-06-25 02:12:14] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release; dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-25 02:12:14] [SHELL_FAIL] exit=1 dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release; dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [SHELL] Stop-Process -Name "OllamaToolkit.App" -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 2; dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-25 02:12:14] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.Core/Ollama/OllamaProcessService.cs src/OllamaToolkit.Core/Modes/ModeService.cs src/OllamaToolkit.App/MainWindow.xaml.cs; git add -u src/OllamaToolkit.Core/Windows/; git commit -m "revert: remove toolkit foreground guard on mode switch"
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] WebSearch - WebSearch
+[2026-06-25 02:12:14] [TOOL] WebFetch - WebFetch
+[2026-06-25 02:12:14] [TOOL] WebFetch - WebFetch
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] WebSearch - WebSearch
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] WebFetch - WebFetch
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Glob - Glob
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Glob - Glob
+[2026-06-25 02:12:14] [TOOL] Glob - Glob
+[2026-06-25 02:12:14] [TOOL] SwitchMode - SwitchMode
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] Glob - Glob
+[2026-06-25 02:12:14] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 02:12:14] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" -c Release --no-restore 2>&1; if (-not $?) { dotnet restore "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln"; dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" -c Release 2>&1 }
+[2026-06-25 02:12:14] [TOOL] Read - Read
+[2026-06-25 02:12:14] [TOOL] Glob - Glob
+[2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:12:14] [TOOL] Grep - Grep
+[2026-06-25 02:12:14] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App" 2>&1
+[2026-06-25 02:12:14] [SHELL] powershell -NoProfile -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "ROCm iGPU copy; Test Results green winner cells; per-model Best Mode refresh during benchmarks; Insight column empty states + failure diagnosis in detail panel; 14pt min typography (mode cards 16/14pt)."
+[2026-06-25 02:12:14] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git add -A && git status
+[2026-06-25 02:12:14] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git add -A && git status
+[2026-06-25 02:12:14] [SYNC] Processed updates.jsonl lines 3811..4454
+[2026-06-25 02:12:14] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

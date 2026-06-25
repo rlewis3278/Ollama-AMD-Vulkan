@@ -83,7 +83,7 @@ public sealed class ModeCardPresenter
         {
             Text = title,
             FontWeight = FontWeights.SemiBold,
-            FontSize = 14,
+            FontSize = 16,
             HorizontalAlignment = HorizontalAlignment.Center,
             TextAlignment = TextAlignment.Center,
             Margin = new Thickness(0, 0, 0, 6)
@@ -92,12 +92,12 @@ public sealed class ModeCardPresenter
         subtitleBlock = new TextBlock
         {
             Text = subtitle,
-            FontSize = 11,
-            LineHeight = 14,
+            FontSize = 14,
+            LineHeight = 18,
             TextWrapping = TextWrapping.Wrap,
             HorizontalAlignment = HorizontalAlignment.Center,
             TextAlignment = TextAlignment.Center,
-            Height = 42,
+            Height = 54,
             MaxWidth = 240
         };
 

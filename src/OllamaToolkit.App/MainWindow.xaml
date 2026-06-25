@@ -41,11 +41,11 @@
                         <Button x:Name="RocmCard" Style="{StaticResource ModeCardButton}" Click="ModeCard_Click" Tag="ROCm" />
                     </UniformGrid>
                     <TextBlock Grid.Row="3" Text="Configuration summary" Foreground="{StaticResource Brush.Muted}"
-                               FontSize="12" Margin="0,4,0,4" />
+                               FontSize="14" Margin="0,4,0,4" />
                     <TextBox x:Name="EnvBox" Grid.Row="4" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
                              VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.LogBg}"
                              Foreground="{StaticResource Brush.Text}" BorderBrush="{StaticResource Brush.PanelBorder}"
-                             FontFamily="Segoe UI" FontSize="12.5" Padding="10" />
+                             FontFamily="Segoe UI" FontSize="14" Padding="10" />
                     <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,0">
                         <CheckBox x:Name="RestartCheck" Content="Restart Ollama after applying mode" IsChecked="True" Foreground="{StaticResource Brush.Text}" />
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModes_Click" />
@@ -167,7 +167,7 @@
                     <TextBlock x:Name="TestStatusLabel" Grid.Row="3" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" TextWrapping="Wrap" />
                     <TextBox x:Name="TestLogBox" Grid.Row="4" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
                              VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.LogBg}"
-                             Foreground="{StaticResource Brush.Text}" FontFamily="Consolas" />
+                             Foreground="{StaticResource Brush.Text}" FontFamily="Consolas" FontSize="14" />
                 </Grid>
             </TabItem>
             <TabItem x:Name="TestResultsTab" Header="Test Results">
@@ -191,11 +191,16 @@
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="100" />
                             <DataGridTextColumn Header="Best" Binding="{Binding BestMode}" Width="60" />
                             <DataGridTextColumn Header="tok/s" Binding="{Binding BestTps}" Width="55" />
-                            <DataGridTextColumn Header="CPU" Binding="{Binding CpuResult}" Width="55" />
-                            <DataGridTextColumn Header="APU" Binding="{Binding ApuResult}" Width="55" />
-                            <DataGridTextColumn Header="GPU" Binding="{Binding GpuResult}" Width="55" />
-                            <DataGridTextColumn Header="Hybrid" Binding="{Binding HybridResult}" Width="55" />
-                            <DataGridTextColumn Header="ROCm" Binding="{Binding RocmResult}" Width="55" />
+                            <DataGridTextColumn Header="CPU" Binding="{Binding CpuResult}" Width="55"
+                                                CellStyle="{StaticResource TestResultWinnerCellCpu}" />
+                            <DataGridTextColumn Header="APU" Binding="{Binding ApuResult}" Width="55"
+                                                CellStyle="{StaticResource TestResultWinnerCellApu}" />
+                            <DataGridTextColumn Header="GPU" Binding="{Binding GpuResult}" Width="55"
+                                                CellStyle="{StaticResource TestResultWinnerCellGpu}" />
+                            <DataGridTextColumn Header="Hybrid" Binding="{Binding HybridResult}" Width="55"
+                                                CellStyle="{StaticResource TestResultWinnerCellHybrid}" />
+                            <DataGridTextColumn Header="ROCm" Binding="{Binding RocmResult}" Width="55"
+                                                CellStyle="{StaticResource TestResultWinnerCellRocm}" />
                             <DataGridTextColumn Header="Insight" Binding="{Binding Insight}" Width="180" />
                             <DataGridTextColumn Header="Tested" Binding="{Binding LastTested}" Width="120" />
                         </DataGrid.Columns>
@@ -263,7 +268,7 @@
                 BorderBrush="{StaticResource Brush.PanelBorder}" BorderThickness="0,1,0,0" Padding="12,8">
             <Grid>
                 <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center"
-                           Foreground="{StaticResource Brush.Muted}" FontSize="12"
+                           Foreground="{StaticResource Brush.Muted}" FontSize="14"
                            Text="Model lists load from Ollama API and cached profiles. Start Ollama if lists are empty." />
                 <Button x:Name="AiStatusButton" HorizontalAlignment="Right" Style="{StaticResource ToolkitButton}"
                         Content="AI Inactive" Click="AiStatusButton_Click" />

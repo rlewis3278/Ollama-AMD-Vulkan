@@ -56,8 +56,16 @@ public sealed class BenchmarkInsightService
 
     public async Task<string?> GetInsightAsync(string model, CancellationToken cancellationToken = default)
     {
+        var entry = await GetEntryAsync(model, cancellationToken).ConfigureAwait(false);
+        return entry?.Interpretation;
+    }
+
+    public async Task<BenchmarkInsightEntry?> GetEntryAsync(
+        string model,
+        CancellationToken cancellationToken = default)
+    {
         var doc = await LoadAsync(cancellationToken).ConfigureAwait(false);
-        return doc.Models.TryGetValue(model, out var entry) ? entry.Interpretation : null;
+        return doc.Models.TryGetValue(model, out var entry) ? entry : null;
     }
 
     public async Task InterpretProfileAsync(
