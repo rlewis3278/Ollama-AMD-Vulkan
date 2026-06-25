@@ -256,9 +256,30 @@
 
     <Style x:Key="CatalogInstalledRow" TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
         <Style.Triggers>
-            <DataTrigger Binding="{Binding Installed}" Value="True">
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding Installed}" Value="True" />
+                    <Condition Binding="{Binding RefreshState}" Value="None" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brush.ActiveBg}" />
+            </MultiDataTrigger>
+            <DataTrigger Binding="{Binding RefreshState}" Value="Complete">
                 <Setter Property="Background" Value="{StaticResource Brush.ActiveBg}" />
             </DataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding RefreshState}" Value="Processing" />
+                    <Condition Binding="{Binding RefreshFlashPhase}" Value="True" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brush.Warning}" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding RefreshState}" Value="Processing" />
+                    <Condition Binding="{Binding RefreshFlashPhase}" Value="False" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="White" />
+            </MultiDataTrigger>
         </Style.Triggers>
     </Style>
 
@@ -298,6 +319,7 @@
     <Style x:Key="CatalogDescriptionModeActive" TargetType="Button" BasedOn="{StaticResource ToolkitButton}">
         <Setter Property="Background" Value="{StaticResource Brush.ActiveBg}" />
         <Setter Property="BorderBrush" Value="{StaticResource Brush.Active}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Active}" />
     </Style>
 
     <Style x:Key="ModeCardButton" TargetType="Button">

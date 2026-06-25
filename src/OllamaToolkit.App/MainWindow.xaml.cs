@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -14,6 +15,7 @@ using OllamaToolkit.Core.Modes;
 using OllamaToolkit.Core.Ollama;
 using OllamaToolkit.Core.Settings;
 using OllamaToolkit.ModelCatalog;
+using OllamaToolkit.ModelCatalog.Models;
 using OllamaToolkit.ModelCategory;
 using OllamaToolkit.ModelRegistry.Models;
 
@@ -38,11 +40,16 @@ public partial class MainWindow : Window
     private bool _suppressSummarizerComboSave;
     private CatalogDescriptionDisplayMode _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
     private readonly FlashButtonRegistry _flashButtons;
+    private readonly ObservableCollection<CatalogRowViewModel> _catalogRows = new();
+    private readonly CatalogRowRefreshAnimator _catalogRowAnimator;
+    private Dictionary<string, CatalogRowViewModel> _catalogRowByName = new(StringComparer.OrdinalIgnoreCase);
 
     public MainWindow()
     {
         InitializeComponent();
         _flashButtons = new FlashButtonRegistry(this);
+        _catalogRowAnimator = new CatalogRowRefreshAnimator(Dispatcher);
+        CatalogGrid.ItemsSource = _catalogRows;
         _modeCardPresenter = new ModeCardPresenter(this);
         _modeCards["CPU"] = CpuCard;
         _modeCards["APU"] = ApuCard;
@@ -74,6 +81,7 @@ public partial class MainWindow : Window
             _testSettingsTimer.Stop();
             _modeCardPresenter.Stop();
             _flashButtons.StopAll();
+            _catalogRowAnimator.Stop();
         };
     }
 
@@ -1126,44 +1134,16 @@ public partial class MainWindow : Window
 
     private async void DownloadDescriptionsMode_Click(object sender, RoutedEventArgs e)
     {
-        if (!BeginTaskFlash(sender))
-        {
-            return;
-        }
-
-        try
-        {
-            _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
-            ApplyCatalogDescriptionModeUi();
-            await RefreshCatalogUiAsync().ConfigureAwait(true);
-            EndTaskFlashSuccess(sender, "Official");
-        }
-        catch
-        {
-            EndTaskFlashIdle(sender);
-            throw;
-        }
+        _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
+        ApplyCatalogDescriptionModeUi();
+        await RefreshCatalogUiAsync().ConfigureAwait(true);
     }
 
     private async void AiDescriptionsMode_Click(object sender, RoutedEventArgs e)
     {
-        if (!BeginTaskFlash(sender))
-        {
-            return;
-        }
-
-        try
-        {
-            _catalogDescriptionMode = CatalogDescriptionDisplayMode.Ai;
-            ApplyCatalogDescriptionModeUi();
-            await RefreshCatalogUiAsync().ConfigureAwait(true);
-            EndTaskFlashSuccess(sender, "AI");
-        }
-        catch
-        {
-            EndTaskFlashIdle(sender);
-            throw;
-        }
+        _catalogDescriptionMode = CatalogDescriptionDisplayMode.Ai;
+        ApplyCatalogDescriptionModeUi();
+        await RefreshCatalogUiAsync().ConfigureAwait(true);
     }
 
     private async void RefreshDescriptions_Click(object sender, RoutedEventArgs e)
@@ -1190,19 +1170,28 @@ public partial class MainWindow : Window
 
                 var entries = await _svc.CatalogStore.GetEntriesAsync(cancellationToken: ct)
                     .ConfigureAwait(false);
+
+                await UiDispatcher.InvokeAsync(async () =>
+                    await BindFullCatalogForDescriptionRefreshAsync().ConfigureAwait(true)).ConfigureAwait(false);
+
                 var progress = new Progress<string>(msg =>
                     UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
+                var itemProgress = new Progress<DescriptionRefreshItemProgress>(p =>
+                    UiDispatcher.InvokeAsync(() => HandleDescriptionRefreshProgress(p)));
 
                 var count = await _svc.Descriptions.RefreshAllListDescriptionsAsync(
                     entries,
                     forceRegenerate: true,
                     progress,
+                    itemProgress,
                     ct).ConfigureAwait(false);
 
                 _svc.ActivityLog.Write("AI", $"Refreshed {count} catalog description(s) from web + AI.");
 
                 await UiDispatcher.InvokeAsync(async () =>
                 {
+                    _catalogRowAnimator.Stop();
+                    CatalogRowRefreshAnimator.ResetAll(_catalogRows);
                     await RefreshCatalogUiAsync().ConfigureAwait(true);
                     CatalogStatusLabel.Text = $"Descriptions refreshed — {count} AI summary(s) updated.";
                     EndTaskFlashSuccess(sender, "Refreshed", 10);
@@ -1214,11 +1203,65 @@ public partial class MainWindow : Window
                 _svc.ActivityLog.Write("Error", msg);
                 await UiDispatcher.InvokeAsync(() =>
                 {
+                    _catalogRowAnimator.Stop();
+                    CatalogRowRefreshAnimator.ResetAll(_catalogRows);
                     CatalogStatusLabel.Text = msg;
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
+    }
+
+    private void BindCatalogRows(IReadOnlyList<CatalogRowViewModel> rows)
+    {
+        _catalogRows.Clear();
+        foreach (var row in rows)
+        {
+            _catalogRows.Add(row);
+        }
+
+        _catalogRowByName = _catalogRows.ToDictionary(r => r.Name, StringComparer.OrdinalIgnoreCase);
+        ScheduleFitGridColumns(CatalogGrid);
+    }
+
+    private async Task BindFullCatalogForDescriptionRefreshAsync()
+    {
+        CategoryFilterCombo.SelectedIndex = 0;
+        CatalogSearchBox.Text = string.Empty;
+        var rows = await _svc.Registry.GetCatalogRowsAsync(
+            search: null,
+            categoryFilter: "All",
+            descriptionMode: _catalogDescriptionMode).ConfigureAwait(true);
+        BindCatalogRows(rows);
+        CatalogStatusLabel.Text = $"Refreshing descriptions for {rows.Count} model(s)...";
+    }
+
+    private void HandleDescriptionRefreshProgress(DescriptionRefreshItemProgress progress)
+    {
+        if (!_catalogRowByName.TryGetValue(progress.ModelName, out var row))
+        {
+            return;
+        }
+
+        if (progress.Phase == DescriptionRefreshPhase.Started)
+        {
+            _catalogRowAnimator.BeginRow(row);
+            CatalogGrid.ScrollIntoView(row);
+            CatalogGrid.SelectedItem = row;
+            CatalogGrid.UpdateLayout();
+        }
+        else
+        {
+            _catalogRowAnimator.CompleteRow(row);
+            if (!string.IsNullOrWhiteSpace(progress.ListDescription))
+            {
+                row.AiDescription = progress.ListDescription;
+                if (_catalogDescriptionMode == CatalogDescriptionDisplayMode.Ai)
+                {
+                    row.DisplayDescription = progress.ListDescription;
+                }
+            }
+        }
     }
 
     private void SetAiSettingsActionStatus(string text) => AiSettingsActionStatus.Text = text;
@@ -1275,15 +1318,13 @@ public partial class MainWindow : Window
                     .ToDictionary(x => x.name, x => x.i, StringComparer.OrdinalIgnoreCase);
                 rows = rows.OrderBy(r => rankMap.TryGetValue(r.Name, out var i) ? i : 999).ThenBy(r => r.Name).ToList();
                 CatalogStatusLabel.Text = $"NL-ranked {ranked.Count} model(s); showing {rows.Count}.";
-                CatalogGrid.ItemsSource = rows;
-                ScheduleFitGridColumns(CatalogGrid);
+                BindCatalogRows(rows);
                 return;
             }
         }
 
-        CatalogGrid.ItemsSource = rows;
+        BindCatalogRows(rows);
         CatalogStatusLabel.Text = $"Showing {rows.Count} catalog model(s).";
-        ScheduleFitGridColumns(CatalogGrid);
     }
 
     private void CatalogSearchBox_KeyUp(object sender, KeyEventArgs e)
@@ -1384,6 +1425,50 @@ public partial class MainWindow : Window
             return;
         }
 
+        var aiSettings = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
+        if (!aiSettings.ToolkitAiEnabled)
+        {
+            var disabledMessage = "Enable Toolkit AI in AI Settings to categorize models.";
+            if (fromAiSettings)
+            {
+                SetAiSettingsActionStatus(disabledMessage);
+            }
+            else
+            {
+                CatalogStatusLabel.Text = disabledMessage;
+            }
+
+            if (sender is not null)
+            {
+                EndTaskFlashIdle(sender);
+            }
+
+            return;
+        }
+
+        var summarizer = await _svc.Summarizer.ResolveAsync().ConfigureAwait(true);
+        var ollamaReady = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
+        if (!ollamaReady || string.IsNullOrWhiteSpace(summarizer))
+        {
+            var inactiveMessage =
+                "AI categorization requires Ollama running with a summarizer model installed.";
+            if (fromAiSettings)
+            {
+                SetAiSettingsActionStatus(inactiveMessage);
+            }
+            else
+            {
+                CatalogStatusLabel.Text = inactiveMessage;
+            }
+
+            if (sender is not null)
+            {
+                EndTaskFlashIdle(sender);
+            }
+
+            return;
+        }
+
         if (fromAiSettings)
         {
             SetAiSettingsActionStatus("Classifying catalog models...");
@@ -1417,9 +1502,12 @@ public partial class MainWindow : Window
                 _svc.ActivityLog.Write("AI", $"Classified {count} catalog model(s).");
                 await UiDispatcher.InvokeAsync(async () =>
                 {
+                    _svc.CategoryStore.ClearCache();
+                    _svc.CatalogStore.ClearCache();
+
                     var doneMessage = count == 0
-                        ? "All catalog models already classified."
-                        : $"Done — classified {count} catalog model(s).";
+                        ? "All catalog models are already AI-categorized."
+                        : $"Done — AI classified {count} catalog model(s).";
                     if (fromAiSettings)
                     {
                         SetAiSettingsActionStatus(doneMessage);

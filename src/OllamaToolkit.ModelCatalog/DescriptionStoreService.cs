@@ -138,6 +138,7 @@ public sealed class DescriptionStoreService
         IReadOnlyList<LibraryCatalogEntry> entries,
         bool forceRegenerate,
         IProgress<string>? progress = null,
+        IProgress<DescriptionRefreshItemProgress>? itemProgress = null,
         CancellationToken cancellationToken = default)
     {
         if (forceRegenerate)
@@ -157,7 +158,20 @@ public sealed class DescriptionStoreService
             cancellationToken.ThrowIfCancellationRequested();
             var entry = entries[i];
             progress?.Report($"AI descriptions {i + 1}/{entries.Count}: {entry.Name}");
-            await GetListDescriptionAsync(entry, forceRegenerate: true, cancellationToken).ConfigureAwait(false);
+            itemProgress?.Report(new DescriptionRefreshItemProgress
+            {
+                ModelName = entry.Name,
+                Phase = DescriptionRefreshPhase.Started
+            });
+
+            var listDescription = await GetListDescriptionAsync(entry, forceRegenerate: true, cancellationToken)
+                .ConfigureAwait(false);
+            itemProgress?.Report(new DescriptionRefreshItemProgress
+            {
+                ModelName = entry.Name,
+                Phase = DescriptionRefreshPhase.Completed,
+                ListDescription = listDescription
+            });
             updated++;
         }
 

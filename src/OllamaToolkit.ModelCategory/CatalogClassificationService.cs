@@ -60,9 +60,12 @@ public sealed class CatalogClassificationService
         var classified = 0;
         if (summarizer is null || !await _apiClient.IsReadyAsync(cancellationToken).ConfigureAwait(false))
         {
-            foreach (var entry in toClassify)
+            progress?.Report("AI unavailable — applying heuristic categories...");
+            for (var i = 0; i < toClassify.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                var entry = toClassify[i];
+                progress?.Report($"Heuristic classify {i + 1}/{toClassify.Count}: {entry.Name}");
                 var category = CategoryNormalizer.HeuristicCategory(entry.Name, entry.Description, entry.Tags);
                 ApplyCategory(categoryDoc, entry, category, null, heuristic: true);
                 MergeCatalogEntry(catalog, entry.Name, category);
