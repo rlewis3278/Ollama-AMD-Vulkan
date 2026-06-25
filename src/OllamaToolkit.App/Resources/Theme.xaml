@@ -295,6 +295,10 @@
                 </MultiDataTrigger.Conditions>
                 <Setter Property="Background" Value="White" />
             </MultiDataTrigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.Accent}" />
+                <Setter Property="Foreground" Value="White" />
+            </Trigger>
         </Style.Triggers>
     </Style>
 

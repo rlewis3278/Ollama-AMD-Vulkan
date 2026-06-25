@@ -84,7 +84,8 @@ public sealed class DescriptionStoreService
         try
         {
             var prompt = $"""
-                Summarize this Ollama model in at most {ListDescriptionMaxChars} characters for a list view.
+                Write a concise one-line summary of this Ollama model for a catalog list view.
+                Do not truncate your answer; return the full summary text.
                 Model: {entry.Name}
                 Description: {entry.Description}
                 Tags: {entry.Tags}
@@ -92,7 +93,7 @@ public sealed class DescriptionStoreService
                 """;
             var text = await _apiClient.GenerateAsync(summarizer, prompt, 96, 4096, cancellationToken)
                 .ConfigureAwait(false);
-            var listDesc = TruncateListDescription(text);
+            var listDesc = NormalizeListDescription(text);
 
             store.Models[entry.Name] = new ModelDescriptionEntry
             {
@@ -112,15 +113,21 @@ public sealed class DescriptionStoreService
         }
     }
 
-    public static string TruncateListDescription(string? text)
+    public static string NormalizeListDescription(string? text)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
             return string.Empty;
         }
 
-        var normalized = string.Join(' ', text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)).Trim();
-        normalized = normalized.Trim('"', '\'', '`');
+        return string.Join(' ', text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+            .Trim()
+            .Trim('"', '\'', '`');
+    }
+
+    public static string TruncateListDescription(string? text)
+    {
+        var normalized = NormalizeListDescription(text);
         if (normalized.Length <= ListDescriptionMaxChars)
         {
             return normalized;

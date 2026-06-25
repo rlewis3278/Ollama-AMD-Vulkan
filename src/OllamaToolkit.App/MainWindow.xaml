@@ -102,6 +102,7 @@
                             <ColumnDefinition Width="12" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="28" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
@@ -129,35 +130,49 @@
                                    Foreground="{StaticResource Brush.Text}" Margin="8,0,4,0" />
                         <ComboBox x:Name="CategoryFilterCombo" Grid.Row="0" Grid.Column="2"
                                   SelectionChanged="CategoryFilterCombo_SelectionChanged" />
-                        <Button x:Name="CatalogCategorizeAllBtn" Grid.Row="0" Grid.Column="4" Content="Categorize All"
-                                Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="CategorizeAll_Click" />
-                        <Button x:Name="AiDescriptionsModeBtn" Grid.Row="0" Grid.Column="5" Content="AI Descriptions"
+                        <Button x:Name="AiDescriptionsModeBtn" Grid.Row="0" Grid.Column="4" Content="AI Descriptions"
                                 Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="AiDescriptionsMode_Click" />
-                        <Button x:Name="DownloadDescriptionsModeBtn" Grid.Row="0" Grid.Column="6" Content="Official Descriptions"
+                        <Button x:Name="DownloadDescriptionsModeBtn" Grid.Row="0" Grid.Column="5" Content="Official Descriptions"
                                 Style="{StaticResource CatalogDescriptionModeActive}" Margin="0,0,4,0"
                                 Click="DownloadDescriptionsMode_Click" />
-                        <Button x:Name="RefreshDescriptionsBtn" Grid.Row="0" Grid.Column="7" Content="Refresh Descriptions"
+                        <Button x:Name="CatalogCategorizeAllBtn" Grid.Row="0" Grid.Column="7" Content="Categorize All"
+                                Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="CategorizeAll_Click" />
+                        <Button x:Name="RefreshDescriptionsBtn" Grid.Row="0" Grid.Column="8" Content="Refresh Descriptions"
                                 Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="RefreshDescriptions_Click" />
-                        <Button x:Name="RefreshCatalogBtn" Grid.Row="0" Grid.Column="8" Content="Refresh Catalog"
+                        <Button x:Name="RefreshCatalogBtn" Grid.Row="0" Grid.Column="9" Content="Refresh Catalog"
                                 Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="RefreshCatalog_Click" />
-                        <Button x:Name="ClearCatalogBtn" Grid.Row="0" Grid.Column="9" Content="Clear Catalog"
+                        <Button x:Name="ClearCatalogBtn" Grid.Row="0" Grid.Column="10" Content="Clear Catalog"
                                 Style="{StaticResource ToolkitButton}" Click="ClearCatalog_Click" />
-                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="10"
+                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="12"
                                     Orientation="Horizontal" Margin="0,6,0,0">
                             <Button x:Name="DownloadCatalogModelBtn" Content="Download Selected LLM"
                                     Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
                                     Click="DownloadCatalogModel_Click" />
                             <Button x:Name="CompareCatalogBtn" Content="Compare with AI"
-                                    Style="{StaticResource ToolkitButton}" Click="CompareCatalog_Click"
+                                    Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
+                                    Click="CompareCatalog_Click"
                                     ToolTip="Select at least 2 LLM models to compare" />
+                            <Button x:Name="ClearCatalogSelectionsBtn" Content="Clear Selections"
+                                    Style="{StaticResource ToolkitButton}" Click="ClearCatalogSelections_Click" />
                         </StackPanel>
                     </Grid>
                     <TextBlock x:Name="CatalogStatusLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
                     <DataGrid x:Name="CatalogGrid" Grid.Row="2" Style="{StaticResource ToolkitDataGrid}"
                               RowStyle="{StaticResource CatalogInstalledRow}"
                               AutoGenerateColumns="False" IsReadOnly="True"
-                              SelectionMode="Extended"
-                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                              SelectionMode="Extended" SelectionUnit="FullRow"
+                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True"
+                              PreviewMouseLeftButtonDown="CatalogGrid_PreviewMouseLeftButtonDown">
+                        <DataGrid.CellStyle>
+                            <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="Transparent" />
+                                        <Setter Property="Foreground" Value="White" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.CellStyle>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Model" Binding="{Binding Name}" Width="120" />
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
