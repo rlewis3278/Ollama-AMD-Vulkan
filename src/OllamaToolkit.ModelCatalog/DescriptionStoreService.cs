@@ -53,10 +53,12 @@ public sealed class DescriptionStoreService
 
     public async Task<string> GetListDescriptionAsync(
         LibraryCatalogEntry entry,
+        bool forceRegenerate = false,
         CancellationToken cancellationToken = default)
     {
         var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
-        if (store.Models.TryGetValue(entry.Name, out var cached)
+        if (!forceRegenerate
+            && store.Models.TryGetValue(entry.Name, out var cached)
             && !string.IsNullOrWhiteSpace(cached.ListDescription))
         {
             return cached.ListDescription!;
@@ -120,5 +122,45 @@ public sealed class DescriptionStoreService
         }
 
         return normalized[..(ListDescriptionMaxChars - 3)] + "...";
+    }
+
+    public async Task<string?> GetCachedListDescriptionAsync(
+        string libraryName,
+        CancellationToken cancellationToken = default)
+    {
+        var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        return store.Models.TryGetValue(libraryName, out var cached)
+            ? cached.ListDescription
+            : null;
+    }
+
+    public async Task<int> RefreshAllListDescriptionsAsync(
+        IReadOnlyList<LibraryCatalogEntry> entries,
+        bool forceRegenerate,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (forceRegenerate)
+        {
+            var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var entry in entries)
+            {
+                store.Models.Remove(entry.Name);
+            }
+
+            await SaveAsync(store, cancellationToken).ConfigureAwait(false);
+        }
+
+        var updated = 0;
+        for (var i = 0; i < entries.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var entry = entries[i];
+            progress?.Report($"AI descriptions {i + 1}/{entries.Count}: {entry.Name}");
+            await GetListDescriptionAsync(entry, forceRegenerate: true, cancellationToken).ConfigureAwait(false);
+            updated++;
+        }
+
+        return updated;
     }
 }

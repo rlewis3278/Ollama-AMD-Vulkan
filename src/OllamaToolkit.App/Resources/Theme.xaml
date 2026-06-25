@@ -116,6 +116,16 @@
         <Setter Property="Padding" Value="6,4" />
     </Style>
 
+    <Style x:Key="DataGridWrapCell" TargetType="TextBlock">
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="CatalogDescriptionModeActive" TargetType="Button" BasedOn="{StaticResource ToolkitButton}">
+        <Setter Property="Background" Value="{StaticResource Brush.ActiveBg}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.Active}" />
+    </Style>
+
     <Style x:Key="TestResultWinnerCellCpu" TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
         <Style.Triggers>
             <DataTrigger Binding="{Binding BestMode}" Value="CPU">

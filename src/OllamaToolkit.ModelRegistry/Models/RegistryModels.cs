@@ -1,10 +1,19 @@
 namespace OllamaToolkit.ModelRegistry.Models;
 
+public enum CatalogDescriptionDisplayMode
+{
+    Download,
+    Ai
+}
+
 public sealed class CatalogRowViewModel
 {
     public required string Name { get; init; }
     public string Description { get; init; } = string.Empty;
     public string ListDescription { get; init; } = string.Empty;
+    public string DownloadDescription { get; init; } = string.Empty;
+    public string AiDescription { get; init; } = string.Empty;
+    public string DisplayDescription { get; init; } = string.Empty;
     public string Category { get; init; } = string.Empty;
     public string ParameterSize { get; init; } = "-";
     public string FileSize { get; init; } = "-";

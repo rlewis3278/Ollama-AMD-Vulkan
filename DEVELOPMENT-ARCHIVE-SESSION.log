@@ -1074,3 +1074,81 @@ EOF
 [2026-06-25 02:12:14] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git add -A && git status
 [2026-06-25 02:12:14] [SYNC] Processed updates.jsonl lines 3811..4454
 [2026-06-25 02:12:14] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 02:17:12] [NOTE] Model Library: green row background (Brush.ActiveBg) for installed catalog models via CatalogInstalledRow RowStyle.
+[2026-06-25 02:17:13] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git status
+[2026-06-25 02:17:13] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git commit -m "feat: ROCm iGPU copy, green winner cells, live Best Mode refresh, insight labels, 14pt typography"
+[2026-06-25 02:17:13] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 02:17:13] [TOOL] Read - Read
+[2026-06-25 02:17:13] [TOOL] Grep - Grep
+[2026-06-25 02:17:13] [TOOL] Read - Read
+[2026-06-25 02:17:13] [TOOL] Read - Read
+[2026-06-25 02:17:13] [TOOL] Grep - Grep
+[2026-06-25 02:17:13] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 02:17:13] [TOOL] SwitchMode - SwitchMode
+[2026-06-25 02:17:13] [TOOL] Read - Read
+[2026-06-25 02:17:13] [TOOL] Read - Read
+[2026-06-25 02:17:13] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:17:13] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:17:13] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" -c Release; dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-25 02:17:13] [SHELL] powershell -NoProfile -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "Model Library: green row background (Brush.ActiveBg) for installed catalog models via CatalogInstalledRow RowStyle."
+[2026-06-25 02:17:13] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/Resources/Theme.xaml src/OllamaToolkit.App/MainWindow.xaml; git commit -m "feat: green row background for installed models in Model Library"
+[2026-06-25 02:17:13] [SYNC] Processed updates.jsonl lines 4455..4574
+[2026-06-25 02:17:13] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 02:22:42] [NOTE] AI Settings tab: AiSettingsActionStatus line, immediate button feedback, classification progress on-tab, queue error logging, summarizer combo refresh guard.
+[2026-06-25 02:22:43] [TOOL] Grep - Grep
+[2026-06-25 02:22:43] [TOOL] Glob - Glob
+[2026-06-25 02:22:43] [TOOL] Grep - Grep
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Grep - Grep
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Grep - Grep
+[2026-06-25 02:22:43] [TOOL] Grep - Grep
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Grep - Grep
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Grep - Grep
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Grep - Grep
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] AskQuestion - AskQuestion
+[2026-06-25 02:22:43] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] Read - Read
+[2026-06-25 02:22:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:22:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:22:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:22:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:22:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:22:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:22:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:22:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:22:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:22:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:22:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:22:43] [TOOL] StrReplace - StrReplace
+[2026-06-25 02:22:43] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" -c Release; dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-25 02:22:43] [SHELL] powershell -NoProfile -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "AI Settings tab: AiSettingsActionStatus line, immediate button feedback, classification progress on-tab, queue error logging, summarizer combo refresh guard."
+[2026-06-25 02:22:43] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/Services/BackgroundWorkQueue.cs src/OllamaToolkit.App/Services/AppServices.cs; git commit -m "fix: AI Settings tab feedback, error surfacing, and classification progress"
+[2026-06-25 02:22:43] [SYNC] Processed updates.jsonl lines 4575..4803
+[2026-06-25 02:22:43] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

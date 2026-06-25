@@ -34,6 +34,7 @@ public sealed class ModelRegistryService
     public async Task<IReadOnlyList<CatalogRowViewModel>> GetCatalogRowsAsync(
         string? search = null,
         string? categoryFilter = null,
+        CatalogDescriptionDisplayMode descriptionMode = CatalogDescriptionDisplayMode.Download,
         CancellationToken cancellationToken = default)
     {
         var entries = await _catalogStore.GetEntriesAsync(cancellationToken: cancellationToken)
@@ -41,8 +42,10 @@ public sealed class ModelRegistryService
         var categoryDoc = await _categories.LoadAsync(cancellationToken).ConfigureAwait(false);
         var installed = await GetInstalledNameSetAsync(cancellationToken).ConfigureAwait(false);
         var installedSizes = await GetInstalledFileSizeByLibraryAsync(cancellationToken).ConfigureAwait(false);
+        var descriptionDoc = await _descriptions.LoadAsync(cancellationToken).ConfigureAwait(false);
 
-        var rows = entries.Select(e =>
+        var rows = new List<CatalogRowViewModel>();
+        foreach (var e in entries)
         {
             var category = e.Category;
             if (string.IsNullOrEmpty(category)
@@ -52,9 +55,19 @@ public sealed class ModelRegistryService
             }
 
             category ??= CategoryNormalizer.HeuristicCategory(e.Name, e.Description, e.Tags);
+            var downloadDescription = string.IsNullOrWhiteSpace(e.Description)
+                ? string.Empty
+                : e.Description.Trim();
+            var aiDescription = descriptionDoc.Models.TryGetValue(e.Name, out var aiEntry)
+                && !string.IsNullOrWhiteSpace(aiEntry.ListDescription)
+                ? aiEntry.ListDescription!.Trim()
+                : string.Empty;
             var listDesc = !string.IsNullOrEmpty(e.ListDescription)
                 ? e.ListDescription
                 : DescriptionStoreService.TruncateListDescription(e.Description);
+            var displayDescription = descriptionMode == CatalogDescriptionDisplayMode.Ai
+                ? (string.IsNullOrWhiteSpace(aiDescription) ? "(not summarized)" : aiDescription)
+                : downloadDescription;
 
             var fileSize = e.FileSize;
             if ((fileSize == "-" || string.IsNullOrWhiteSpace(fileSize))
@@ -63,19 +76,22 @@ public sealed class ModelRegistryService
                 fileSize = installedSize;
             }
 
-            return new CatalogRowViewModel
+            rows.Add(new CatalogRowViewModel
             {
                 Name = e.Name,
                 Description = e.Description,
                 ListDescription = listDesc,
+                DownloadDescription = downloadDescription,
+                AiDescription = aiDescription,
+                DisplayDescription = displayDescription,
                 Category = category,
                 ParameterSize = e.ParameterSize,
                 FileSize = ModelSizeFormatter.FormatSizeLabel(fileSize),
                 Tags = e.Tags,
                 Installed = installed.Contains(e.Name) || installed.Any(n => n.StartsWith($"{e.Name}:", StringComparison.OrdinalIgnoreCase)),
                 SortOrder = CategoryNormalizer.GetSortOrder(category)
-            };
-        }).ToList();
+            });
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -83,6 +99,9 @@ public sealed class ModelRegistryService
             rows = rows.Where(r =>
                 r.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
                 || r.Description.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || r.DownloadDescription.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || r.AiDescription.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || r.DisplayDescription.Contains(q, StringComparison.OrdinalIgnoreCase)
                 || r.Category.Contains(q, StringComparison.OrdinalIgnoreCase)
                 || r.Tags.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
         }

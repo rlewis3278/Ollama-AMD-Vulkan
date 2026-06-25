@@ -52,7 +52,7 @@
                     </StackPanel>
                 </Grid>
             </TabItem>
-            <TabItem Header="Models &amp; Launch">
+            <TabItem x:Name="ModelsLaunchTab" Header="Models &amp; Launch">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -92,6 +92,12 @@
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                         <TextBox x:Name="CatalogSearchBox" Width="220" Padding="6,4" KeyUp="CatalogSearchBox_KeyUp" />
                         <ComboBox x:Name="CategoryFilterCombo" Width="140" Margin="8,0,0,0" SelectionChanged="CategoryFilterCombo_SelectionChanged" />
+                        <Button x:Name="DownloadDescriptionsModeBtn" Content="Download descriptions"
+                                Style="{StaticResource CatalogDescriptionModeActive}" Click="DownloadDescriptionsMode_Click" />
+                        <Button x:Name="AiDescriptionsModeBtn" Content="AI descriptions"
+                                Style="{StaticResource ToolkitButton}" Click="AiDescriptionsMode_Click" />
+                        <Button x:Name="RefreshDescriptionsBtn" Content="Refresh Descriptions"
+                                Style="{StaticResource ToolkitButton}" Click="RefreshDescriptions_Click" />
                         <Button Content="Refresh Catalog" Style="{StaticResource ToolkitButton}" Click="RefreshCatalog_Click" />
                         <Button Content="Categorize All" Style="{StaticResource ToolkitButton}" Click="CategorizeAll_Click" />
                         <Button Content="Download Selected" Style="{StaticResource ToolkitButton}" Click="DownloadCatalogModel_Click" />
@@ -106,7 +112,12 @@
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Model" Binding="{Binding Name}" Width="120" />
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
-                            <DataGridTextColumn Header="Description" Binding="{Binding ListDescription}" Width="*" />
+                            <DataGridTextColumn Header="Description" Binding="{Binding DisplayDescription}" Width="*"
+                                                MinWidth="200">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridWrapCell}" />
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
                             <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
                             <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="85" />
                             <DataGridTextColumn Header="Installed" Binding="{Binding Installed}" Width="70" />

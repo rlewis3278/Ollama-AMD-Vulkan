@@ -36,6 +36,8 @@ public partial class MainWindow : Window
     private readonly Dictionary<string, (ProgressBar Bar, TextBlock Status)> _testModeProgress = new(StringComparer.OrdinalIgnoreCase);
     private List<string> _nlRankedCatalog = new();
     private bool _suppressSummarizerComboSave;
+    private CatalogDescriptionDisplayMode _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
+    private FlashButtonPresenter? _refreshDescriptionsPresenter;
 
     public MainWindow()
     {
@@ -70,11 +72,14 @@ public partial class MainWindow : Window
             _catalogSearchTimer.Stop();
             _testSettingsTimer.Stop();
             _modeCardPresenter.Stop();
+            _refreshDescriptionsPresenter?.Stop();
         };
     }
 
     private async void OnLoadedAsync(object sender, RoutedEventArgs e)
     {
+        _refreshDescriptionsPresenter = new FlashButtonPresenter(RefreshDescriptionsBtn, this);
+        ApplyCatalogDescriptionModeUi();
         InitModeCards();
         InitAiFeatureToggles();
         InitCategoryFilter();
@@ -312,6 +317,8 @@ public partial class MainWindow : Window
         {
             AlertBar.Visibility = Visibility.Collapsed;
         }
+
+        ScheduleFitGridColumns(ModelsGrid);
     }
 
     private async Task UpdateAiStatusAsync()
@@ -937,6 +944,10 @@ public partial class MainWindow : Window
         {
             await LoadCatalogTabAsync().ConfigureAwait(true);
         }
+        else if (MainTabs.SelectedItem == ModelsLaunchTab)
+        {
+            ScheduleFitGridColumns(ModelsGrid);
+        }
         else if (MainTabs.SelectedItem == TestResultsTab)
         {
             await RefreshTestResultsUiAsync().ConfigureAwait(true);
@@ -946,6 +957,102 @@ public partial class MainWindow : Window
             await RefreshAiSettingsUiAsync().ConfigureAwait(true);
             RefreshActivityLog();
         }
+    }
+
+    private void ScheduleFitGridColumns(DataGrid grid)
+    {
+        Dispatcher.BeginInvoke(() => FitGridColumns(grid), DispatcherPriority.Loaded);
+    }
+
+    private void FitGridColumns(DataGrid grid)
+    {
+        var starIndex = DataGridColumnHelper.IndexOfStarColumn(grid, "Description");
+        if (starIndex < 0)
+        {
+            starIndex = DataGridColumnHelper.IndexOfStarColumn(grid, "Model");
+        }
+
+        if (starIndex < 0)
+        {
+            starIndex = 0;
+        }
+
+        DataGridColumnHelper.AutoFitColumns(grid, starIndex);
+    }
+
+    private void ApplyCatalogDescriptionModeUi()
+    {
+        DownloadDescriptionsModeBtn.Style = _catalogDescriptionMode == CatalogDescriptionDisplayMode.Download
+            ? (Style)FindResource("CatalogDescriptionModeActive")
+            : (Style)FindResource("ToolkitButton");
+        AiDescriptionsModeBtn.Style = _catalogDescriptionMode == CatalogDescriptionDisplayMode.Ai
+            ? (Style)FindResource("CatalogDescriptionModeActive")
+            : (Style)FindResource("ToolkitButton");
+    }
+
+    private async void DownloadDescriptionsMode_Click(object sender, RoutedEventArgs e)
+    {
+        _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
+        ApplyCatalogDescriptionModeUi();
+        await RefreshCatalogUiAsync().ConfigureAwait(true);
+    }
+
+    private async void AiDescriptionsMode_Click(object sender, RoutedEventArgs e)
+    {
+        _catalogDescriptionMode = CatalogDescriptionDisplayMode.Ai;
+        ApplyCatalogDescriptionModeUi();
+        await RefreshCatalogUiAsync().ConfigureAwait(true);
+    }
+
+    private async void RefreshDescriptions_Click(object sender, RoutedEventArgs e)
+    {
+        if (_refreshDescriptionsPresenter?.IsFlashing == true)
+        {
+            return;
+        }
+
+        _refreshDescriptionsPresenter?.BeginFlash();
+        CatalogStatusLabel.Text = "Refreshing descriptions from ollama.com...";
+
+        await _svc.WorkQueue.EnqueueAsync(async ct =>
+        {
+            try
+            {
+                await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
+                _svc.CatalogStore.ClearCache();
+                _svc.Descriptions.ClearCache();
+
+                var entries = await _svc.CatalogStore.GetEntriesAsync(cancellationToken: ct)
+                    .ConfigureAwait(false);
+                var progress = new Progress<string>(msg =>
+                    UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
+
+                var count = await _svc.Descriptions.RefreshAllListDescriptionsAsync(
+                    entries,
+                    forceRegenerate: true,
+                    progress,
+                    ct).ConfigureAwait(false);
+
+                _svc.ActivityLog.Write("AI", $"Refreshed {count} catalog description(s) from web + AI.");
+
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    await RefreshCatalogUiAsync().ConfigureAwait(true);
+                    CatalogStatusLabel.Text = $"Descriptions refreshed — {count} AI summary(s) updated.";
+                    _refreshDescriptionsPresenter?.EndSuccess("Refreshed", 10);
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                _svc.ActivityLog.Write("Error", msg);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    CatalogStatusLabel.Text = msg;
+                    _refreshDescriptionsPresenter?.EndIdle();
+                }).ConfigureAwait(false);
+            }
+        }).ConfigureAwait(true);
     }
 
     private void SetAiSettingsActionStatus(string text) => AiSettingsActionStatus.Text = text;
@@ -978,10 +1085,11 @@ public partial class MainWindow : Window
     {
         var search = CatalogSearchBox.Text;
         var category = CategoryFilterCombo.SelectedItem as string;
-        var rows = (await _svc.Registry.GetCatalogRowsAsync(search, category).ConfigureAwait(true)).ToList();
+        var rows = (await _svc.Registry.GetCatalogRowsAsync(search, category, _catalogDescriptionMode)
+            .ConfigureAwait(true)).ToList();
         if (NaturalLanguageSearchService.LooksNaturalLanguage(search) && rows.Count > 1)
         {
-            var candidates = rows.Select(r => new NlSearchCandidate(r.Name, r.Category, r.ParameterSize, r.ListDescription))
+            var candidates = rows.Select(r => new NlSearchCandidate(r.Name, r.Category, r.ParameterSize, r.DisplayDescription))
                 .ToList();
             var ranked = await _svc.NlSearch.RankModelsAsync(search, candidates).ConfigureAwait(true);
             if (ranked.Count > 0)
@@ -992,12 +1100,14 @@ public partial class MainWindow : Window
                 rows = rows.OrderBy(r => rankMap.TryGetValue(r.Name, out var i) ? i : 999).ThenBy(r => r.Name).ToList();
                 CatalogStatusLabel.Text = $"NL-ranked {ranked.Count} model(s); showing {rows.Count}.";
                 CatalogGrid.ItemsSource = rows;
+                ScheduleFitGridColumns(CatalogGrid);
                 return;
             }
         }
 
         CatalogGrid.ItemsSource = rows;
         CatalogStatusLabel.Text = $"Showing {rows.Count} catalog model(s).";
+        ScheduleFitGridColumns(CatalogGrid);
     }
 
     private void CatalogSearchBox_KeyUp(object sender, KeyEventArgs e)
@@ -1200,6 +1310,7 @@ public partial class MainWindow : Window
         }
 
         TestResultsGrid.ItemsSource = enriched;
+        ScheduleFitGridColumns(TestResultsGrid);
     }
 
     private async void RefreshTestResults_Click(object sender, RoutedEventArgs e) =>
