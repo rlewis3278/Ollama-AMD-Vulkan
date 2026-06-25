@@ -157,6 +157,14 @@
         <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
     </Style>
 
+    <Style x:Key="CatalogInstalledRow" TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Installed}" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.ActiveBg}" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
     <Style x:Key="ToolkitButton" TargetType="Button">
         <Setter Property="Background" Value="{StaticResource Brush.Button}" />
         <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />

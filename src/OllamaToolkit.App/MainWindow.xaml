@@ -99,6 +99,7 @@
                     </StackPanel>
                     <TextBlock x:Name="CatalogStatusLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
                     <DataGrid x:Name="CatalogGrid" Grid.Row="2" Style="{StaticResource ToolkitDataGrid}"
+                              RowStyle="{StaticResource CatalogInstalledRow}"
                               AutoGenerateColumns="False" IsReadOnly="True"
                               SelectionMode="Extended"
                               EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
