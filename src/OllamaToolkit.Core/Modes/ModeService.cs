@@ -39,7 +39,6 @@ public sealed class ModeService
         ComputeMode mode,
         bool restartOllama = true,
         bool saveBackup = true,
-        IntPtr? keepFocusWindow = null,
         CancellationToken cancellationToken = default)
     {
         var definition = _definitions.Get(mode);
@@ -66,8 +65,7 @@ public sealed class ModeService
 
         if (restartOllama)
         {
-            await _processes.RestartAsync(restoreFocusWindow: keepFocusWindow, cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
+            await _processes.RestartAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         }
 
         return new ModeApplyResult

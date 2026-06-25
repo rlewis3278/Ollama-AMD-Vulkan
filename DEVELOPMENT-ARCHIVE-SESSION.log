@@ -869,3 +869,43 @@ EOF
 [2026-06-25 01:26:33] [SHELL] powershell -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "UI|Compute Modes: aligned card labels, yellow/white pending flash, green active, red superseded"
 [2026-06-25 01:26:33] [SYNC] Processed updates.jsonl lines 3247..3419
 [2026-06-25 01:26:33] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 01:30:09] [FIX] Mode cards: black hover, grey idle during transition (no disabled white flash)
+[2026-06-25 01:30:09] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.Core/Modes/ModeDefinition.cs src/OllamaToolkit.Core/Modes/ModeDefinitionService.cs src/OllamaToolkit.App/Services/ModeCardPresenter.cs src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/Resources/Theme.xaml DEVELOPMENT-ARCHIVE-COMMANDS.txt DEVELOPMENT-ARCHIVE-SESSION.log; git commit -m "ui: align compute mode cards with transition flash states"
+[2026-06-25 01:30:09] [TOOL] Read - Read
+[2026-06-25 01:30:09] [TOOL] Read - Read
+[2026-06-25 01:30:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:30:09] [TOOL] Write - Write
+[2026-06-25 01:30:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:30:09] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-25 01:30:09] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-25 01:30:09] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/Services/ModeCardPresenter.cs src/OllamaToolkit.App/Resources/Theme.xaml; git commit -m "fix: mode card hover black and prevent white disabled state during switch"
+[2026-06-25 01:30:09] [SHELL] powershell -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "FIX|Mode cards: black hover, grey idle during transition (no disabled white flash)"
+[2026-06-25 01:30:09] [SYNC] Processed updates.jsonl lines 3420..3511
+[2026-06-25 01:30:09] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 01:32:50] [FIX] Mode switch: Ollama starts minimized, toolkit keeps foreground
+[2026-06-25 01:32:50] [TOOL] Grep - Grep
+[2026-06-25 01:32:50] [TOOL] Grep - Grep
+[2026-06-25 01:32:50] [TOOL] Read - Read
+[2026-06-25 01:32:50] [TOOL] Read - Read
+[2026-06-25 01:32:50] [TOOL] Grep - Grep
+[2026-06-25 01:32:50] [TOOL] Grep - Grep
+[2026-06-25 01:32:50] [TOOL] WebSearch - WebSearch
+[2026-06-25 01:32:50] [TOOL] Read - Read
+[2026-06-25 01:32:50] [TOOL] Read - Read
+[2026-06-25 01:32:50] [TOOL] Grep - Grep
+[2026-06-25 01:32:50] [TOOL] Glob - Glob
+[2026-06-25 01:32:50] [TOOL] Read - Read
+[2026-06-25 01:32:50] [TOOL] Read - Read
+[2026-06-25 01:32:50] [TOOL] Write - Write
+[2026-06-25 01:32:50] [TOOL] Write - Write
+[2026-06-25 01:32:50] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:32:50] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:32:50] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:32:50] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:32:50] [TOOL] StrReplace - StrReplace
+[2026-06-25 01:32:50] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-25 01:32:50] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-25 01:32:50] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.Core/Windows/WindowsNative.cs src/OllamaToolkit.Core/Ollama/OllamaProcessService.cs src/OllamaToolkit.Core/Modes/ModeService.cs src/OllamaToolkit.App/MainWindow.xaml.cs; git commit -m "fix: start Ollama minimized and keep toolkit window in foreground on mode switch"
+[2026-06-25 01:32:50] [SHELL] powershell -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "FIX|Mode switch: Ollama starts minimized, toolkit keeps foreground"
+[2026-06-25 01:32:50] [SYNC] Processed updates.jsonl lines 3512..3632
+[2026-06-25 01:32:50] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
