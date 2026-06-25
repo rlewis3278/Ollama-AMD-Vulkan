@@ -5,15 +5,15 @@ namespace OllamaToolkit.App.Services;
 
 public static class UiDispatcher
 {
-    public static Task InvokeAsync(Action action)
-    {
-        var dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
-        return dispatcher.InvokeAsync(action).Task;
-    }
+    private static Dispatcher Dispatcher =>
+        Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
 
-    public static Task<T> InvokeAsync<T>(Func<T> func)
-    {
-        var dispatcher = Application.Current?.Dispatcher ?? Dispatcher.CurrentDispatcher;
-        return dispatcher.InvokeAsync(func).Task;
-    }
+    public static Task InvokeAsync(Action action) =>
+        Dispatcher.InvokeAsync(action).Task;
+
+    public static Task InvokeAsync(Func<Task> action) =>
+        Dispatcher.InvokeAsync(action).Task.Unwrap();
+
+    public static Task<T> InvokeAsync<T>(Func<T> func) =>
+        Dispatcher.InvokeAsync(func).Task;
 }

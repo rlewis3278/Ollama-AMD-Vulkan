@@ -4,8 +4,9 @@
         Title="Ollama AMD Vulkan Manager"
         Height="820" Width="1180"
         MinHeight="640" MinWidth="960"
-        WindowStartupLocation="CenterScreen">
-    <Grid>
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Brush.Bg}">
+    <Grid Background="{StaticResource Brush.Bg}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -18,7 +19,8 @@
             <TextBlock x:Name="AlertText" Foreground="{StaticResource Brush.Warning}" TextWrapping="Wrap" />
         </Border>
 
-        <TabControl x:Name="MainTabs" Grid.Row="1" Margin="8" SelectionChanged="MainTabs_SelectionChanged">
+        <TabControl x:Name="MainTabs" Grid.Row="1" Margin="8" SelectionChanged="MainTabs_SelectionChanged"
+                    Background="{StaticResource Brush.Bg}">
             <TabItem Header="Compute Modes">
                 <Grid Margin="12">
                     <Grid.RowDefinitions>
@@ -58,8 +60,8 @@
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModels_Click" />
                         <Button Content="Import Reports" Style="{StaticResource ToolkitButton}" Click="ImportReports_Click" />
                     </StackPanel>
-                    <DataGrid x:Name="ModelsGrid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
-                              Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
+                    <DataGrid x:Name="ModelsGrid" Grid.Row="1" Style="{StaticResource ToolkitDataGrid}"
+                              AutoGenerateColumns="False" IsReadOnly="True"
                               HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
                               SelectionMode="Extended"
                               EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
@@ -75,6 +77,60 @@
                     </DataGrid>
                 </Grid>
             </TabItem>
+            <TabItem x:Name="ModelLibraryTab" Header="Model Library">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBox x:Name="CatalogSearchBox" Width="220" Padding="6,4" KeyUp="CatalogSearchBox_KeyUp" />
+                        <ComboBox x:Name="CategoryFilterCombo" Width="140" Margin="8,0,0,0" SelectionChanged="CategoryFilterCombo_SelectionChanged" />
+                        <Button Content="Refresh Catalog" Style="{StaticResource ToolkitButton}" Click="RefreshCatalog_Click" />
+                        <Button Content="Categorize All" Style="{StaticResource ToolkitButton}" Click="CategorizeAll_Click" />
+                        <Button Content="Download Selected" Style="{StaticResource ToolkitButton}" Click="DownloadCatalogModel_Click" />
+                        <Button x:Name="CompareCatalogBtn" Content="Compare with AI" Style="{StaticResource ToolkitButton}" Click="CompareCatalog_Click" />
+                    </StackPanel>
+                    <TextBlock x:Name="CatalogStatusLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
+                    <DataGrid x:Name="CatalogGrid" Grid.Row="2" Style="{StaticResource ToolkitDataGrid}"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              SelectionMode="Extended"
+                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Model" Binding="{Binding Name}" Width="120" />
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
+                            <DataGridTextColumn Header="Description" Binding="{Binding ListDescription}" Width="*" />
+                            <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
+                            <DataGridTextColumn Header="Installed" Binding="{Binding Installed}" Width="70" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+            <TabItem x:Name="ModelRunTab" Header="Model Run">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock x:Name="ModelRunStatus" Grid.Row="0" Margin="0,0,0,8" Foreground="{StaticResource Brush.Muted}" />
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.Bg}">
+                        <TextBlock x:Name="ChatHistory" Margin="12" TextWrapping="Wrap" Foreground="{StaticResource Brush.Text}" />
+                    </ScrollViewer>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBox x:Name="ChatInput" Width="520" Padding="8,6" KeyDown="ChatInput_KeyDown" />
+                        <Button Content="Send" Style="{StaticResource ToolkitButton}" Margin="8,0,0,0" Click="SendChat_Click" />
+                        <Button x:Name="StopChatBtn" Content="Stop" Style="{StaticResource ToolkitButton}" Click="StopChat_Click" />
+                    </StackPanel>
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button x:Name="AskAiRunBtn" Content="Ask AI" Style="{StaticResource ToolkitButton}" Click="AskAiRun_Click" />
+                        <Button Content="Open in PowerShell" Style="{StaticResource ToolkitButton}" Click="OpenPowerShell_Click" />
+                        <Button Content="Clear Chat" Style="{StaticResource ToolkitButton}" Click="ClearChat_Click" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
             <TabItem Header="Testing Suite">
                 <Grid Margin="12">
                     <Grid.RowDefinitions>
@@ -86,13 +142,9 @@
                     <StackPanel Orientation="Horizontal">
                         <ComboBox x:Name="TestModelCombo" Width="280" Margin="0,0,8,8" SelectionChanged="TestModelCombo_SelectionChanged" />
                         <TextBlock Text="num_ctx:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,8" />
-                        <TextBox x:Name="TestNumCtxBox" Width="64" Margin="0,0,8,8" Text="8192"
-                                 Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
-                                 BorderBrush="{StaticResource Brush.PanelBorder}" />
+                        <TextBox x:Name="TestNumCtxBox" Width="64" Margin="0,0,8,8" Text="8192" />
                         <TextBlock Text="num_predict:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,8" />
-                        <TextBox x:Name="TestNumPredictBox" Width="48" Margin="0,0,8,8" Text="32"
-                                 Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
-                                 BorderBrush="{StaticResource Brush.PanelBorder}" />
+                        <TextBox x:Name="TestNumPredictBox" Width="48" Margin="0,0,8,8" Text="32" />
                         <Button Content="Test Selected" Style="{StaticResource ToolkitButton}" Click="TestSelected_Click" />
                         <Button Content="Test Untested" Style="{StaticResource ToolkitButton}" Click="TestUntested_Click" />
                         <Button Content="Stop" Style="{StaticResource ToolkitButton}" Click="StopTest_Click" />
@@ -102,85 +154,6 @@
                     <TextBox x:Name="TestLogBox" Grid.Row="3" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
                              VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.LogBg}"
                              Foreground="{StaticResource Brush.Text}" />
-                </Grid>
-            </TabItem>
-            <TabItem Header="AI Activity">
-                <Grid Margin="12">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <Button Content="Scan Logs" Style="{StaticResource ToolkitButton}" Click="ScanLogs_Click" />
-                        <TextBlock x:Name="AnomalySummary" Foreground="{StaticResource Brush.Warning}" Margin="12,6,0,0" TextWrapping="Wrap" />
-                    </StackPanel>
-                    <TextBox x:Name="AiActivityLog" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
-                             VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.LogBg}"
-                             Foreground="{StaticResource Brush.Text}" />
-                </Grid>
-            </TabItem>
-            <TabItem Header="AI Features">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12">
-                    <StackPanel x:Name="AiFeaturesPanel" />
-                </ScrollViewer>
-            </TabItem>
-            <TabItem x:Name="ModelRunTab" Header="Model Run">
-                <Grid Margin="16">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-                    <TextBlock x:Name="ModelRunStatus" Grid.Row="0" Margin="0,0,0,8" Foreground="{StaticResource Brush.Muted}" />
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <TextBlock x:Name="ChatHistory" Margin="12" TextWrapping="Wrap" Foreground="{StaticResource Brush.Text}" />
-                    </ScrollViewer>
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBox x:Name="ChatInput" Width="520" Padding="8,6" KeyDown="ChatInput_KeyDown"
-                                 Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
-                                 BorderBrush="{StaticResource Brush.PanelBorder}" />
-                        <Button Content="Send" Style="{StaticResource ToolkitButton}" Margin="8,0,0,0" Click="SendChat_Click" />
-                        <Button x:Name="StopChatBtn" Content="Stop" Style="{StaticResource ToolkitButton}" Click="StopChat_Click" />
-                    </StackPanel>
-                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
-                        <Button x:Name="AskAiRunBtn" Content="Ask AI" Style="{StaticResource ToolkitButton}" Click="AskAiRun_Click" />
-                        <Button Content="Open in PowerShell" Style="{StaticResource ToolkitButton}" Click="OpenPowerShell_Click" />
-                        <Button Content="Clear Chat" Style="{StaticResource ToolkitButton}" Click="ClearChat_Click" />
-                    </StackPanel>
-                </Grid>
-            </TabItem>
-            <TabItem x:Name="ModelLibraryTab" Header="Model Library">
-                <Grid Margin="8">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBox x:Name="CatalogSearchBox" Width="220" Padding="6,4" KeyUp="CatalogSearchBox_KeyUp"
-                                 Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
-                                 BorderBrush="{StaticResource Brush.PanelBorder}" />
-                        <ComboBox x:Name="CategoryFilterCombo" Width="140" Margin="8,0,0,0" SelectionChanged="CategoryFilterCombo_SelectionChanged" />
-                        <Button Content="Refresh Catalog" Style="{StaticResource ToolkitButton}" Click="RefreshCatalog_Click" />
-                        <Button Content="Categorize All" Style="{StaticResource ToolkitButton}" Click="CategorizeAll_Click" />
-                        <Button Content="Download Selected" Style="{StaticResource ToolkitButton}" Click="DownloadCatalogModel_Click" />
-                        <Button x:Name="CompareCatalogBtn" Content="Compare with AI" Style="{StaticResource ToolkitButton}" Click="CompareCatalog_Click" />
-                    </StackPanel>
-                    <TextBlock x:Name="CatalogStatusLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
-                    <DataGrid x:Name="CatalogGrid" Grid.Row="2" AutoGenerateColumns="False" IsReadOnly="True"
-                              Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
-                              SelectionMode="Extended"
-                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
-                        <DataGrid.Columns>
-                            <DataGridTextColumn Header="Model" Binding="{Binding Name}" Width="120" />
-                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
-                            <DataGridTextColumn Header="Description" Binding="{Binding ListDescription}" Width="*" />
-                            <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
-                            <DataGridTextColumn Header="Installed" Binding="{Binding Installed}" Width="70" />
-                        </DataGrid.Columns>
-                    </DataGrid>
                 </Grid>
             </TabItem>
             <TabItem x:Name="TestResultsTab" Header="Test Results">
@@ -194,8 +167,8 @@
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshTestResults_Click" />
                         <Button Content="Launch Selected" Style="{StaticResource ToolkitButton}" Click="LaunchFromResults_Click" />
                     </StackPanel>
-                    <DataGrid x:Name="TestResultsGrid" Grid.Row="1" AutoGenerateColumns="False" IsReadOnly="True"
-                              Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}"
+                    <DataGrid x:Name="TestResultsGrid" Grid.Row="1" Style="{StaticResource ToolkitDataGrid}"
+                              AutoGenerateColumns="False" IsReadOnly="True"
                               EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True"
                               SelectionChanged="TestResultsGrid_SelectionChanged">
                         <DataGrid.Columns>
@@ -228,8 +201,7 @@
                         </StackPanel>
                         <TextBlock x:Name="SummarizerTestResult" TextWrapping="Wrap" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,16" />
                         <TextBlock Text="Suggested models (not installed):" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,4" />
-                        <ListBox x:Name="SuggestedModelsList" Height="120" Margin="0,0,0,16"
-                                 Background="{StaticResource Brush.Panel}" Foreground="{StaticResource Brush.Text}" />
+                        <ListBox x:Name="SuggestedModelsList" Height="120" Margin="0,0,0,16" />
                         <TextBlock x:Name="CategoryStatusLabel" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
                         <StackPanel Orientation="Horizontal">
                             <Button Content="Categorize All" Style="{StaticResource ToolkitButton}" Click="CategorizeAll_Click" />
@@ -237,6 +209,26 @@
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
+            </TabItem>
+            <TabItem Header="AI Features">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12">
+                    <StackPanel x:Name="AiFeaturesPanel" />
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="AI Activity">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button Content="Scan Logs" Style="{StaticResource ToolkitButton}" Click="ScanLogs_Click" />
+                        <TextBlock x:Name="AnomalySummary" Foreground="{StaticResource Brush.Warning}" Margin="12,6,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <TextBox x:Name="AiActivityLog" Grid.Row="1" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.LogBg}"
+                             Foreground="{StaticResource Brush.Text}" />
+                </Grid>
             </TabItem>
         </TabControl>
 

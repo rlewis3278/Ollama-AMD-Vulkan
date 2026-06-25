@@ -1,19 +1,20 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Color x:Key="Color.Bg">#FF1C1E26</Color>
-    <Color x:Key="Color.Panel">#FF262934</Color>
-    <Color x:Key="Color.PanelBorder">#FF3A3E4E</Color>
-    <Color x:Key="Color.Text">#FFE8EAF0</Color>
+    <Color x:Key="Color.Bg">#FF000000</Color>
+    <Color x:Key="Color.Panel">#FF0D0D0D</Color>
+    <Color x:Key="Color.PanelBorder">#FF2A2A2A</Color>
+    <Color x:Key="Color.Text">#FFF0F0F0</Color>
     <Color x:Key="Color.Muted">#FF9CA3AF</Color>
     <Color x:Key="Color.Accent">#FFED1C24</Color>
     <Color x:Key="Color.AccentHover">#FFFF3A42</Color>
     <Color x:Key="Color.Active">#FF22C55E</Color>
     <Color x:Key="Color.ActiveBg">#FF163A26</Color>
     <Color x:Key="Color.Warning">#FFFACC15</Color>
-    <Color x:Key="Color.WarningBg">#FF3A3012</Color>
-    <Color x:Key="Color.Button">#FF343846</Color>
-    <Color x:Key="Color.ButtonHover">#FF444858</Color>
-    <Color x:Key="Color.LogBg">#FF14161C</Color>
+    <Color x:Key="Color.WarningBg">#FF2A2208</Color>
+    <Color x:Key="Color.Button">#FF1A1A1A</Color>
+    <Color x:Key="Color.ButtonHover">#FF2A2A2A</Color>
+    <Color x:Key="Color.LogBg">#FF000000</Color>
+    <Color x:Key="Color.RowAlt">#FF080808</Color>
 
     <SolidColorBrush x:Key="Brush.Bg" Color="{StaticResource Color.Bg}" />
     <SolidColorBrush x:Key="Brush.Panel" Color="{StaticResource Color.Panel}" />
@@ -26,12 +27,17 @@
     <SolidColorBrush x:Key="Brush.WarningBg" Color="{StaticResource Color.WarningBg}" />
     <SolidColorBrush x:Key="Brush.Button" Color="{StaticResource Color.Button}" />
     <SolidColorBrush x:Key="Brush.LogBg" Color="{StaticResource Color.LogBg}" />
+    <SolidColorBrush x:Key="Brush.RowAlt" Color="{StaticResource Color.RowAlt}" />
 
     <Style TargetType="Window">
         <Setter Property="Background" Value="{StaticResource Brush.Bg}" />
         <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
         <Setter Property="FontFamily" Value="Segoe UI" />
         <Setter Property="FontSize" Value="13" />
+    </Style>
+
+    <Style TargetType="Grid">
+        <Setter Property="Background" Value="{StaticResource Brush.Bg}" />
     </Style>
 
     <Style TargetType="TabControl">
@@ -59,6 +65,59 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <Style TargetType="ComboBox">
+        <Setter Property="Background" Value="{StaticResource Brush.Panel}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}" />
+    </Style>
+
+    <Style TargetType="TextBox">
+        <Setter Property="Background" Value="{StaticResource Brush.Panel}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}" />
+        <Setter Property="CaretBrush" Value="{StaticResource Brush.Text}" />
+    </Style>
+
+    <Style TargetType="ListBox">
+        <Setter Property="Background" Value="{StaticResource Brush.Panel}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}" />
+    </Style>
+
+    <Style TargetType="ScrollViewer">
+        <Setter Property="Background" Value="{StaticResource Brush.Bg}" />
+    </Style>
+
+    <Style x:Key="ToolkitDataGrid" TargetType="DataGrid">
+        <Setter Property="Background" Value="{StaticResource Brush.Bg}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}" />
+        <Setter Property="RowBackground" Value="{StaticResource Brush.Bg}" />
+        <Setter Property="AlternatingRowBackground" Value="{StaticResource Brush.RowAlt}" />
+        <Setter Property="GridLinesVisibility" Value="Horizontal" />
+        <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource Brush.PanelBorder}" />
+        <Setter Property="VerticalGridLinesBrush" Value="{StaticResource Brush.PanelBorder}" />
+    </Style>
+
+    <Style TargetType="DataGridColumnHeader">
+        <Setter Property="Background" Value="{StaticResource Brush.Panel}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}" />
+        <Setter Property="Padding" Value="8,6" />
+    </Style>
+
+    <Style TargetType="DataGridCell">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}" />
+        <Setter Property="Padding" Value="6,4" />
+    </Style>
+
+    <Style TargetType="DataGridRow">
+        <Setter Property="Background" Value="{StaticResource Brush.Bg}" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
     </Style>
 
     <Style x:Key="ToolkitButton" TargetType="Button">

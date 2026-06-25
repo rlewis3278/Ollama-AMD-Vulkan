@@ -61,8 +61,10 @@ public sealed class ProfileStoreService
         var local = await GetLocalModelsAsync(cancellationToken).ConfigureAwait(false);
         var summaries = new List<ModelProfileSummary>();
 
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var model in local)
         {
+            seen.Add(model.Name);
             store.Models.TryGetValue(model.Name, out var profile);
             var sizeGb = Math.Round(model.Size / 1_073_741_824.0, 2);
             var digest = string.Empty; // digest from API when available
@@ -111,7 +113,62 @@ public sealed class ProfileStoreService
             });
         }
 
-        return summaries;
+        foreach (var (name, profile) in store.Models)
+        {
+            if (seen.Contains(name))
+            {
+                continue;
+            }
+
+            summaries.Add(BuildSummaryFromProfile(name, profile, sizeGb: 0, digest: profile.Digest ?? string.Empty));
+        }
+
+        return summaries.OrderBy(s => s.Model).ToList();
+    }
+
+    private static ModelProfileSummary BuildSummaryFromProfile(
+        string modelName,
+        ModelProfileEntry? profile,
+        double sizeGb,
+        string digest)
+    {
+        var status = "Untested";
+        var bestMode = string.Empty;
+        var bestTps = 0.0;
+        var lastTested = string.Empty;
+        var needsRetest = true;
+
+        if (profile is not null)
+        {
+            if (!string.IsNullOrEmpty(profile.BestMode))
+            {
+                status = "Tested";
+                bestMode = profile.BestMode;
+                bestTps = profile.BestTps;
+                lastTested = profile.LastTested ?? string.Empty;
+                needsRetest = false;
+            }
+            else
+            {
+                status = "Test failed";
+            }
+        }
+
+        return new ModelProfileSummary
+        {
+            Model = modelName,
+            SizeGB = sizeGb,
+            Quantization = profile?.Quantization ?? "-",
+            ParameterSize = "-",
+            Digest = digest,
+            Status = status,
+            BestMode = bestMode,
+            BestTps = bestTps,
+            LastTested = lastTested,
+            NeedsRetest = needsRetest,
+            RecommendedCtx = GetRecommendedBenchmarkNumCtx(sizeGb > 0 ? sizeGb : 4),
+            Results = profile?.Results
+        };
     }
 
     public async Task<ModelProfileEntry?> UpdateFromReportAsync(

@@ -159,20 +159,32 @@ public partial class MainWindow : Window
     {
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
-            var imported = await _svc.ReportImporter.ImportReportsAsync(cancellationToken: ct).ConfigureAwait(false);
-            if (imported > 0)
+            try
             {
-                _svc.ActivityLog.Write("Task", $"Imported {imported} benchmark report(s).");
-            }
+                var imported = await _svc.ReportImporter.ImportReportsAsync(cancellationToken: ct).ConfigureAwait(false);
+                if (imported > 0)
+                {
+                    _svc.Profiles.ClearCache();
+                    _svc.ActivityLog.Write("Task", $"Imported {imported} benchmark report(s).");
+                }
 
-            await UiDispatcher.InvokeAsync(async () =>
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    await RefreshModesUiAsync().ConfigureAwait(true);
+                    await RefreshModelsUiAsync().ConfigureAwait(true);
+                    await RefreshCatalogUiAsync().ConfigureAwait(true);
+                    await RefreshTestResultsUiAsync().ConfigureAwait(true);
+                    await UpdateAiStatusAsync().ConfigureAwait(true);
+                    await RefreshAiSettingsUiAsync().ConfigureAwait(true);
+                    RefreshActivityLog();
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
             {
-                await RefreshModesUiAsync().ConfigureAwait(true);
-                await RefreshModelsUiAsync().ConfigureAwait(true);
-                await UpdateAiStatusAsync().ConfigureAwait(true);
-                await RefreshAiSettingsUiAsync().ConfigureAwait(true);
-                RefreshActivityLog();
-            }).ConfigureAwait(false);
+                _svc.ActivityLog.Write("Error", $"Startup refresh failed: {ex.Message}");
+                await UiDispatcher.InvokeAsync(() =>
+                    AlertText.Text = $"Data load error: {ex.Message}").ConfigureAwait(false);
+            }
         }).ConfigureAwait(true);
     }
 
@@ -311,8 +323,11 @@ public partial class MainWindow : Window
                 await _svc.ModeService.ApplyModeAsync(mode, restartOllama: restart, cancellationToken: ct)
                     .ConfigureAwait(false);
                 _svc.ActivityLog.Write("Task", $"Applied mode {mode}.");
-                await UiDispatcher.InvokeAsync(async () => await RefreshModesUiAsync().ConfigureAwait(true))
-                    .ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    await RefreshModesUiAsync().ConfigureAwait(true);
+                    ModeStatusLabel.Text = $"Current mode: {mode} (applied) | Ollama restarted: {restart}";
+                }).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

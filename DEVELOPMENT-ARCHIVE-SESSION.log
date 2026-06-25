@@ -582,3 +582,65 @@ EOF
 [2026-06-24 16:39:50] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
 [2026-06-24 16:39:50] [SYNC] Processed updates.jsonl lines 2142..2143
 [2026-06-24 16:39:50] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:39:59] [GIT] commit session log append Phase 5
+[2026-06-24 16:39:59] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git status --short; git log --oneline -2
+[2026-06-24 16:39:59] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add DEVELOPMENT-ARCHIVE-SESSION.log DEVELOPMENT-ARCHIVE-COMMANDS.txt; git commit -m "docs: append session log entries for Phase 5 build turn"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "GIT|commit session log append Phase 5"; .\scripts\Update-DevelopmentArchive.ps1
+[2026-06-24 16:39:59] [SYNC] Processed updates.jsonl lines 2144..2161
+[2026-06-24 16:39:59] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 16:39:59] [SYNC] Processed updates.jsonl lines 2162..2164
+[2026-06-24 16:39:59] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 18:45:54] [USER] reorder tabs, fix empty grids, black theme, test mode switching
+[2026-06-24 18:45:55] [TOOL] Glob - Glob
+[2026-06-24 18:45:55] [TOOL] Grep - Grep
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Glob - Glob
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Glob - Glob
+[2026-06-24 18:45:55] [TOOL] Grep - Grep
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [SHELL] if (Test-Path "$env:USERPROFILE\.ollama-amd-vulkan\model-profiles.json") { Get-Content "$env:USERPROFILE\.ollama-amd-vulkan\model-profiles.json" -Head 80 } else { Write-Host "no model-profiles.json" }; if (Test-Path "$env:USERPROFILE\.ollama-amd-vulkan\library-catalog-store.json") { (Get-Item "$env:USERPROFILE\.ollama-amd-vulkan\library-catalog-store.json").Length } else { Write-Host "no catalog" }; curl -s http://localhost:11434/api/tags 2>&1 | Select-Object -First 5
+[2026-06-24 18:45:55] [SHELL_FAIL] exit=1 if (Test-Path "$env:USERPROFILE\.ollama-amd-vulkan\model-profiles.json") { Get-Content "$env:USERPROFILE\.ollama-amd-vulkan\model-profiles.json" -Head 80 } else { Write-Host "no model-profiles.json" }; if (Test-Path "$env:USERPROFILE\.ollama-amd-vulkan\library-catalog-store.json") { (Get-Item "$env:USERPROFILE\.ollama-amd-vulkan\library-catalog-store.json").Length } else { Write-Host "no catalog" }; curl -s http://localhost:11434/api/tags 2>&1 | Select-Object -First 5
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [SHELL] Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -Method Get | ConvertTo-Json -Depth 3 | Select-Object -First 30
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Grep - Grep
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Grep - Grep
+[2026-06-24 18:45:55] [SHELL] $cat = Get-Content "$env:USERPROFILE\.ollama-amd-vulkan\library-catalog-store.json" -Raw | ConvertFrom-Json; Write-Host "items count:" $cat.items.Count; Write-Host "fetched:" $cat.catalogFetchedAt
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- status 2>&1
+[2026-06-24 18:45:55] [SHELL] $cat = Get-Content "$env:USERPROFILE\.ollama-amd-vulkan\model-usage-categories.json" -Raw -ErrorAction SilentlyContinue; if ($cat) { $j = $cat | ConvertFrom-Json; Write-Host "category models:" $j.models.PSObject.Properties.Count } else { "no categories file" }
+[2026-06-24 18:45:55] [TOOL] Grep - Grep
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [TOOL] TodoWrite - TodoWrite
+[2026-06-24 18:45:55] [TOOL] Write - Write
+[2026-06-24 18:45:55] [TOOL] Write - Write
+[2026-06-24 18:45:55] [TOOL] Write - Write
+[2026-06-24 18:45:55] [TOOL] StrReplace - StrReplace
+[2026-06-24 18:45:55] [TOOL] StrReplace - StrReplace
+[2026-06-24 18:45:55] [TOOL] StrReplace - StrReplace
+[2026-06-24 18:45:55] [TOOL] StrReplace - StrReplace
+[2026-06-24 18:45:55] [TOOL] StrReplace - StrReplace
+[2026-06-24 18:45:55] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-24 18:45:55] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- set-mode CPU --no-restart 2>&1; Start-Sleep -Seconds 1; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- status 2>&1
+[2026-06-24 18:45:55] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1
+[2026-06-24 18:45:55] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1
+[2026-06-24 18:45:55] [TOOL] Read - Read
+[2026-06-24 18:45:55] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- set-mode Hybrid --no-restart 2>&1; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- status 2>&1 | Select-String "Detected|OLLAMA_VULKAN|GGML_VK"
+[2026-06-24 18:45:55] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- set-mode GPU --no-restart 2>&1; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- status 2>&1 | Select-String "Detected|GGML_VK|OLLAMA_VULKAN|OLLAMA_IGPU"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- set-mode Hybrid --no-restart 2>&1 | Select-Object -Last 1
+[2026-06-24 18:45:55] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "USER|reorder tabs, fix empty grids, black theme, test mode switching"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|dotnet build 0 errors; mode switch CPU/GPU/Hybrid verified via CLI"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "fix: tab order, black theme, data load UiDispatcher fix, dark DataGrid"
+[2026-06-24 18:45:55] [SYNC] Processed updates.jsonl lines 2165..2459
+[2026-06-24 18:45:55] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 18:45:55] [BUILD] dotnet build 0 errors; mode switch CPU/GPU/Hybrid verified via CLI
+[2026-06-24 18:45:55] [SYNC] Processed updates.jsonl lines 2460..2465
+[2026-06-24 18:45:55] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

@@ -46,9 +46,9 @@ public sealed class BackgroundWorkQueue
             {
                 break;
             }
-            catch
+            catch (Exception ex)
             {
-                // Individual work items handle/report errors.
+                System.Diagnostics.Debug.WriteLine($"BackgroundWorkQueue: {ex}");
             }
         }
     }
