@@ -748,7 +748,7 @@ fd02fcc  fix: full AI descriptions, no tab auto-refresh, CTRL hint
 83d0ecd  feat: STOP button, flash fixes, AI status blink
 d3a7b06  docs: archive sync through 83d0ecd (Phase 8)
 090f39a  docs: pre-execution archive sync for Phase 9 plan
-         feat: Phase 9 Testing Suite UX + Test Undownload — see branch HEAD
+5625807  feat: Phase 9 Testing Suite UX, Test Undownload, catalog benchmark columns
 ```
 
 ### Archive files
