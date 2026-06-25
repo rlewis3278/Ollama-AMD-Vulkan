@@ -43,6 +43,7 @@ public sealed class ModelRegistryService
         var installed = await GetInstalledNameSetAsync(cancellationToken).ConfigureAwait(false);
         var installedSizes = await GetInstalledFileSizeByLibraryAsync(cancellationToken).ConfigureAwait(false);
         var descriptionDoc = await _descriptions.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var profileDoc = await _profiles.LoadAsync(cancellationToken).ConfigureAwait(false);
 
         var rows = new List<CatalogRowViewModel>();
         foreach (var e in entries)
@@ -76,6 +77,10 @@ public sealed class ModelRegistryService
                 fileSize = installedSize;
             }
 
+            var isInstalled = installed.Contains(e.Name)
+                || installed.Any(n => n.StartsWith($"{e.Name}:", StringComparison.OrdinalIgnoreCase));
+            var (bestMode, bestTps) = ResolveCatalogBenchmarkDisplay(e.Name, profileDoc);
+
             rows.Add(new CatalogRowViewModel
             {
                 Name = e.Name,
@@ -88,7 +93,9 @@ public sealed class ModelRegistryService
                 ParameterSize = e.ParameterSize,
                 FileSize = ModelSizeFormatter.FormatSizeLabel(fileSize),
                 Tags = e.Tags,
-                Installed = installed.Contains(e.Name) || installed.Any(n => n.StartsWith($"{e.Name}:", StringComparison.OrdinalIgnoreCase)),
+                Installed = isInstalled,
+                BestMode = bestMode,
+                BestTps = bestTps,
                 SortOrder = CategoryNormalizer.GetSortOrder(category)
             });
         }
@@ -196,4 +203,101 @@ public sealed class ModelRegistryService
 
     private async Task<HashSet<string>> GetInstalledNameSetAsync(CancellationToken cancellationToken) =>
         await GetInstalledModelNamesAsync(cancellationToken).ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<UndownloadTestCandidate>> GetUndownloadTestQueueAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var entries = await _catalogStore.GetEntriesAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        var installed = await GetInstalledNameSetAsync(cancellationToken).ConfigureAwait(false);
+        var profileDoc = await _profiles.LoadAsync(cancellationToken).ConfigureAwait(false);
+
+        var candidates = new List<UndownloadTestCandidate>();
+        foreach (var entry in entries)
+        {
+            var isInstalled = installed.Contains(entry.Name)
+                || installed.Any(n => n.StartsWith($"{entry.Name}:", StringComparison.OrdinalIgnoreCase));
+            if (isInstalled)
+            {
+                continue;
+            }
+
+            if (!CatalogEntryNeedsRetest(entry.Name, profileDoc))
+            {
+                continue;
+            }
+
+            var fileSize = entry.FileSize;
+            if (!ModelSizeFormatter.TryParseSizeLabelToBytes(fileSize, out var bytes))
+            {
+                bytes = long.MaxValue;
+            }
+
+            candidates.Add(new UndownloadTestCandidate
+            {
+                LibraryName = entry.Name,
+                PullTag = $"{entry.Name}:latest",
+                FileSizeBytes = bytes
+            });
+        }
+
+        return candidates
+            .OrderBy(c => c.FileSizeBytes)
+            .ThenBy(c => c.LibraryName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static bool CatalogEntryNeedsRetest(string libraryName, ModelProfileStoreDocument profileDoc)
+    {
+        ModelProfileEntry? profile = null;
+        if (profileDoc.Models.TryGetValue(libraryName, out var direct))
+        {
+            profile = direct;
+        }
+        else
+        {
+            foreach (var (key, entry) in profileDoc.Models)
+            {
+                if (key.Equals(libraryName, StringComparison.OrdinalIgnoreCase)
+                    || key.StartsWith($"{libraryName}:", StringComparison.OrdinalIgnoreCase))
+                {
+                    profile = entry;
+                    break;
+                }
+            }
+        }
+
+        return profile is null || string.IsNullOrEmpty(profile.BestMode);
+    }
+
+    private static (string BestMode, string BestTps) ResolveCatalogBenchmarkDisplay(
+        string libraryName,
+        ModelProfileStoreDocument profileDoc)
+    {
+        ModelProfileEntry? profile = null;
+        if (profileDoc.Models.TryGetValue(libraryName, out var direct))
+        {
+            profile = direct;
+        }
+        else
+        {
+            foreach (var (key, entry) in profileDoc.Models)
+            {
+                if (!string.IsNullOrEmpty(entry.BestMode)
+                    && (key.Equals(libraryName, StringComparison.OrdinalIgnoreCase)
+                        || key.StartsWith($"{libraryName}:", StringComparison.OrdinalIgnoreCase)))
+                {
+                    profile = entry;
+                    break;
+                }
+            }
+        }
+
+        if (profile is null || string.IsNullOrEmpty(profile.BestMode))
+        {
+            return ("-", "-");
+        }
+
+        return (profile.BestMode, profile.BestTps > 0 ? $"{profile.BestTps:F1}" : "-");
+    }
 }

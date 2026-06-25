@@ -255,6 +255,18 @@ public sealed class OllamaApiClient : IDisposable
         }
     }
 
+    public async Task DeleteAsync(string model, CancellationToken cancellationToken = default)
+    {
+        var body = new { name = model };
+        using var request = new HttpRequestMessage(HttpMethod.Delete, $"{_host}/api/delete")
+        {
+            Content = JsonContent.Create(body, options: JsonFileHelper.Options)
+        };
+        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        _tagsCache = null;
+    }
+
     public void Dispose() => _httpClient.Dispose();
 
     private sealed class TagsResponse

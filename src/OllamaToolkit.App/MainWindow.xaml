@@ -192,6 +192,8 @@
                             </DataGridTextColumn>
                             <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
                             <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="85" />
+                            <DataGridTextColumn Header="Fastest Mode" Binding="{Binding BestMode}" Width="90" />
+                            <DataGridTextColumn Header="Best tok/s" Binding="{Binding BestTps}" Width="75" />
                             <DataGridTextColumn Header="Installed" Binding="{Binding Installed}" Width="70" />
                         </DataGrid.Columns>
                     </DataGrid>
@@ -232,14 +234,15 @@
                     </Grid.RowDefinitions>
                     <StackPanel Orientation="Horizontal">
                         <ComboBox x:Name="TestModelCombo" Width="280" Margin="0,0,8,8" SelectionChanged="TestModelCombo_SelectionChanged" />
-                        <TextBlock Text="num_ctx:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,8" />
+                        <TextBlock Text="Context Window Size:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,8" />
                         <TextBox x:Name="TestNumCtxBox" Width="64" Margin="0,0,8,8" Text="8192" />
-                        <TextBlock Text="num_predict:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,8" />
+                        <TextBlock Text="Max Output Frames:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,8" />
                         <TextBox x:Name="TestNumPredictBox" Width="48" Margin="0,0,8,8" Text="32" />
                         <Button Content="Test Selected" Style="{StaticResource ToolkitButton}" Click="TestSelected_Click" />
-                        <Button Content="Test Untested" Style="{StaticResource ToolkitButton}" Click="TestUntested_Click" />
-                        <Button Content="Clear &amp; Rerun Tests" Style="{StaticResource ToolkitButton}" Click="ClearAndRerunTests_Click" />
-                        <Button Content="Stop" Style="{StaticResource ToolkitButton}" Click="StopTest_Click" />
+                        <Button Content="Test Local Untested" Style="{StaticResource ToolkitButton}" Click="TestUntested_Click" />
+                        <Button x:Name="TestUndownloadBtn" Content="Test Undownload" Style="{StaticResource ToolkitButton}" Click="TestUndownload_Click" />
+                        <Button x:Name="StopTestBtn" Content="Stop Test" Style="{StaticResource ToolkitButton}" Click="StopTest_Click" />
+                        <Button Content="Clear All Test Results" Style="{StaticResource ToolkitButton}" Click="ClearAllTestResults_Click" />
                     </StackPanel>
                     <TextBlock x:Name="TestSettingsLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,4" TextWrapping="Wrap" />
                     <StackPanel x:Name="TestProgressPanel" Grid.Row="2" Margin="0,0,0,8" Visibility="Collapsed">
@@ -264,7 +267,7 @@
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshTestResults_Click" />
                         <Button Content="Launch Selected" Style="{StaticResource ToolkitButton}" Click="LaunchFromResults_Click" />
-                        <Button Content="Clear &amp; Rerun Tests" Style="{StaticResource ToolkitButton}" Click="ClearAndRerunTests_Click" />
+                        <Button Content="Clear All Test Results" Style="{StaticResource ToolkitButton}" Click="ClearAllTestResults_Click" />
                     </StackPanel>
                     <DataGrid x:Name="TestResultsGrid" Grid.Row="1" Style="{StaticResource ToolkitDataGrid}"
                               AutoGenerateColumns="False" IsReadOnly="True"

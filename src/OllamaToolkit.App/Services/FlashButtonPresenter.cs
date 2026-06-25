@@ -11,6 +11,12 @@ public enum FlashSuccessStyle
     Info
 }
 
+public enum FlashColorScheme
+{
+    YellowBlack,
+    PurpleBlack
+}
+
 public sealed class FlashButtonPresenter
 {
     private readonly Button _button;
@@ -20,7 +26,9 @@ public sealed class FlashButtonPresenter
     private readonly Brush _idleBorder;
     private readonly Brush _idleForeground;
     private readonly Brush _pendingYellow;
+    private readonly Brush _pendingPurple;
     private readonly Brush _pendingBlack;
+    private FlashColorScheme _colorScheme = FlashColorScheme.YellowBlack;
     private readonly Brush _activeBg;
     private readonly Brush _activeBorder;
     private readonly Brush _activeForeground;
@@ -44,6 +52,7 @@ public sealed class FlashButtonPresenter
         _idleBorder = GetBrush(window, "Brush.PanelBorder");
         _idleForeground = GetBrush(window, "Brush.Text");
         _pendingYellow = GetBrush(window, "Brush.Warning");
+        _pendingPurple = GetBrush(window, "Brush.Purple");
         _pendingBlack = GetBrush(window, "Brush.Bg");
         _activeBg = GetBrush(window, "Brush.ActiveBg");
         _activeBorder = GetBrush(window, "Brush.Active");
@@ -60,8 +69,9 @@ public sealed class FlashButtonPresenter
 
     public bool IsFlashing => _flashing;
 
-    public void BeginFlash()
+    public void BeginFlash(FlashColorScheme scheme = FlashColorScheme.YellowBlack)
     {
+        _colorScheme = scheme;
         _restoreTimer.Stop();
         _flashing = true;
         _flashPhase = true;
@@ -132,9 +142,10 @@ public sealed class FlashButtonPresenter
 
     private void ApplyPendingFlash(bool flashOn)
     {
+        var accent = _colorScheme == FlashColorScheme.PurpleBlack ? _pendingPurple : _pendingYellow;
         _button.Content = _defaultContent;
-        _button.Background = flashOn ? _pendingYellow : _pendingBlack;
-        _button.BorderBrush = flashOn ? _pendingYellow : _pendingBlack;
+        _button.Background = flashOn ? accent : _pendingBlack;
+        _button.BorderBrush = flashOn ? accent : _pendingBlack;
         _button.Foreground = flashOn ? Brushes.Black : Brushes.White;
     }
 

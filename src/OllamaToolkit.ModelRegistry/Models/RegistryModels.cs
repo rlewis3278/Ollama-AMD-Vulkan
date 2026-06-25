@@ -20,7 +20,8 @@ public enum CatalogRowRefreshHighlight
 {
     None,
     Installed,
-    Description
+    Description,
+    Testing
 }
 
 public sealed class CatalogRowViewModel : INotifyPropertyChanged
@@ -39,6 +40,9 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     private CatalogRowRefreshState _refreshState = CatalogRowRefreshState.None;
     private CatalogRowRefreshHighlight _refreshHighlight = CatalogRowRefreshHighlight.None;
     private bool _refreshFlashPhase;
+    private string _bestMode = "-";
+    private string _bestTps = "-";
+    private bool _isTesting;
 
     public required string Name { get; init; }
 
@@ -126,6 +130,24 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
         set => SetField(ref _refreshHighlight, value);
     }
 
+    public string BestMode
+    {
+        get => _bestMode;
+        set => SetField(ref _bestMode, value);
+    }
+
+    public string BestTps
+    {
+        get => _bestTps;
+        set => SetField(ref _bestTps, value);
+    }
+
+    public bool IsTesting
+    {
+        get => _isTesting;
+        set => SetField(ref _isTesting, value);
+    }
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
@@ -138,6 +160,13 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
         field = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
+}
+
+public sealed class UndownloadTestCandidate
+{
+    public required string LibraryName { get; init; }
+    public required string PullTag { get; init; }
+    public long FileSizeBytes { get; init; }
 }
 
 public sealed class TestResultRowViewModel

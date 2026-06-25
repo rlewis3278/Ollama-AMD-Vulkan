@@ -17,6 +17,8 @@
     <Color x:Key="Color.ButtonHover">#FF2A2A2A</Color>
     <Color x:Key="Color.LogBg">#FF000000</Color>
     <Color x:Key="Color.RowAlt">#FF080808</Color>
+    <Color x:Key="Color.Purple">#FF9B59B6</Color>
+    <Color x:Key="Color.PurpleBg">#FF2D1A3A</Color>
 
     <SolidColorBrush x:Key="Brush.Bg" Color="{StaticResource Color.Bg}" />
     <SolidColorBrush x:Key="Brush.Panel" Color="{StaticResource Color.Panel}" />
@@ -33,6 +35,8 @@
     <SolidColorBrush x:Key="Brush.Button" Color="{StaticResource Color.Button}" />
     <SolidColorBrush x:Key="Brush.LogBg" Color="{StaticResource Color.LogBg}" />
     <SolidColorBrush x:Key="Brush.RowAlt" Color="{StaticResource Color.RowAlt}" />
+    <SolidColorBrush x:Key="Brush.Purple" Color="{StaticResource Color.Purple}" />
+    <SolidColorBrush x:Key="Brush.PurpleBg" Color="{StaticResource Color.PurpleBg}" />
 
     <Style TargetType="Window">
         <Setter Property="Background" Value="{StaticResource Brush.Bg}" />
@@ -280,6 +284,16 @@
                     <Condition Binding="{Binding RefreshHighlight}" Value="Description" />
                 </MultiDataTrigger.Conditions>
                 <Setter Property="Background" Value="{StaticResource Brush.InfoBg}" />
+            </MultiDataTrigger>
+            <DataTrigger Binding="{Binding IsTesting}" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.PurpleBg}" />
+            </DataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding RefreshState}" Value="Complete" />
+                    <Condition Binding="{Binding RefreshHighlight}" Value="Testing" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brush.PurpleBg}" />
             </MultiDataTrigger>
             <MultiDataTrigger>
                 <MultiDataTrigger.Conditions>

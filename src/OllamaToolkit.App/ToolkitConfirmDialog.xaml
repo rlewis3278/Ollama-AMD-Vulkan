@@ -1,0 +1,35 @@
+<Window x:Class="OllamaToolkit.App.ToolkitConfirmDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Confirm"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="{StaticResource Brush.Bg}"
+        Foreground="{StaticResource Brush.Text}"
+        MinWidth="420"
+        MaxWidth="560">
+    <Border Margin="16" Padding="16"
+            Background="{StaticResource Brush.Panel}"
+            BorderBrush="{StaticResource Brush.PanelBorder}"
+            BorderThickness="1">
+        <StackPanel>
+            <TextBlock x:Name="MessageText"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,16"
+                       FontSize="14"
+                       LineHeight="20" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="AcceptBtn" Content="Accept"
+                        Style="{StaticResource ToolkitButton}"
+                        Width="96" Margin="0,0,8,0"
+                        Click="AcceptBtn_Click" IsDefault="True" />
+                <Button x:Name="DenyBtn" Content="Deny"
+                        Style="{StaticResource ToolkitButton}"
+                        Width="96"
+                        Click="DenyBtn_Click" IsCancel="True" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

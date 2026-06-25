@@ -87,7 +87,7 @@ This syncs new shell commands and tool events from `updates.jsonl` into the sess
 | 15 | STOP button (Categorize All → Clear Catalog), flash-only template, AI status yellow/black blink, description holdover timing | `83d0ecd` |
 | 16 | **"make sure the archive of our conversation is up to date and git is up to date"** | Sync `updates.jsonl` → session log; extend this document; docs commit |
 | 17 | Asked what `num_ctx` / `num_predict` do in Testing Suite | Explained Ollama context window vs max output tokens; how toolkit uses them in benchmarks |
-| 18 | **Testing Suite UX + Test Undownload plan** (approved); **"update git and log before execute, then execute"** | Pre-execution archive sync; Phase 9 implementation (pending) |
+| 18 | **Testing Suite UX + Test Undownload plan** (approved); **"update git and log before execute, then execute"** | Phase 9: labels, AI per-model settings, Stop Test, Clear All dialog, Test Undownload, catalog columns |
 
 ---
 
@@ -640,13 +640,27 @@ src/OllamaToolkit.ModelCategory/UsageCategoryStoreService.cs
 
 ---
 
-## Phase 9 — Testing Suite UX + Test Undownload (in progress)
+## Phase 9 — Testing Suite UX + Test Undownload
 
 **User request:** Relabel benchmark controls; AI optimum settings per model before 5-mode test; red Stop Test; Clear All dialog (no rerun); Test Undownload (pull→test→delete); Model Library Fastest Mode / Best tok/s columns.
 
-**Plan:** `plan.md` (session `019ef98d-ebd9-7ea0-b305-ee7496b813b8`).
+**Deliverables:**
+- Labels: Context Window Size, Max Output Frames, Test Local Untested, Test Undownload, Stop Test, Clear All Test Results
+- `ResolveBenchmarkSettingsForModelAsync` — AI advisor per model before each 5-mode run
+- `CancelTestOperationsAsync` — red Stop Test until idle; clears flashing test buttons
+- `ToolkitConfirmDialog` — Accept/Deny for Clear All and Test Undownload
+- `Test Undownload` — purple/black flash; smallest-to-largest pull→test→delete queue
+- Model Library: Fastest Mode, Best tok/s columns; purple `IsTesting` row highlight
+- `OllamaApiClient.DeleteAsync`, `ModelSizeFormatter.TryParseSizeLabelToBytes`, `FlashColorScheme.PurpleBlack`
 
-**Status:** Pre-execution archive committed; implementation pending.
+**Key files:**
+```
+src/OllamaToolkit.App/MainWindow.xaml(.cs)
+src/OllamaToolkit.App/ToolkitConfirmDialog.xaml(.cs)
+src/OllamaToolkit.App/Services/FlashButtonPresenter.cs
+src/OllamaToolkit.Core/Ollama/OllamaApiClient.cs
+src/OllamaToolkit.ModelRegistry/ModelRegistryService.cs
+```
 
 ---
 
@@ -732,7 +746,9 @@ f1b60c6  feat: refresh UX — blue descriptions, enrich, clear catalog
 16bc435  fix: no auto file-size, red selection, clear cancels ops
 fd02fcc  fix: full AI descriptions, no tab auto-refresh, CTRL hint
 83d0ecd  feat: STOP button, flash fixes, AI status blink
-         docs: archive sync through 83d0ecd — see branch HEAD on csharp-wpf-greenfield
+d3a7b06  docs: archive sync through 83d0ecd (Phase 8)
+090f39a  docs: pre-execution archive sync for Phase 9 plan
+         feat: Phase 9 Testing Suite UX + Test Undownload — see branch HEAD
 ```
 
 ### Archive files
@@ -746,4 +762,4 @@ fd02fcc  fix: full AI descriptions, no tab auto-refresh, CTRL hint
 
 ---
 
-*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated: 2026-06-25 — Phase 8 Model Library refresh UX through `83d0ecd`; session log synced to updates.jsonl.*
+*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated: 2026-06-25 — Phase 9 Testing Suite UX + Test Undownload; session log synced to updates.jsonl.*

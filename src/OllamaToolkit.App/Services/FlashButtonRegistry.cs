@@ -21,7 +21,7 @@ public sealed class FlashButtonRegistry
         return presenter;
     }
 
-    public bool TryBegin(Button button)
+    public bool TryBegin(Button button, FlashColorScheme scheme = FlashColorScheme.YellowBlack)
     {
         var presenter = For(button);
         if (presenter.IsFlashing)
@@ -29,7 +29,7 @@ public sealed class FlashButtonRegistry
             return false;
         }
 
-        presenter.BeginFlash();
+        presenter.BeginFlash(scheme);
         return true;
     }
 

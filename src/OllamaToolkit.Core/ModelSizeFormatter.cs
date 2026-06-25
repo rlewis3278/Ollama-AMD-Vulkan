@@ -43,4 +43,38 @@ public static class ModelSizeFormatter
 
         return label.Trim();
     }
+
+    public static bool TryParseSizeLabelToBytes(string? label, out long bytes)
+    {
+        bytes = 0;
+        if (string.IsNullOrWhiteSpace(label) || label == "-")
+        {
+            return false;
+        }
+
+        var text = label.Trim();
+        var dash = text.IndexOf('-');
+        if (dash > 0)
+        {
+            text = text[..dash].Trim();
+        }
+
+        var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 2 || !double.TryParse(parts[0], out var value))
+        {
+            return false;
+        }
+
+        var unit = parts[1].ToUpperInvariant();
+        bytes = unit switch
+        {
+            "GB" => (long)(value * 1_073_741_824.0),
+            "MB" => (long)(value * 1_048_576.0),
+            "KB" => (long)(value * 1024.0),
+            "B" => (long)value,
+            _ => 0
+        };
+
+        return bytes > 0;
+    }
 }

@@ -10,7 +10,9 @@ using OllamaToolkit.AiAssist;
 using OllamaToolkit.AiAssist.Models;
 using OllamaToolkit.App.Services;
 using OllamaToolkit.BenchmarkRunner;
+using OllamaToolkit.BenchmarkStore;
 using OllamaToolkit.BenchmarkStore.Models;
+using OllamaToolkit.Core;
 using OllamaToolkit.Core.Modes;
 using OllamaToolkit.Core.Ollama;
 using OllamaToolkit.Core.Settings;
@@ -28,6 +30,10 @@ public partial class MainWindow : Window
     private readonly ModeCardPresenter _modeCardPresenter;
     private CancellationTokenSource? _chatCts;
     private CancellationTokenSource? _benchmarkCts;
+    private CancellationTokenSource? _undownloadCts;
+    private int _testOperations;
+    private Task? _activeTestWork;
+    private readonly List<Button> _activeTestFlashButtons = new();
     private string? _runModel;
     private readonly List<ChatMessage> _chatMessages = new();
     private readonly DispatcherTimer _activityTimer;
@@ -100,6 +106,7 @@ public partial class MainWindow : Window
     {
         ApplyCatalogDescriptionModeUi();
         UpdateCatalogStopButtonUi();
+        UpdateStopTestButtonUi();
         InitModeCards();
         InitAiFeatureToggles();
         InitCategoryFilter();
@@ -114,7 +121,7 @@ public partial class MainWindow : Window
         CategoryFilterCombo.SelectedIndex = 0;
     }
 
-    private static Button? TaskButton(object sender) => sender as Button;
+    private static Button? TaskButton(object? sender) => sender as Button;
 
     private bool BeginTaskFlash(object sender)
     {
@@ -144,6 +151,150 @@ public partial class MainWindow : Window
         if (TaskButton(sender) is { } button)
         {
             _flashButtons.EndIdle(button);
+        }
+    }
+
+    private bool BeginTestOperation(object? sender, FlashColorScheme scheme = FlashColorScheme.YellowBlack)
+    {
+        _testOperations++;
+        UpdateStopTestButtonUi();
+
+        if (TaskButton(sender) is not { } button)
+        {
+            return true;
+        }
+
+        if (!_flashButtons.TryBegin(button, scheme))
+        {
+            _testOperations--;
+            UpdateStopTestButtonUi();
+            return false;
+        }
+
+        if (!_activeTestFlashButtons.Contains(button))
+        {
+            _activeTestFlashButtons.Add(button);
+        }
+
+        return true;
+    }
+
+    private void EndTestOperationSuccess(
+        object? sender,
+        string successLabel = "Complete",
+        int holdSeconds = 10,
+        Action? onRestored = null)
+    {
+        if (TaskButton(sender) is { } button)
+        {
+            _flashButtons.EndSuccess(button, successLabel, holdSeconds, onRestored);
+            _activeTestFlashButtons.Remove(button);
+        }
+
+        if (_testOperations > 0)
+        {
+            _testOperations--;
+        }
+
+        UpdateStopTestButtonUi();
+    }
+
+    private void FinishTestOperation(object? sender, bool success, bool cancelled)
+    {
+        if (TaskButton(sender) is { } button)
+        {
+            if (success && !cancelled)
+            {
+                _flashButtons.EndSuccess(button, "Complete", 10);
+            }
+            else
+            {
+                _flashButtons.EndIdle(button);
+            }
+
+            _activeTestFlashButtons.Remove(button);
+        }
+
+        if (_testOperations > 0)
+        {
+            _testOperations--;
+        }
+
+        UpdateStopTestButtonUi();
+        ClearCatalogTestingHighlights();
+    }
+
+    private void UpdateStopTestButtonUi()
+    {
+        if (_testOperations > 0)
+        {
+            StopTestBtn.Background = (Brush)FindResource("Brush.Accent");
+            StopTestBtn.BorderBrush = (Brush)FindResource("Brush.Accent");
+            StopTestBtn.Foreground = Brushes.White;
+        }
+        else
+        {
+            StopTestBtn.Background = (Brush)FindResource("Brush.Button");
+            StopTestBtn.BorderBrush = (Brush)FindResource("Brush.PanelBorder");
+            StopTestBtn.Foreground = (Brush)FindResource("Brush.Text");
+        }
+    }
+
+    private async Task CancelTestOperationsAsync()
+    {
+        _benchmarkCts?.Cancel();
+        _undownloadCts?.Cancel();
+
+        if (_activeTestWork is not null)
+        {
+            try
+            {
+                await _activeTestWork.ConfigureAwait(true);
+            }
+            catch
+            {
+                // Work item may throw on cancel.
+            }
+        }
+
+        await UiDispatcher.InvokeAsync(() =>
+        {
+            foreach (var button in _activeTestFlashButtons.ToList())
+            {
+                _flashButtons.EndIdle(button);
+            }
+
+            _activeTestFlashButtons.Clear();
+            _testOperations = 0;
+            UpdateStopTestButtonUi();
+            ClearCatalogTestingHighlights();
+            TestStatusLabel.Text = "Benchmark queue stopped.";
+        }).ConfigureAwait(true);
+    }
+
+    private void SetCatalogTestingHighlight(string modelOrLibrary, bool on)
+    {
+        var library = modelOrLibrary.Split(':')[0];
+        if (!_catalogRowByName.TryGetValue(library, out var row))
+        {
+            return;
+        }
+
+        row.IsTesting = on;
+        row.RefreshHighlight = on ? CatalogRowRefreshHighlight.Testing : CatalogRowRefreshHighlight.None;
+        row.RefreshState = on ? CatalogRowRefreshState.Complete : CatalogRowRefreshState.None;
+    }
+
+    private void ClearCatalogTestingHighlights()
+    {
+        foreach (var row in _catalogRows)
+        {
+            if (row.IsTesting)
+            {
+                row.IsTesting = false;
+                row.RefreshHighlight = CatalogRowRefreshHighlight.None;
+                row.RefreshState = CatalogRowRefreshState.None;
+            }
         }
     }
 
@@ -665,7 +816,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!BeginTaskFlash(sender))
+        if (!BeginTestOperation(sender))
         {
             return;
         }
@@ -675,7 +826,7 @@ public partial class MainWindow : Window
 
     private async void TestUntested_Click(object sender, RoutedEventArgs e)
     {
-        if (!BeginTaskFlash(sender))
+        if (!BeginTestOperation(sender))
         {
             return;
         }
@@ -683,25 +834,43 @@ public partial class MainWindow : Window
         await RunUntestedBenchmarkQueueAsync(sender).ConfigureAwait(true);
     }
 
-    private async void ClearAndRerunTests_Click(object sender, RoutedEventArgs e)
+    private async void TestUndownload_Click(object sender, RoutedEventArgs e)
     {
-        if (MessageBox.Show(
-                "Clear all benchmark data?\n\n"
-                + "This removes model profiles, saved reports, and AI benchmark insights. "
-                + "Every installed model will be marked untested, then the full test queue will start.",
-                "Clear & Rerun Tests",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        const string message =
+            "Warning: Each LLM that has not been downloaded will be downloaded from the smallest file size to the largest file size. "
+            + "Only one LLM that is not part of the downloaded list will be downloaded at a time and tested. "
+            + "When a test is complete the LLM will be deleted and the data will be recorded and retained. "
+            + "This will happen sequentially until all undownloaded LLMs have been tested.";
+
+        if (!ToolkitConfirmDialog.ShowAccept(this, message, "Test Undownload"))
         {
             return;
         }
 
-        if (!BeginTaskFlash(sender))
+        if (!BeginTestOperation(sender, FlashColorScheme.PurpleBlack))
         {
             return;
         }
 
-        _benchmarkCts?.Cancel();
+        await RunUndownloadTestQueueAsync(sender).ConfigureAwait(true);
+    }
+
+    private async void ClearAllTestResults_Click(object sender, RoutedEventArgs e)
+    {
+        const string message =
+            "Warning: All Test Data will be Cleared and cannot be Restored. "
+            + "The tests must be rerun again to get Data.";
+
+        if (!ToolkitConfirmDialog.ShowAccept(this, message, "Clear All Test Results"))
+        {
+            return;
+        }
+
+        if (_testOperations > 0)
+        {
+            await CancelTestOperationsAsync().ConfigureAwait(true);
+        }
+
         var cleared = await _svc.Profiles.ClearAllTestDataAsync().ConfigureAwait(true);
         await _svc.BenchmarkInsights.ClearAllAsync().ConfigureAwait(true);
         await _svc.BenchmarkSettingsAdvisor.ClearAllAsync().ConfigureAwait(true);
@@ -715,13 +884,13 @@ public partial class MainWindow : Window
             TestOverallProgress.Value = 0;
             TestLogBox.Text +=
                 $"--- Cleared all test data ({cleared.ReportDirsRemoved} report folder(s)) ---{Environment.NewLine}";
-            TestStatusLabel.Text = "All test data cleared. Starting benchmark queue…";
+            TestStatusLabel.Text = "All test data cleared.";
             await RefreshModelsUiAsync().ConfigureAwait(true);
             await RefreshTestResultsUiAsync().ConfigureAwait(true);
+            await RefreshCatalogUiAsync().ConfigureAwait(true);
         }).ConfigureAwait(true);
 
         _svc.ActivityLog.Write("Benchmark", $"Cleared test data: {cleared.ReportDirsRemoved} report dirs");
-        await RunUntestedBenchmarkQueueAsync(sender).ConfigureAwait(true);
     }
 
     private async Task RunUntestedBenchmarkQueueAsync(object? flashSender = null)
@@ -733,10 +902,7 @@ public partial class MainWindow : Window
             await UiDispatcher.InvokeAsync(() =>
             {
                 TestStatusLabel.Text = "No untested models.";
-                if (flashSender is not null)
-                {
-                    EndTaskFlashIdle(flashSender);
-                }
+                FinishTestOperation(flashSender, success: false, cancelled: false);
             }).ConfigureAwait(true);
             return;
         }
@@ -795,6 +961,64 @@ public partial class MainWindow : Window
         var ctx = int.TryParse(ctxText, out var c) && c > 0 ? c : 8192;
         var pred = int.TryParse(predictText, out var p) && p > 0 ? p : 32;
         return (ctx, pred);
+    }
+
+    private async Task<(int NumCtx, int NumPredict)> ResolveBenchmarkSettingsForModelAsync(
+        string model,
+        CancellationToken cancellationToken)
+    {
+        var summaries = await _svc.Profiles.GetAllSummariesAsync(cancellationToken).ConfigureAwait(false);
+        var summary = summaries.FirstOrDefault(s => s.Model.Equals(model, StringComparison.OrdinalIgnoreCase));
+        if (summary is null)
+        {
+            var sizeGb = 4.0;
+            var categories = await GetCategoryMapAsync().ConfigureAwait(true);
+            var lib = model.Split(':')[0];
+            var category = categories.TryGetValue(lib, out var c) ? c : string.Empty;
+            var catalogRows = await _svc.Registry.GetCatalogRowsAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            var catalogRow = catalogRows.FirstOrDefault(r =>
+                r.Name.Equals(lib, StringComparison.OrdinalIgnoreCase));
+            if (catalogRow is not null
+                && ModelSizeFormatter.TryParseSizeLabelToBytes(catalogRow.FileSize, out var bytes))
+            {
+                sizeGb = bytes / 1_073_741_824.0;
+            }
+
+            summary = new ModelProfileSummary
+            {
+                Model = model,
+                SizeGB = sizeGb,
+                RecommendedCtx = ProfileStoreService.GetRecommendedBenchmarkNumCtx(sizeGb),
+                Category = category
+            };
+        }
+
+        var categoriesMap = await GetCategoryMapAsync().ConfigureAwait(true);
+        var library = model.Split(':')[0];
+        var modelCategory = categoriesMap.TryGetValue(library, out var cat) ? cat : string.Empty;
+
+        EnterAiActivity();
+        BenchmarkSettingsEntry settings;
+        try
+        {
+            settings = await _svc.BenchmarkSettingsAdvisor
+                .SuggestAsync(summary, modelCategory, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            ExitAiActivity();
+        }
+
+        await UiDispatcher.InvokeAsync(() =>
+        {
+            TestNumCtxBox.Text = settings.NumCtx.ToString();
+            TestNumPredictBox.Text = settings.NumPredict.ToString();
+            TestSettingsLabel.Text = settings.Rationale ?? string.Empty;
+        }).ConfigureAwait(true);
+
+        return (settings.NumCtx, settings.NumPredict);
     }
 
     private void BuildTestModeProgressRows(IReadOnlyList<string> modes)
@@ -933,36 +1157,232 @@ public partial class MainWindow : Window
         _benchmarkCts?.Cancel();
         _benchmarkCts = new CancellationTokenSource();
         var ct = _benchmarkCts.Token;
-        var (numCtx, numPredict) = ParseBenchmarkSpinners(TestNumCtxBox.Text, TestNumPredictBox.Text);
-        var benchmarkModes = new[] { "CPU", "APU", "GPU", "Hybrid", "ROCm" };
-        var aiSummarizer = await _svc.Summarizer.ResolveAsync(cancellationToken: ct).ConfigureAwait(true);
+        var workTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _activeTestWork = workTcs.Task;
 
-        await _svc.WorkQueue.EnqueueAsync(async token =>
+        await _svc.WorkQueue.EnqueueAsync(async _ =>
+        {
+            var cancelled = false;
+            try
+            {
+                var aiSummarizer = await _svc.Summarizer.ResolveAsync(cancellationToken: ct).ConfigureAwait(false);
+
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    TestLogBox.Text += $"--- Benchmark queue started ({models.Count} model(s)) ---{Environment.NewLine}";
+                    if (!string.IsNullOrWhiteSpace(aiSummarizer))
+                    {
+                        TestLogBox.Text += $"AI insights LLM: {aiSummarizer}{Environment.NewLine}";
+                    }
+
+                    TestLogBox.CaretIndex = TestLogBox.Text.Length;
+                    TestLogBox.ScrollToEnd();
+                }).ConfigureAwait(false);
+
+                try
+                {
+                    await RunBenchmarkQueueCoreAsync(
+                        models,
+                        flashSender: null,
+                        externalCt: ct,
+                        modelIndexOffset: 0,
+                        totalModels: models.Count).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    cancelled = true;
+                }
+
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    await RefreshModelsUiAsync().ConfigureAwait(true);
+                    await RefreshTestResultsUiAsync().ConfigureAwait(true);
+                    await RefreshCatalogUiAsync().ConfigureAwait(true);
+                    TestOverallProgress.Value = 100;
+                    TestStatusLabel.Text = cancelled
+                        ? "Benchmark queue stopped."
+                        : "Benchmark queue complete.";
+                    FinishTestOperation(flashSender, success: !cancelled, cancelled);
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                workTcs.TrySetResult();
+            }
+        }).ConfigureAwait(true);
+
+        await workTcs.Task.ConfigureAwait(true);
+    }
+
+    private async Task RunUndownloadTestQueueAsync(object? flashSender = null)
+    {
+        var candidates = await _svc.Registry.GetUndownloadTestQueueAsync().ConfigureAwait(true);
+        if (candidates.Count == 0)
         {
             await UiDispatcher.InvokeAsync(() =>
             {
-                TestLogBox.Text += $"--- Benchmark queue started ({models.Count} model(s)) ---{Environment.NewLine}";
-                if (!string.IsNullOrWhiteSpace(aiSummarizer))
-                {
-                    TestLogBox.Text += $"AI insights LLM: {aiSummarizer}{Environment.NewLine}";
-                }
+                TestStatusLabel.Text = "No undownloaded models need testing.";
+                FinishTestOperation(flashSender, success: false, cancelled: false);
+            }).ConfigureAwait(true);
+            return;
+        }
 
-                TestLogBox.CaretIndex = TestLogBox.Text.Length;
-                TestLogBox.ScrollToEnd();
-            }).ConfigureAwait(false);
+        _undownloadCts?.Cancel();
+        _undownloadCts = new CancellationTokenSource();
+        var ct = _undownloadCts.Token;
+        var workTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _activeTestWork = workTcs.Task;
 
-            for (var modelIndex = 0; modelIndex < models.Count; modelIndex++)
+        await UiDispatcher.InvokeAsync(() =>
+        {
+            TestLogBox.Text +=
+                $"--- Undownload test queue ({candidates.Count} model(s), smallest file size first) ---{Environment.NewLine}";
+            TestLogBox.CaretIndex = TestLogBox.Text.Length;
+            TestLogBox.ScrollToEnd();
+            TestStatusLabel.Text =
+                $"Queue: {string.Join(" -> ", candidates.Select(c => c.LibraryName))}";
+        }).ConfigureAwait(true);
+
+        await _svc.WorkQueue.EnqueueAsync(async _ =>
+        {
+            var cancelled = false;
+            try
             {
-                var model = models[modelIndex];
-                if (ct.IsCancellationRequested)
+                for (var i = 0; i < candidates.Count; i++)
                 {
-                    break;
+                    var candidate = candidates[i];
+                    if (ct.IsCancellationRequested)
+                    {
+                        cancelled = true;
+                        break;
+                    }
+
+                    var pullTag = candidate.PullTag;
+                    await UiDispatcher.InvokeAsync(() =>
+                    {
+                        SetCatalogTestingHighlight(candidate.LibraryName, on: true);
+                        TestStatusLabel.Text =
+                            $"[{i + 1}/{candidates.Count}] Pulling {pullTag}…";
+                    }).ConfigureAwait(false);
+
+                    try
+                    {
+                        var pullProgress = new Progress<string>(s =>
+                            _svc.ActivityLog.Write("Download", s));
+                        await _svc.ApiClient.PullAsync(pullTag, pullProgress, ct).ConfigureAwait(false);
+                        _svc.Profiles.ClearCache();
+
+                        await RunBenchmarkQueueCoreAsync(
+                            new[] { pullTag },
+                            flashSender: null,
+                            externalCt: ct,
+                            modelIndexOffset: 0,
+                            totalModels: candidates.Count)
+                            .ConfigureAwait(false);
+
+                        if (ct.IsCancellationRequested)
+                        {
+                            cancelled = true;
+                        }
+
+                        await _svc.ApiClient.DeleteAsync(pullTag, ct).ConfigureAwait(false);
+                        _svc.Profiles.ClearCache();
+
+                        await UiDispatcher.InvokeAsync(async () =>
+                        {
+                            await RefreshModelsUiAsync().ConfigureAwait(true);
+                            await RefreshCatalogUiAsync().ConfigureAwait(true);
+                            await RefreshTestResultsUiAsync().ConfigureAwait(true);
+                        }).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        cancelled = true;
+                        try
+                        {
+                            await _svc.ApiClient.DeleteAsync(pullTag, CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            // Best-effort cleanup after cancel.
+                        }
+
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        await UiDispatcher.InvokeAsync(() =>
+                        {
+                            TestLogBox.Text += $"FAIL ({pullTag}): {ex.Message}{Environment.NewLine}";
+                            TestStatusLabel.Text = $"Undownload test failed for {pullTag}: {ex.Message}";
+                        }).ConfigureAwait(false);
+
+                        try
+                        {
+                            await _svc.ApiClient.DeleteAsync(pullTag, CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            // Best-effort cleanup after failure.
+                        }
+                    }
+                    finally
+                    {
+                        await UiDispatcher.InvokeAsync(() =>
+                            SetCatalogTestingHighlight(candidate.LibraryName, on: false)).ConfigureAwait(false);
+                    }
                 }
 
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    ResetTestProgressUi(model, modelIndex, models.Count, benchmarkModes, aiSummarizer);
-                    TestStatusLabel.Text = $"Starting benchmark for {model} ({modelIndex + 1}/{models.Count})…";
+                    TestStatusLabel.Text = cancelled
+                        ? "Undownload test queue stopped."
+                        : "Undownload test queue complete.";
+                    FinishTestOperation(flashSender, success: !cancelled, cancelled);
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                workTcs.TrySetResult();
+            }
+        }).ConfigureAwait(true);
+
+        await workTcs.Task.ConfigureAwait(true);
+    }
+
+    private async Task RunBenchmarkQueueCoreAsync(
+        IReadOnlyList<string> models,
+        object? flashSender,
+        CancellationToken externalCt,
+        int modelIndexOffset,
+        int totalModels)
+    {
+        var ct = externalCt;
+        var benchmarkModes = new[] { "CPU", "APU", "GPU", "Hybrid", "ROCm" };
+        var aiSummarizer = await _svc.Summarizer.ResolveAsync(cancellationToken: ct).ConfigureAwait(false);
+
+        for (var modelIndex = 0; modelIndex < models.Count; modelIndex++)
+        {
+            var model = models[modelIndex];
+            ct.ThrowIfCancellationRequested();
+
+            var globalIndex = modelIndexOffset + modelIndex;
+            await UiDispatcher.InvokeAsync(() =>
+            {
+                SetCatalogTestingHighlight(model, on: true);
+                ResetTestProgressUi(model, globalIndex, totalModels, benchmarkModes, aiSummarizer);
+                TestStatusLabel.Text = $"Resolving AI benchmark settings for {model}…";
+            }).ConfigureAwait(false);
+
+            try
+            {
+                var (numCtx, numPredict) = await ResolveBenchmarkSettingsForModelAsync(model, ct)
+                    .ConfigureAwait(false);
+
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    TestStatusLabel.Text =
+                        $"Benchmarking {model} ({globalIndex + 1}/{totalModels}) — num_ctx={numCtx}, num_predict={numPredict}…";
                 }).ConfigureAwait(false);
 
                 var log = new Progress<string>(line =>
@@ -980,67 +1400,49 @@ public partial class MainWindow : Window
                     UiDispatcher.InvokeAsync(() => ApplyBenchmarkProgressUpdate(update));
                 });
 
-                try
-                {
-                    await _svc.BenchmarkRunner.RunAsync(
-                        model,
-                        numPredict: numPredict,
-                        numCtx: numCtx,
-                        modelIndex: modelIndex,
-                        modelCount: models.Count,
-                        aiSummarizerModel: aiSummarizer,
-                        log: log,
-                        progress: progress,
-                        cancellationToken: ct)
-                        .ConfigureAwait(false);
+                await _svc.BenchmarkRunner.RunAsync(
+                    model,
+                    numPredict: numPredict,
+                    numCtx: numCtx,
+                    modelIndex: globalIndex,
+                    modelCount: totalModels,
+                    aiSummarizerModel: aiSummarizer,
+                    log: log,
+                    progress: progress,
+                    cancellationToken: ct)
+                    .ConfigureAwait(false);
 
-                    _svc.Profiles.ClearCache();
-                    var summary = (await _svc.Profiles.GetAllSummariesAsync(ct).ConfigureAwait(false))
-                        .FirstOrDefault(s => s.Model.Equals(model, StringComparison.OrdinalIgnoreCase));
-                    if (summary is not null)
-                    {
-                        await _svc.BenchmarkInsights.InterpretProfileAsync(summary, ct).ConfigureAwait(false);
-                        await _svc.BenchmarkInsights.DiagnoseFailuresAsync(summary, ct).ConfigureAwait(false);
-                    }
-
-                    await UiDispatcher.InvokeAsync(async () =>
-                    {
-                        await RefreshModelsUiAsync().ConfigureAwait(true);
-                        await RefreshTestResultsUiAsync().ConfigureAwait(true);
-                    }).ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                _svc.Profiles.ClearCache();
+                var summary = (await _svc.Profiles.GetAllSummariesAsync(ct).ConfigureAwait(false))
+                    .FirstOrDefault(s => s.Model.Equals(model, StringComparison.OrdinalIgnoreCase));
+                if (summary is not null)
                 {
-                    await UiDispatcher.InvokeAsync(() =>
-                    {
-                        TestLogBox.Text += $"FAIL ({model}): {ex.Message}{Environment.NewLine}";
-                        TestStatusLabel.Text = $"Benchmark failed for {model}: {ex.Message}";
-                    }).ConfigureAwait(false);
+                    await _svc.BenchmarkInsights.InterpretProfileAsync(summary, ct).ConfigureAwait(false);
+                    await _svc.BenchmarkInsights.DiagnoseFailuresAsync(summary, ct).ConfigureAwait(false);
                 }
             }
-
-            await UiDispatcher.InvokeAsync(() =>
+            catch (OperationCanceledException)
             {
-                TestOverallProgress.Value = 100;
-                TestStatusLabel.Text = ct.IsCancellationRequested
-                    ? "Benchmark queue stopped."
-                    : "Benchmark queue complete.";
-                if (flashSender is not null)
+                throw;
+            }
+            catch (Exception ex)
+            {
+                await UiDispatcher.InvokeAsync(() =>
                 {
-                    if (ct.IsCancellationRequested)
-                    {
-                        EndTaskFlashIdle(flashSender);
-                    }
-                    else
-                    {
-                        EndTaskFlashSuccess(flashSender, "Complete", 10);
-                    }
-                }
-            }).ConfigureAwait(false);
-        }).ConfigureAwait(true);
+                    TestLogBox.Text += $"FAIL ({model}): {ex.Message}{Environment.NewLine}";
+                    TestStatusLabel.Text = $"Benchmark failed for {model}: {ex.Message}";
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                await UiDispatcher.InvokeAsync(() => SetCatalogTestingHighlight(model, on: false))
+                    .ConfigureAwait(false);
+            }
+        }
     }
 
-    private void StopTest_Click(object sender, RoutedEventArgs e) => _benchmarkCts?.Cancel();
+    private async void StopTest_Click(object sender, RoutedEventArgs e) =>
+        await CancelTestOperationsAsync().ConfigureAwait(true);
 
     private async void SendChat_Click(object sender, RoutedEventArgs e) => await SendChatAsync(sender).ConfigureAwait(true);
 
