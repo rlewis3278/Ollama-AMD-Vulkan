@@ -5,6 +5,7 @@
         Height="820" Width="1180"
         MinHeight="640" MinWidth="960"
         WindowStartupLocation="CenterScreen"
+        WindowState="Maximized"
         Background="{StaticResource Brush.Bg}">
     <Grid Background="{StaticResource Brush.Bg}">
         <Grid.RowDefinitions>
