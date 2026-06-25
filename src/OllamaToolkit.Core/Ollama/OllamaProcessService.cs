@@ -81,14 +81,17 @@ public sealed class OllamaProcessService
         }
 
         StopServeProcess();
-        _serveProcess = Process.Start(new ProcessStartInfo
+        var startInfo = new ProcessStartInfo
         {
             FileName = servePath,
             Arguments = "serve",
             UseShellExecute = false,
             CreateNoWindow = true,
             WindowStyle = ProcessWindowStyle.Hidden
-        });
+        };
+        ApplyManagedEnvToStartInfo(startInfo);
+        _serveProcess = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Failed to start ollama serve.");
 
         return Task.CompletedTask;
     }
@@ -101,11 +104,8 @@ public sealed class OllamaProcessService
         await StopAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         if (autoStart)
         {
-            var result = await EnsureApiReadyAsync(timeoutSec, cancellationToken).ConfigureAwait(false);
-            if (!result.Success)
-            {
-                throw new InvalidOperationException(result.Message);
-            }
+            await StartServeProcessAsync(cancellationToken).ConfigureAwait(false);
+            await WaitForApiReadyAsync(timeoutSec, autoStart: false, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -267,5 +267,21 @@ public sealed class OllamaProcessService
         }
 
         return list;
+    }
+
+    private static void ApplyManagedEnvToStartInfo(ProcessStartInfo startInfo)
+    {
+        foreach (var name in ConfigPaths.ManagedEnvironmentVariables)
+        {
+            var value = System.Environment.GetEnvironmentVariable(name);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                startInfo.Environment.Remove(name);
+            }
+            else
+            {
+                startInfo.Environment[name] = value;
+            }
+        }
     }
 }

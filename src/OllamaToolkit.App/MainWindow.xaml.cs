@@ -698,8 +698,23 @@ public partial class MainWindow : Window
 
         var previousMode = _svc.ModeService.DetectCurrentMode();
         var restart = RestartCheck.IsChecked == true;
+        if (!restart)
+        {
+            var proceed = MessageBox.Show(
+                "Env vars will be saved but Ollama only reads them at startup. "
+                + "The running backend will not change until you restart Ollama (check the box or restart manually). "
+                + "Apply anyway?",
+                "Restart Ollama Recommended",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (proceed != MessageBoxResult.Yes)
+            {
+                return;
+            }
+        }
+
         _modeCardPresenter.BeginTransition(previousMode, tag);
-        ModeStatusLabel.Text = $"Applying {tag}…";
+        ModeStatusLabel.Text = restart ? $"Applying {tag} and restarting Ollama…" : $"Applying {tag}…";
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
@@ -707,12 +722,18 @@ public partial class MainWindow : Window
             {
                 await _svc.ModeService.ApplyModeAsync(mode, restartOllama: restart, cancellationToken: ct)
                     .ConfigureAwait(false);
-                _svc.ActivityLog.Write("Task", $"Applied mode {mode}.");
+                _svc.ApiClient.InvalidateCaches();
+                var envSummary = _svc.ModeService.GetManagedEnvSummary();
+                _svc.ActivityLog.Write("Task", restart
+                    ? $"Applied mode {mode} and restarted Ollama. Env: {envSummary}"
+                    : $"Applied mode {mode} env (no restart). Env: {envSummary}");
                 await UiDispatcher.InvokeAsync(async () =>
                 {
                     _modeCardPresenter.EndTransition();
                     await RefreshModesUiAsync().ConfigureAwait(true);
-                    ModeStatusLabel.Text = $"Current mode: {mode} (applied) | Ollama restarted: {restart}";
+                    ModeStatusLabel.Text = restart
+                        ? $"Current mode: {mode} — Ollama restarted with new backend"
+                        : $"Current mode: {mode} — env saved; restart Ollama to activate backend";
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -835,18 +856,20 @@ public partial class MainWindow : Window
 
         MainTabs.SelectedItem = ModelRunTab;
         _runModel = model.Model;
-        ModelRunStatus.Text = $"Loading {model.Model} via ollama run (no server restart)...";
+        ModelRunStatus.Text = $"Applying {model.BestMode} and restarting Ollama…";
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
             try
             {
-                await _svc.ModeService.ApplyModeEnvAsync(mode, cancellationToken: ct).ConfigureAwait(false);
+                await _svc.ModeService.ApplyModeWithRestartAsync(mode, cancellationToken: ct)
+                    .ConfigureAwait(false);
+                _svc.ApiClient.InvalidateCaches();
                 await _svc.ModelSessions.SwitchToModelAsync(model.Model, warmLoad: true, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     ModelRunStatus.Text =
-                        $"{model.Model} | Mode env: {model.BestMode} ({model.BestMetricDisplay}) | Loaded via ollama run";
+                        $"{model.Model} | {model.BestMode} ({model.BestMetricDisplay}) | Ollama restarted, model loaded";
                     ChatHistory.Text = string.Empty;
                     _chatMessages.Clear();
                     EndTaskFlashSuccess(sender, "Launched");
@@ -3131,18 +3154,20 @@ public partial class MainWindow : Window
 
         MainTabs.SelectedItem = ModelRunTab;
         _runModel = model.Model;
-        ModelRunStatus.Text = $"Loading {model.Model} via ollama run (no server restart)...";
+        ModelRunStatus.Text = $"Applying {model.BestMode} and restarting Ollama…";
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
             try
             {
-                await _svc.ModeService.ApplyModeEnvAsync(mode, cancellationToken: ct).ConfigureAwait(false);
+                await _svc.ModeService.ApplyModeWithRestartAsync(mode, cancellationToken: ct)
+                    .ConfigureAwait(false);
+                _svc.ApiClient.InvalidateCaches();
                 await _svc.ModelSessions.SwitchToModelAsync(model.Model, warmLoad: true, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     ModelRunStatus.Text =
-                        $"{model.Model} | Mode env: {model.BestMode} ({model.BestMetricDisplay}) | Loaded via ollama run";
+                        $"{model.Model} | {model.BestMode} ({model.BestMetricDisplay}) | Ollama restarted, model loaded";
                     ChatHistory.Text = string.Empty;
                     _chatMessages.Clear();
                 }).ConfigureAwait(false);

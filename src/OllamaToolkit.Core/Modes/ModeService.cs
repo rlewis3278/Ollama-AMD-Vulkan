@@ -44,6 +44,32 @@ public sealed class ModeService
         await ApplyModeAsync(mode, restartOllama: false, saveBackup: saveBackup, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
+    /// <summary>
+    /// Applies compute mode env vars and restarts Ollama so the backend actually changes.
+    /// Ollama only reads OLLAMA_VULKAN / HIP / etc. at process startup.
+    /// </summary>
+    public async Task<ModeApplyResult> ApplyModeWithRestartAsync(
+        ComputeMode mode,
+        bool saveBackup = false,
+        CancellationToken cancellationToken = default) =>
+        await ApplyModeAsync(mode, restartOllama: true, saveBackup: saveBackup, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+    public string GetManagedEnvSummary()
+    {
+        var snapshot = _envBackup.ReadUserSnapshot();
+        var parts = new List<string>();
+        foreach (var name in ConfigPaths.ManagedEnvironmentVariables)
+        {
+            if (snapshot.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value))
+            {
+                parts.Add($"{name}={value}");
+            }
+        }
+
+        return parts.Count == 0 ? "(no managed env vars set)" : string.Join("; ", parts);
+    }
+
     public async Task<ModeApplyResult> ApplyModeAsync(
         ComputeMode mode,
         bool restartOllama = false,

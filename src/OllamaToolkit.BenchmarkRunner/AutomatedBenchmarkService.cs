@@ -54,6 +54,7 @@ public sealed class AutomatedBenchmarkService
         modes ??= [ComputeMode.CPU, ComputeMode.APU, ComputeMode.GPU, ComputeMode.Hybrid, ComputeMode.ROCm];
         outputDir ??= ProfileStoreService.NewGuiTestOutputDir(modelName);
         Directory.CreateDirectory(outputDir);
+        _lastBenchmarkMode = null;
 
         var isEmbed = CategoryNormalizer.IsEmbeddingModel(modelName, category);
         var benchmarkKind = isEmbed ? BenchmarkKinds.Embed : BenchmarkKinds.Generate;
@@ -90,9 +91,6 @@ public sealed class AutomatedBenchmarkService
             Results = new List<BenchmarkReportModeResult>()
         };
 
-        await _modelSessions.SwitchToModelAsync(modelName, warmLoad: true, cancellationToken)
-            .ConfigureAwait(false);
-
         for (var modeIndex = 0; modeIndex < modes.Count; modeIndex++)
         {
             var mode = modes[modeIndex];
@@ -115,21 +113,39 @@ public sealed class AutomatedBenchmarkService
 
             var modeResult = new BenchmarkReportModeResult { Mode = mode.ToString() };
             var started = DateTime.UtcNow;
+            string? modeEnvSummary = null;
 
             try
             {
                 if (_lastBenchmarkMode != mode)
                 {
-                    await _modeService.ApplyModeEnvAsync(mode, cancellationToken: cancellationToken)
+                    try
+                    {
+                        await _modelSessions.StopModelAsync(modelName, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // Model may not be loaded yet.
+                    }
+
+                    await _modeService.ApplyModeWithRestartAsync(mode, saveBackup: false, cancellationToken)
                         .ConfigureAwait(false);
+                    _apiClient.InvalidateCaches();
                     _lastBenchmarkMode = mode;
+
+                    modeEnvSummary = _modeService.GetManagedEnvSummary();
                     BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
                     {
                         Phase = BenchmarkProgressPhase.ModeApplying,
                         BenchmarkKind = benchmarkKind,
                         Model = modelName,
-                        LogLine = $"Applied {mode} env vars (no Ollama restart). Restart Ollama from Compute Modes tab to activate this backend."
+                        Mode = mode.ToString(),
+                        LogLine = BenchmarkProgressFormatter.ModeAppliedWithRestart(mode, modeEnvSummary)
                     });
+
+                    await _modelSessions.SwitchToModelAsync(modelName, warmLoad: true, cancellationToken)
+                        .ConfigureAwait(false);
                 }
 
                 BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
@@ -158,8 +174,9 @@ public sealed class AutomatedBenchmarkService
                     modeResult.Status = "Success";
                     modeResult.EmbedLatencyMs = bench.LatencyMs;
                     modeResult.PromptEvalTps = bench.PromptEvalTps;
-                    modeResult.Notes =
-                        $"prompt_tokens={bench.PromptEvalCount}; dims={bench.Dimensions}; embed_ms={bench.LatencyMs:F1}";
+                    modeResult.Notes = BuildModeNotes(
+                        $"prompt_tokens={bench.PromptEvalCount}; dims={bench.Dimensions}; embed_ms={bench.LatencyMs:F1}",
+                        modeEnvSummary);
                     modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
 
                     BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
@@ -188,7 +205,9 @@ public sealed class AutomatedBenchmarkService
                     modeResult.GenerationTps = bench.GenerationTps;
                     modeResult.PromptEvalTps = bench.PromptEvalTps;
                     modeResult.TtftMs = bench.TtftMs;
-                    modeResult.Notes = $"gen_tokens={bench.EvalCount}; num_ctx={numCtx}";
+                    modeResult.Notes = BuildModeNotes(
+                        $"gen_tokens={bench.EvalCount}; num_ctx={numCtx}",
+                        modeEnvSummary);
                     modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
 
                     BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
@@ -305,4 +324,7 @@ public sealed class AutomatedBenchmarkService
 
         return report;
     }
+
+    private static string BuildModeNotes(string metrics, string? envSummary) =>
+        string.IsNullOrWhiteSpace(envSummary) ? metrics : $"{metrics}; env={envSummary}";
 }

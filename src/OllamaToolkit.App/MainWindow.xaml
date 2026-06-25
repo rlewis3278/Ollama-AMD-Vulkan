@@ -47,7 +47,7 @@
                              Foreground="{StaticResource Brush.Text}" BorderBrush="{StaticResource Brush.PanelBorder}"
                              FontFamily="Segoe UI" FontSize="14" Padding="10" />
                     <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,0">
-                        <CheckBox x:Name="RestartCheck" Content="Restart Ollama after applying mode" IsChecked="False" Foreground="{StaticResource Brush.Text}" />
+                        <CheckBox x:Name="RestartCheck" Content="Restart Ollama after applying mode" IsChecked="True" Foreground="{StaticResource Brush.Text}" />
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModes_Click" />
                     </StackPanel>
                 </Grid>
