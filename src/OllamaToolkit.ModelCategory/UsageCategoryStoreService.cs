@@ -9,6 +9,11 @@ public sealed class UsageCategoryStoreService
 
     public void ClearCache() => _cache = null;
 
+    public async Task ResetStoreAsync(CancellationToken cancellationToken = default)
+    {
+        await SaveAsync(new UsageCategoryStoreDocument(), cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<UsageCategoryStoreDocument> LoadAsync(CancellationToken cancellationToken = default)
     {
         if (_cache is not null)

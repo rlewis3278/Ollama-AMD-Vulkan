@@ -20,6 +20,18 @@ public sealed class LibraryCatalogStoreService
 
     public void ClearCache() => _cache = null;
 
+    public async Task ResetStoreAsync(CancellationToken cancellationToken = default)
+    {
+        var store = new LibraryCatalogStoreDocument
+        {
+            Items = new List<LibraryCatalogEntry>(),
+            CatalogFetchedAt = null,
+            SortGeneratedAt = null,
+            SummaryModel = null
+        };
+        await SaveAsync(store, cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<LibraryCatalogStoreDocument> LoadAsync(CancellationToken cancellationToken = default)
     {
         if (_cache is not null)

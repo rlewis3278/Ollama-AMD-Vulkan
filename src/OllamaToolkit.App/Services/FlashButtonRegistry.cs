@@ -33,8 +33,13 @@ public sealed class FlashButtonRegistry
         return true;
     }
 
-    public void EndSuccess(Button button, string successLabel = "Done", int holdSeconds = 10, Action? onRestored = null) =>
-        For(button).EndSuccess(successLabel, holdSeconds, onRestored);
+    public void EndSuccess(
+        Button button,
+        string successLabel = "Done",
+        int holdSeconds = 10,
+        Action? onRestored = null,
+        FlashSuccessStyle style = FlashSuccessStyle.Active) =>
+        For(button).EndSuccess(successLabel, holdSeconds, onRestored, style);
 
     public void EndIdle(Button button) => For(button).EndIdle();
 

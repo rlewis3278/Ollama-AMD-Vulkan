@@ -122,11 +122,12 @@ public partial class MainWindow : Window
         object sender,
         string successLabel = "Done",
         int holdSeconds = 10,
-        Action? onRestored = null)
+        Action? onRestored = null,
+        FlashSuccessStyle style = FlashSuccessStyle.Active)
     {
         if (TaskButton(sender) is { } button)
         {
-            _flashButtons.EndSuccess(button, successLabel, holdSeconds, onRestored);
+            _flashButtons.EndSuccess(button, successLabel, holdSeconds, onRestored, style);
         }
     }
 
@@ -1172,11 +1173,14 @@ public partial class MainWindow : Window
                 _svc.CatalogStore.ClearCache();
                 _svc.Descriptions.ClearCache();
 
-                var entries = await _svc.CatalogStore.GetEntriesAsync(cancellationToken: ct)
-                    .ConfigureAwait(false);
+                var entries = (await _svc.CatalogStore.GetEntriesAsync(cancellationToken: ct)
+                    .ConfigureAwait(false))
+                    .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
                 await UiDispatcher.InvokeAsync(async () =>
-                    await BindFullCatalogGridAsync("Refreshing descriptions").ConfigureAwait(true)).ConfigureAwait(false);
+                    await BindFullCatalogGridAsync("Refreshing descriptions", sortAlphabetically: true)
+                        .ConfigureAwait(true)).ConfigureAwait(false);
 
                 var progress = new Progress<string>(msg =>
                     UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
@@ -1197,7 +1201,12 @@ public partial class MainWindow : Window
                     _catalogRowAnimator.Stop();
                     ScrollCatalogGridToTop();
                     CatalogStatusLabel.Text = $"Descriptions refreshed — {count} AI summary(s) updated.";
-                    EndTaskFlashSuccess(sender, "Refreshed", 10, FinishDescriptionRefreshHoldover);
+                    EndTaskFlashSuccess(
+                        sender,
+                        "Refreshed",
+                        10,
+                        FinishDescriptionRefreshHoldover,
+                        FlashSuccessStyle.Info);
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -1227,17 +1236,22 @@ public partial class MainWindow : Window
         ScheduleFitGridColumns(CatalogGrid);
     }
 
-    private async Task BindFullCatalogGridAsync(string statusPrefix)
+    private async Task BindFullCatalogGridAsync(string statusPrefix, bool sortAlphabetically = false)
     {
         _suppressCatalogUiEvents = true;
         try
         {
             CategoryFilterCombo.SelectedIndex = 0;
             CatalogSearchBox.Text = string.Empty;
-            var rows = await _svc.Registry.GetCatalogRowsAsync(
+            var rows = (await _svc.Registry.GetCatalogRowsAsync(
                 search: null,
                 categoryFilter: "All",
-                descriptionMode: _catalogDescriptionMode).ConfigureAwait(true);
+                descriptionMode: _catalogDescriptionMode).ConfigureAwait(true)).ToList();
+            if (sortAlphabetically)
+            {
+                rows = rows.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            }
+
             BindCatalogRows(rows);
             CatalogStatusLabel.Text = $"{statusPrefix} for {rows.Count} model(s)...";
         }
@@ -1306,7 +1320,10 @@ public partial class MainWindow : Window
                 }
             }
 
-            _catalogRowAnimator.CompleteRow(row, highlightComplete: progress.IsInstalled);
+            var highlight = progress.IsInstalled
+                ? CatalogRowRefreshHighlight.Installed
+                : CatalogRowRefreshHighlight.None;
+            _catalogRowAnimator.CompleteRow(row, highlight);
         }
     }
 
@@ -1325,7 +1342,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            _catalogRowAnimator.CompleteRow(row);
+            _catalogRowAnimator.CompleteRow(row, CatalogRowRefreshHighlight.Description);
             if (!string.IsNullOrWhiteSpace(progress.ListDescription))
             {
                 row.AiDescription = progress.ListDescription;
@@ -1538,9 +1555,18 @@ public partial class MainWindow : Window
                     },
                     ct).ConfigureAwait(false);
 
-                await UiDispatcher.InvokeAsync(() =>
+                var sizeProgress = new Progress<string>(msg =>
+                    UiDispatcher.Invoke(() => CatalogStatusLabel.Text = msg));
+
+                await _svc.CatalogStore.EnrichFileSizesAsync(sizeProgress, cancellationToken: ct)
+                    .ConfigureAwait(false);
+
+                _svc.CatalogStore.ClearCache();
+
+                await UiDispatcher.InvokeAsync(async () =>
                 {
                     _catalogRefreshInProgress = false;
+                    await RefreshCatalogUiAsync().ConfigureAwait(true);
                     _catalogRowAnimator.Stop();
                     ScrollCatalogGridToTop();
                     CatalogStatusLabel.Text = "Catalog refreshed.";
@@ -1559,6 +1585,61 @@ public partial class MainWindow : Window
                     CatalogStatusLabel.Text = msg;
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
+            }
+        }).ConfigureAwait(true);
+    }
+
+    private async void ClearCatalog_Click(object sender, RoutedEventArgs e)
+    {
+        if (_catalogRefreshInProgress)
+        {
+            MessageBox.Show(
+                "A catalog refresh is in progress. Wait for it to finish before clearing.",
+                "Clear Catalog",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        if (MessageBox.Show(
+                "Delete all cached catalog data?\n\nThis removes:\n" +
+                "• Cached ollama.com catalog\n" +
+                "• AI descriptions\n" +
+                "• Usage categories\n\n" +
+                "Installed Ollama models on this PC are not removed.",
+                "Clear Catalog",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        await CancelBackgroundFileSizeEnrichAsync().ConfigureAwait(true);
+        CatalogStatusLabel.Text = "Clearing catalog...";
+
+        await _svc.WorkQueue.EnqueueAsync(async ct =>
+        {
+            try
+            {
+                await _svc.CatalogStore.ResetStoreAsync(ct).ConfigureAwait(false);
+                await _svc.Descriptions.ResetStoreAsync(ct).ConfigureAwait(false);
+                await _svc.CategoryStore.ResetStoreAsync(ct).ConfigureAwait(false);
+
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    _catalogRowAnimator.Stop();
+                    CatalogRowRefreshAnimator.ResetAll(_catalogRows);
+                    _catalogRows.Clear();
+                    _catalogRowByName = new Dictionary<string, CatalogRowViewModel>(StringComparer.OrdinalIgnoreCase);
+                    CatalogStatusLabel.Text = "Catalog cleared — use Refresh Catalog to reload.";
+                    _svc.ActivityLog.Write("Task", "Catalog metadata cleared.");
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                _svc.ActivityLog.Write("Error", msg);
+                await UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }

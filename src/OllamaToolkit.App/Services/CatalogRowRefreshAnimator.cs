@@ -26,6 +26,7 @@ public sealed class CatalogRowRefreshAnimator
     public void BeginRow(CatalogRowViewModel row)
     {
         _activeRow = row;
+        row.RefreshHighlight = CatalogRowRefreshHighlight.None;
         row.RefreshState = CatalogRowRefreshState.Processing;
         row.RefreshFlashPhase = true;
         if (!_flashTimer.IsEnabled)
@@ -34,9 +35,12 @@ public sealed class CatalogRowRefreshAnimator
         }
     }
 
-    public void CompleteRow(CatalogRowViewModel row, bool highlightComplete = true)
+    public void CompleteRow(
+        CatalogRowViewModel row,
+        CatalogRowRefreshHighlight highlight = CatalogRowRefreshHighlight.None)
     {
-        row.RefreshState = highlightComplete
+        row.RefreshHighlight = highlight;
+        row.RefreshState = highlight != CatalogRowRefreshHighlight.None
             ? CatalogRowRefreshState.Complete
             : CatalogRowRefreshState.None;
         row.RefreshFlashPhase = false;
@@ -57,6 +61,7 @@ public sealed class CatalogRowRefreshAnimator
         foreach (var row in rows)
         {
             row.RefreshState = CatalogRowRefreshState.None;
+            row.RefreshHighlight = CatalogRowRefreshHighlight.None;
             row.RefreshFlashPhase = false;
         }
     }

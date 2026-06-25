@@ -5,6 +5,12 @@ using System.Windows.Threading;
 
 namespace OllamaToolkit.App.Services;
 
+public enum FlashSuccessStyle
+{
+    Active,
+    Info
+}
+
 public sealed class FlashButtonPresenter
 {
     private readonly Button _button;
@@ -17,6 +23,9 @@ public sealed class FlashButtonPresenter
     private readonly Brush _activeBg;
     private readonly Brush _activeBorder;
     private readonly Brush _activeForeground;
+    private readonly Brush _infoBg;
+    private readonly Brush _infoBorder;
+    private readonly Brush _infoForeground;
 
     private readonly DispatcherTimer _flashTimer;
     private readonly DispatcherTimer _restoreTimer;
@@ -36,6 +45,9 @@ public sealed class FlashButtonPresenter
         _activeBg = GetBrush(window, "Brush.ActiveBg");
         _activeBorder = GetBrush(window, "Brush.Active");
         _activeForeground = GetBrush(window, "Brush.Text");
+        _infoBg = GetBrush(window, "Brush.InfoBg");
+        _infoBorder = GetBrush(window, "Brush.Info");
+        _infoForeground = GetBrush(window, "Brush.Info");
 
         _flashTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         _flashTimer.Tick += (_, _) => FlashTick();
@@ -54,15 +66,29 @@ public sealed class FlashButtonPresenter
         _flashTimer.Start();
     }
 
-    public void EndSuccess(string successLabel = "Refreshed", int holdSeconds = 10, Action? onRestored = null)
+    public void EndSuccess(
+        string successLabel = "Refreshed",
+        int holdSeconds = 10,
+        Action? onRestored = null,
+        FlashSuccessStyle style = FlashSuccessStyle.Active)
     {
         _flashTimer.Stop();
         _flashing = false;
         _onRestored = onRestored;
         _button.Content = successLabel;
-        _button.Background = _activeBg;
-        _button.BorderBrush = _activeBorder;
-        _button.Foreground = _activeForeground;
+
+        if (style == FlashSuccessStyle.Info)
+        {
+            _button.Background = _infoBg;
+            _button.BorderBrush = _infoBorder;
+            _button.Foreground = _infoForeground;
+        }
+        else
+        {
+            _button.Background = _activeBg;
+            _button.BorderBrush = _activeBorder;
+            _button.Foreground = _activeForeground;
+        }
 
         _restoreTimer.Interval = TimeSpan.FromSeconds(holdSeconds);
         _restoreTimer.Start();

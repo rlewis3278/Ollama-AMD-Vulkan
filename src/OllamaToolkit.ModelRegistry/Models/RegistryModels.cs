@@ -16,6 +16,13 @@ public enum CatalogRowRefreshState
     Complete
 }
 
+public enum CatalogRowRefreshHighlight
+{
+    None,
+    Installed,
+    Description
+}
+
 public sealed class CatalogRowViewModel : INotifyPropertyChanged
 {
     private string _description = string.Empty;
@@ -30,6 +37,7 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     private bool _installed;
     private int _sortOrder;
     private CatalogRowRefreshState _refreshState = CatalogRowRefreshState.None;
+    private CatalogRowRefreshHighlight _refreshHighlight = CatalogRowRefreshHighlight.None;
     private bool _refreshFlashPhase;
 
     public required string Name { get; init; }
@@ -110,6 +118,12 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     {
         get => _refreshFlashPhase;
         set => SetField(ref _refreshFlashPhase, value);
+    }
+
+    public CatalogRowRefreshHighlight RefreshHighlight
+    {
+        get => _refreshHighlight;
+        set => SetField(ref _refreshHighlight, value);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

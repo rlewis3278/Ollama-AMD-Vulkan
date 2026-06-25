@@ -11,6 +11,8 @@
     <Color x:Key="Color.ActiveBg">#FF163A26</Color>
     <Color x:Key="Color.Warning">#FFFACC15</Color>
     <Color x:Key="Color.WarningBg">#FF2A2208</Color>
+    <Color x:Key="Color.Info">#FF3B82F6</Color>
+    <Color x:Key="Color.InfoBg">#FF1E3A5F</Color>
     <Color x:Key="Color.Button">#FF1A1A1A</Color>
     <Color x:Key="Color.ButtonHover">#FF2A2A2A</Color>
     <Color x:Key="Color.LogBg">#FF000000</Color>
@@ -26,6 +28,8 @@
     <SolidColorBrush x:Key="Brush.ActiveBg" Color="{StaticResource Color.ActiveBg}" />
     <SolidColorBrush x:Key="Brush.Warning" Color="{StaticResource Color.Warning}" />
     <SolidColorBrush x:Key="Brush.WarningBg" Color="{StaticResource Color.WarningBg}" />
+    <SolidColorBrush x:Key="Brush.Info" Color="{StaticResource Color.Info}" />
+    <SolidColorBrush x:Key="Brush.InfoBg" Color="{StaticResource Color.InfoBg}" />
     <SolidColorBrush x:Key="Brush.Button" Color="{StaticResource Color.Button}" />
     <SolidColorBrush x:Key="Brush.LogBg" Color="{StaticResource Color.LogBg}" />
     <SolidColorBrush x:Key="Brush.RowAlt" Color="{StaticResource Color.RowAlt}" />
@@ -263,9 +267,20 @@
                 </MultiDataTrigger.Conditions>
                 <Setter Property="Background" Value="{StaticResource Brush.ActiveBg}" />
             </MultiDataTrigger>
-            <DataTrigger Binding="{Binding RefreshState}" Value="Complete">
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding RefreshState}" Value="Complete" />
+                    <Condition Binding="{Binding RefreshHighlight}" Value="Installed" />
+                </MultiDataTrigger.Conditions>
                 <Setter Property="Background" Value="{StaticResource Brush.ActiveBg}" />
-            </DataTrigger>
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding RefreshState}" Value="Complete" />
+                    <Condition Binding="{Binding RefreshHighlight}" Value="Description" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brush.InfoBg}" />
+            </MultiDataTrigger>
             <MultiDataTrigger>
                 <MultiDataTrigger.Conditions>
                     <Condition Binding="{Binding RefreshState}" Value="Processing" />

@@ -26,6 +26,11 @@ public sealed class DescriptionStoreService
 
     public void ClearCache() => _cache = null;
 
+    public async Task ResetStoreAsync(CancellationToken cancellationToken = default)
+    {
+        await SaveAsync(new ModelDescriptionStoreDocument(), cancellationToken).ConfigureAwait(false);
+    }
+
     public async Task<ModelDescriptionStoreDocument> LoadAsync(CancellationToken cancellationToken = default)
     {
         if (_cache is not null)
@@ -152,12 +157,16 @@ public sealed class DescriptionStoreService
             await SaveAsync(store, cancellationToken).ConfigureAwait(false);
         }
 
+        var ordered = entries
+            .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         var updated = 0;
-        for (var i = 0; i < entries.Count; i++)
+        for (var i = 0; i < ordered.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var entry = entries[i];
-            progress?.Report($"AI descriptions {i + 1}/{entries.Count}: {entry.Name}");
+            var entry = ordered[i];
+            progress?.Report($"AI descriptions {i + 1}/{ordered.Count}: {entry.Name}");
             itemProgress?.Report(new DescriptionRefreshItemProgress
             {
                 ModelName = entry.Name,

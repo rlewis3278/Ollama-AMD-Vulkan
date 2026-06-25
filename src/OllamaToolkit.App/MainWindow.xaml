@@ -105,6 +105,7 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <Grid Grid.Row="0" Grid.Column="0">
@@ -138,8 +139,10 @@
                         <Button x:Name="RefreshDescriptionsBtn" Grid.Row="0" Grid.Column="7" Content="Refresh Descriptions"
                                 Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="RefreshDescriptions_Click" />
                         <Button x:Name="RefreshCatalogBtn" Grid.Row="0" Grid.Column="8" Content="Refresh Catalog"
-                                Style="{StaticResource ToolkitButton}" Click="RefreshCatalog_Click" />
-                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="9"
+                                Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="RefreshCatalog_Click" />
+                        <Button x:Name="ClearCatalogBtn" Grid.Row="0" Grid.Column="9" Content="Clear Catalog"
+                                Style="{StaticResource ToolkitButton}" Click="ClearCatalog_Click" />
+                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="10"
                                     Orientation="Horizontal" Margin="0,6,0,0">
                             <Button x:Name="DownloadCatalogModelBtn" Content="Download Selected LLM"
                                     Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
