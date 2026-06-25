@@ -15,6 +15,11 @@ public sealed class BenchmarkSettingsAdvisorService
     private readonly SummarizerModelResolver _summarizer;
     private BenchmarkSettingsDocument? _cache;
 
+    public void ClearCache() => _cache = null;
+
+    public async Task ClearAllAsync(CancellationToken cancellationToken = default) =>
+        await SaveAsync(new BenchmarkSettingsDocument(), cancellationToken).ConfigureAwait(false);
+
     public BenchmarkSettingsAdvisorService(
         AiSettingsService? settings = null,
         OllamaApiClient? apiClient = null,

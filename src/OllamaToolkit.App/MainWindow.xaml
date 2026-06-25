@@ -154,6 +154,7 @@
                         <TextBox x:Name="TestNumPredictBox" Width="48" Margin="0,0,8,8" Text="32" />
                         <Button Content="Test Selected" Style="{StaticResource ToolkitButton}" Click="TestSelected_Click" />
                         <Button Content="Test Untested" Style="{StaticResource ToolkitButton}" Click="TestUntested_Click" />
+                        <Button Content="Clear &amp; Rerun Tests" Style="{StaticResource ToolkitButton}" Click="ClearAndRerunTests_Click" />
                         <Button Content="Stop" Style="{StaticResource ToolkitButton}" Click="StopTest_Click" />
                     </StackPanel>
                     <TextBlock x:Name="TestSettingsLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,4" TextWrapping="Wrap" />
@@ -179,6 +180,7 @@
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshTestResults_Click" />
                         <Button Content="Launch Selected" Style="{StaticResource ToolkitButton}" Click="LaunchFromResults_Click" />
+                        <Button Content="Clear &amp; Rerun Tests" Style="{StaticResource ToolkitButton}" Click="ClearAndRerunTests_Click" />
                     </StackPanel>
                     <DataGrid x:Name="TestResultsGrid" Grid.Row="1" Style="{StaticResource ToolkitDataGrid}"
                               AutoGenerateColumns="False" IsReadOnly="True"

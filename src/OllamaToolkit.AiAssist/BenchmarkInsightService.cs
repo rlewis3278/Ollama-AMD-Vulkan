@@ -26,6 +26,9 @@ public sealed class BenchmarkInsightService
 
     public void ClearCache() => _cache = null;
 
+    public async Task ClearAllAsync(CancellationToken cancellationToken = default) =>
+        await SaveAsync(new BenchmarkInsightsDocument(), cancellationToken).ConfigureAwait(false);
+
     public async Task<BenchmarkInsightsDocument> LoadAsync(CancellationToken cancellationToken = default)
     {
         if (_cache is not null)

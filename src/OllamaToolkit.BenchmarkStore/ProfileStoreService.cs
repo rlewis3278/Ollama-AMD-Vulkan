@@ -19,6 +19,31 @@ public sealed class ProfileStoreService
 
     public void ClearCache() => _cache = null;
 
+    public async Task<ClearTestDataResult> ClearAllTestDataAsync(CancellationToken cancellationToken = default)
+    {
+        await SaveAsync(new ModelProfileStoreDocument(), cancellationToken).ConfigureAwait(false);
+
+        var reportDirsRemoved = 0;
+        var reportFilesRemoved = 0;
+        if (Directory.Exists(ToolkitPaths.ReportsRoot))
+        {
+            foreach (var dir in Directory.EnumerateDirectories(ToolkitPaths.ReportsRoot))
+            {
+                Directory.Delete(dir, recursive: true);
+                reportDirsRemoved++;
+            }
+
+            foreach (var file in Directory.EnumerateFiles(ToolkitPaths.ReportsRoot, "report.json", SearchOption.TopDirectoryOnly))
+            {
+                File.Delete(file);
+                reportFilesRemoved++;
+            }
+        }
+
+        Directory.CreateDirectory(ToolkitPaths.GuiTestReportsDir);
+        return new ClearTestDataResult(reportDirsRemoved, reportFilesRemoved);
+    }
+
     public async Task<ModelProfileStoreDocument> LoadAsync(CancellationToken cancellationToken = default)
     {
         if (_cache is not null)

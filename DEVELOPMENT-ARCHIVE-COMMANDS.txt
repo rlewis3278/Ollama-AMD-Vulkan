@@ -108,3 +108,10 @@ Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git reset HEAD _bui
 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: human-readable configuration summary on Compute Modes tab"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|ModeEnvSummaryBuilder + Compute Modes friendly summary UI"
 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- set-mode ROCm --no-restart 2>&1; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- status 2>&1 | Select-String "Detected|OLLAMA_VULKAN|HIP|ROCR|GGML"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- set-mode Hybrid --no-restart 2>&1 | Select-Object -Last 1
 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: add ROCm compute mode and integrate into benchmark testing"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|ROCm mode: CLI verified HIP=0 ROCR=0 VULKAN=0; benchmark 5-mode suite"
+dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git add -A && git status
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git status
+powershell -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "UI|Testing Suite: descriptive benchmark log with LLM names, overall + per-mode progress bars"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git restore --staged _build-gui-doc.ps1; git commit -m "Testing Suite: descriptive log with LLM info and per-mode progress bars"
+powershell -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "UI|Clear & Rerun Tests button: wipes profiles, reports, AI insights, starts untested queue"

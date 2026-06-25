@@ -745,3 +745,85 @@ EOF
 [2026-06-24 20:05:50] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: add ROCm compute mode and integrate into benchmark testing"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|ROCm mode: CLI verified HIP=0 ROCR=0 VULKAN=0; benchmark 5-mode suite"
 [2026-06-24 20:05:50] [SYNC] Processed updates.jsonl lines 2748..2913
 [2026-06-24 20:05:50] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 20:11:16] [UI] Testing Suite: descriptive benchmark log with LLM names, overall + per-mode progress bars
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] Write - Write
+[2026-06-24 20:11:17] [TOOL] Write - Write
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] Grep - Grep
+[2026-06-24 20:11:17] [TOOL] Grep - Grep
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] Glob - Glob
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] Grep - Grep
+[2026-06-24 20:11:17] [TOOL] Grep - Grep
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] Grep - Grep
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] Grep - Grep
+[2026-06-24 20:11:17] [TOOL] Grep - Grep
+[2026-06-24 20:11:17] [TOOL] Grep - Grep
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:11:17] [TOOL] Write - Write
+[2026-06-24 20:11:17] [TOOL] Write - Write
+[2026-06-24 20:11:17] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:11:17] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:11:17] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:11:17] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:11:17] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:11:17] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:11:17] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-24 20:11:17] [SHELL_FAIL] exit=1 dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-24 20:11:17] [TOOL] Read - Read
+[2026-06-24 20:11:17] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:11:17] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-24 20:11:17] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-24 20:11:17] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git add -A && git status
+[2026-06-24 20:11:17] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git add -A && git status
+[2026-06-24 20:11:17] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git status
+[2026-06-24 20:11:17] [SHELL] powershell -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "UI|Testing Suite: descriptive benchmark log with LLM names, overall + per-mode progress bars"
+[2026-06-24 20:11:17] [SYNC] Processed updates.jsonl lines 2914..3109
+[2026-06-24 20:11:17] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-24 20:18:40] [UI] Clear & Rerun Tests button: wipes profiles, reports, AI insights, starts untested queue
+[2026-06-24 20:18:40] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git restore --staged _build-gui-doc.ps1; git commit -m "Testing Suite: descriptive log with LLM info and per-mode progress bars"
+[2026-06-24 20:18:40] [TOOL] Grep - Grep
+[2026-06-24 20:18:40] [TOOL] Grep - Grep
+[2026-06-24 20:18:40] [TOOL] Read - Read
+[2026-06-24 20:18:40] [TOOL] Read - Read
+[2026-06-24 20:18:40] [TOOL] Read - Read
+[2026-06-24 20:18:40] [TOOL] Grep - Grep
+[2026-06-24 20:18:40] [TOOL] Grep - Grep
+[2026-06-24 20:18:40] [TOOL] Grep - Grep
+[2026-06-24 20:18:40] [TOOL] Read - Read
+[2026-06-24 20:18:40] [TOOL] Read - Read
+[2026-06-24 20:18:40] [TOOL] Read - Read
+[2026-06-24 20:18:40] [TOOL] Grep - Grep
+[2026-06-24 20:18:40] [TOOL] Glob - Glob
+[2026-06-24 20:18:40] [TOOL] Grep - Grep
+[2026-06-24 20:18:40] [TOOL] Read - Read
+[2026-06-24 20:18:40] [TOOL] Grep - Grep
+[2026-06-24 20:18:40] [TOOL] Read - Read
+[2026-06-24 20:18:40] [TOOL] Read - Read
+[2026-06-24 20:18:40] [TOOL] Read - Read
+[2026-06-24 20:18:40] [TOOL] Grep - Grep
+[2026-06-24 20:18:40] [TOOL] Grep - Grep
+[2026-06-24 20:18:40] [TOOL] Read - Read
+[2026-06-24 20:18:40] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:18:40] [TOOL] Write - Write
+[2026-06-24 20:18:40] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:18:40] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:18:40] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:18:40] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:18:40] [TOOL] StrReplace - StrReplace
+[2026-06-24 20:18:40] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-24 20:18:40] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-24 20:18:40] [SHELL] powershell -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "UI|Clear & Rerun Tests button: wipes profiles, reports, AI insights, starts untested queue"
+[2026-06-24 20:18:40] [SYNC] Processed updates.jsonl lines 3110..3246
+[2026-06-24 20:18:40] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

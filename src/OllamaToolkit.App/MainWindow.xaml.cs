@@ -441,19 +441,59 @@ public partial class MainWindow : Window
         await RunBenchmarkQueueAsync(new[] { model }).ConfigureAwait(true);
     }
 
-    private async void TestUntested_Click(object sender, RoutedEventArgs e)
+    private async void TestUntested_Click(object sender, RoutedEventArgs e) =>
+        await RunUntestedBenchmarkQueueAsync().ConfigureAwait(true);
+
+    private async void ClearAndRerunTests_Click(object sender, RoutedEventArgs e)
+    {
+        if (MessageBox.Show(
+                "Clear all benchmark data?\n\n"
+                + "This removes model profiles, saved reports, and AI benchmark insights. "
+                + "Every installed model will be marked untested, then the full test queue will start.",
+                "Clear & Rerun Tests",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        _benchmarkCts?.Cancel();
+        var cleared = await _svc.Profiles.ClearAllTestDataAsync().ConfigureAwait(true);
+        await _svc.BenchmarkInsights.ClearAllAsync().ConfigureAwait(true);
+        await _svc.BenchmarkSettingsAdvisor.ClearAllAsync().ConfigureAwait(true);
+        _svc.Profiles.ClearCache();
+        _svc.BenchmarkInsights.ClearCache();
+        _svc.BenchmarkSettingsAdvisor.ClearCache();
+
+        await UiDispatcher.InvokeAsync(async () =>
+        {
+            TestProgressPanel.Visibility = Visibility.Collapsed;
+            TestOverallProgress.Value = 0;
+            TestLogBox.Text +=
+                $"--- Cleared all test data ({cleared.ReportDirsRemoved} report folder(s)) ---{Environment.NewLine}";
+            TestStatusLabel.Text = "All test data cleared. Starting benchmark queue…";
+            await RefreshModelsUiAsync().ConfigureAwait(true);
+            await RefreshTestResultsUiAsync().ConfigureAwait(true);
+        }).ConfigureAwait(true);
+
+        _svc.ActivityLog.Write("Benchmark", $"Cleared test data: {cleared.ReportDirsRemoved} report dirs");
+        await RunUntestedBenchmarkQueueAsync().ConfigureAwait(true);
+    }
+
+    private async Task RunUntestedBenchmarkQueueAsync()
     {
         var untested = await _svc.Profiles.GetUntestedAsync().ConfigureAwait(true);
         var names = untested.Select(u => u.Model).ToList();
         if (names.Count == 0)
         {
-            TestStatusLabel.Text = "No untested models.";
+            await UiDispatcher.InvokeAsync(() => TestStatusLabel.Text = "No untested models.").ConfigureAwait(true);
             return;
         }
 
         var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
         var queue = await _svc.QueueAdvisor.PrioritizeAsync(names, summaries).ConfigureAwait(true);
-        TestStatusLabel.Text = $"AI ordered queue: {string.Join(" -> ", queue.Models)}";
+        await UiDispatcher.InvokeAsync(() =>
+            TestStatusLabel.Text = $"AI ordered queue: {string.Join(" -> ", queue.Models)}").ConfigureAwait(true);
         _svc.ActivityLog.Write("AI", queue.Rationale);
         await RunBenchmarkQueueAsync(queue.Models).ConfigureAwait(true);
     }
