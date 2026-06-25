@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Interop;
 using System.Windows.Threading;
 using OllamaToolkit.AiAssist;
 using OllamaToolkit.AiAssist.Models;
@@ -335,6 +336,7 @@ public partial class MainWindow : Window
 
         var previousMode = _svc.ModeService.DetectCurrentMode();
         var restart = RestartCheck.IsChecked == true;
+        var toolkitWindow = new WindowInteropHelper(this).Handle;
         _modeCardPresenter.BeginTransition(previousMode, tag);
         ModeStatusLabel.Text = $"Applying {tag}…";
 
@@ -342,7 +344,11 @@ public partial class MainWindow : Window
         {
             try
             {
-                await _svc.ModeService.ApplyModeAsync(mode, restartOllama: restart, cancellationToken: ct)
+                await _svc.ModeService.ApplyModeAsync(
+                        mode,
+                        restartOllama: restart,
+                        keepFocusWindow: restart ? toolkitWindow : null,
+                        cancellationToken: ct)
                     .ConfigureAwait(false);
                 _svc.ActivityLog.Write("Task", $"Applied mode {mode}.");
                 await UiDispatcher.InvokeAsync(async () =>
@@ -350,6 +356,10 @@ public partial class MainWindow : Window
                     _modeCardPresenter.EndTransition();
                     await RefreshModesUiAsync().ConfigureAwait(true);
                     ModeStatusLabel.Text = $"Current mode: {mode} (applied) | Ollama restarted: {restart}";
+                    if (restart)
+                    {
+                        RestoreToolkitFocus();
+                    }
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -361,10 +371,26 @@ public partial class MainWindow : Window
                     _modeCardPresenter.EndTransition();
                     await RefreshModesUiAsync().ConfigureAwait(true);
                     ModeStatusLabel.Text = $"Mode apply failed: {ex.Message}";
+                    if (restart)
+                    {
+                        RestoreToolkitFocus();
+                    }
+
                     MessageBox.Show(msg, "Mode Apply", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
+    }
+
+    private void RestoreToolkitFocus()
+    {
+        if (WindowState == WindowState.Minimized)
+        {
+            WindowState = WindowState.Normal;
+        }
+
+        Activate();
+        Focus();
     }
 
     private async void RefreshModes_Click(object sender, RoutedEventArgs e) =>
