@@ -15,7 +15,8 @@ public sealed class AppServices : IDisposable
 {
     public AppServices()
     {
-        WorkQueue = new BackgroundWorkQueue();
+        ActivityLog = new ActivityLogService();
+        WorkQueue = new BackgroundWorkQueue(ActivityLog);
         ApiClient = new OllamaApiClient();
         ModeDefinitions = new ModeDefinitionService();
         ModeService = new ModeService(ModeDefinitions, new EnvBackupService(), new OllamaProcessService());
@@ -25,7 +26,6 @@ public sealed class AppServices : IDisposable
         ReportImporter = new ReportImporter(Profiles);
         BenchmarkRunner = new AutomatedBenchmarkService(ModeService, ApiClient, Profiles);
         PlainErrors = new PlainLanguageErrorService(AiSettings, ApiClient);
-        ActivityLog = new ActivityLogService();
         CatalogStore = new LibraryCatalogStoreService();
         Descriptions = new DescriptionStoreService(AiSettings, ApiClient);
         CategoryStore = new UsageCategoryStoreService();

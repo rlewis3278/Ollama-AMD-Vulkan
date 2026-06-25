@@ -35,6 +35,8 @@ public partial class MainWindow : Window
     private readonly ThrottledUpdater _testLogUpdater;
     private readonly Dictionary<string, (ProgressBar Bar, TextBlock Status)> _testModeProgress = new(StringComparer.OrdinalIgnoreCase);
     private List<string> _nlRankedCatalog = new();
+    private bool _suppressSummarizerComboSave;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -942,7 +944,19 @@ public partial class MainWindow : Window
         else if (MainTabs.SelectedItem == AiSettingsTab)
         {
             await RefreshAiSettingsUiAsync().ConfigureAwait(true);
+            RefreshActivityLog();
         }
+    }
+
+    private void SetAiSettingsActionStatus(string text) => AiSettingsActionStatus.Text = text;
+
+    private void SetAiSettingsButtonsEnabled(bool enabled)
+    {
+        RefreshSummarizerListBtn.IsEnabled = enabled;
+        DownloadSummarizerBtn.IsEnabled = enabled;
+        TestSummarizerBtn.IsEnabled = enabled;
+        CategorizeAllBtn.IsEnabled = enabled;
+        RecategorizeAllBtn.IsEnabled = enabled;
     }
 
     private async Task LoadCatalogTabAsync()
@@ -1008,7 +1022,8 @@ public partial class MainWindow : Window
     }
 
     private async void CategorizeAll_Click(object sender, RoutedEventArgs e) =>
-        await RunClassificationAsync(recategorize: false).ConfigureAwait(true);
+        await RunClassificationAsync(recategorize: false, fromAiSettings: MainTabs.SelectedItem == AiSettingsTab)
+            .ConfigureAwait(true);
 
     private async void RecategorizeAll_Click(object sender, RoutedEventArgs e)
     {
@@ -1018,26 +1033,84 @@ public partial class MainWindow : Window
             return;
         }
 
-        await RunClassificationAsync(recategorize: true).ConfigureAwait(true);
+        await RunClassificationAsync(recategorize: true, fromAiSettings: MainTabs.SelectedItem == AiSettingsTab)
+            .ConfigureAwait(true);
     }
 
-    private async Task RunClassificationAsync(bool recategorize)
+    private async Task RunClassificationAsync(bool recategorize, bool fromAiSettings)
     {
-        CatalogStatusLabel.Text = "Classifying catalog models...";
+        if (fromAiSettings)
+        {
+            SetAiSettingsActionStatus("Classifying catalog models...");
+            SetAiSettingsButtonsEnabled(false);
+        }
+        else
+        {
+            CatalogStatusLabel.Text = "Classifying catalog models...";
+        }
+
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
-            var progress = new Progress<string>(msg =>
+            try
             {
-                UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg);
-            });
-            var count = await _svc.Classification.ClassifyAllAsync(recategorize, progress, ct)
-                .ConfigureAwait(false);
-            _svc.ActivityLog.Write("AI", $"Classified {count} catalog model(s).");
-            await UiDispatcher.InvokeAsync(async () =>
+                var progress = new Progress<string>(msg =>
+                {
+                    UiDispatcher.InvokeAsync(() =>
+                    {
+                        if (fromAiSettings)
+                        {
+                            SetAiSettingsActionStatus(msg);
+                        }
+                        else
+                        {
+                            CatalogStatusLabel.Text = msg;
+                        }
+                    });
+                });
+                var count = await _svc.Classification.ClassifyAllAsync(recategorize, progress, ct)
+                    .ConfigureAwait(false);
+                _svc.ActivityLog.Write("AI", $"Classified {count} catalog model(s).");
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    var doneMessage = count == 0
+                        ? "All catalog models already classified."
+                        : $"Done — classified {count} catalog model(s).";
+                    if (fromAiSettings)
+                    {
+                        SetAiSettingsActionStatus(doneMessage);
+                    }
+                    else
+                    {
+                        CatalogStatusLabel.Text = doneMessage;
+                    }
+
+                    await RefreshCatalogUiAsync().ConfigureAwait(true);
+                    await RefreshCategoryStatusAsync().ConfigureAwait(true);
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
             {
-                await RefreshCatalogUiAsync().ConfigureAwait(true);
-                await RefreshCategoryStatusAsync().ConfigureAwait(true);
-            }).ConfigureAwait(false);
+                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                _svc.ActivityLog.Write("Error", msg);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    if (fromAiSettings)
+                    {
+                        SetAiSettingsActionStatus(msg);
+                    }
+                    else
+                    {
+                        CatalogStatusLabel.Text = msg;
+                    }
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (fromAiSettings)
+                {
+                    await UiDispatcher.InvokeAsync(() => SetAiSettingsButtonsEnabled(true)).ConfigureAwait(false);
+                }
+            }
         }).ConfigureAwait(true);
     }
 
@@ -1244,15 +1317,23 @@ public partial class MainWindow : Window
 
         var tags = await _svc.ApiClient.GetTagsAsync(forceRefresh: true).ConfigureAwait(true);
         var installed = tags.Select(t => t.Name).ToList();
-        SummarizerCombo.ItemsSource = installed;
-        if (!string.IsNullOrWhiteSpace(settings.PreferredSummarizerModel)
-            && installed.Contains(settings.PreferredSummarizerModel, StringComparer.OrdinalIgnoreCase))
+        _suppressSummarizerComboSave = true;
+        try
         {
-            SummarizerCombo.SelectedItem = settings.PreferredSummarizerModel;
+            SummarizerCombo.ItemsSource = installed;
+            if (!string.IsNullOrWhiteSpace(settings.PreferredSummarizerModel)
+                && installed.Contains(settings.PreferredSummarizerModel, StringComparer.OrdinalIgnoreCase))
+            {
+                SummarizerCombo.SelectedItem = settings.PreferredSummarizerModel;
+            }
+            else if (installed.Count > 0)
+            {
+                SummarizerCombo.SelectedIndex = 0;
+            }
         }
-        else if (installed.Count > 0)
+        finally
         {
-            SummarizerCombo.SelectedIndex = 0;
+            _suppressSummarizerComboSave = false;
         }
 
         var suggested = SummarizerModelResolver.DefaultPreferenceOrder
@@ -1272,7 +1353,7 @@ public partial class MainWindow : Window
 
     private async void SummarizerCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (SummarizerCombo.SelectedItem is not string model)
+        if (_suppressSummarizerComboSave || SummarizerCombo.SelectedItem is not string model)
         {
             return;
         }
@@ -1283,8 +1364,25 @@ public partial class MainWindow : Window
         await UpdateAiStatusAsync().ConfigureAwait(true);
     }
 
-    private async void RefreshSummarizerList_Click(object sender, RoutedEventArgs e) =>
-        await RefreshAiSettingsUiAsync().ConfigureAwait(true);
+    private async void RefreshSummarizerList_Click(object sender, RoutedEventArgs e)
+    {
+        SetAiSettingsActionStatus("Refreshing summarizer list...");
+        SetAiSettingsButtonsEnabled(false);
+        try
+        {
+            await RefreshAiSettingsUiAsync().ConfigureAwait(true);
+            SetAiSettingsActionStatus("Summarizer list refreshed.");
+        }
+        catch (Exception ex)
+        {
+            SetAiSettingsActionStatus($"Refresh failed: {ex.Message}");
+            _svc.ActivityLog.Write("Error", ex.Message);
+        }
+        finally
+        {
+            SetAiSettingsButtonsEnabled(true);
+        }
+    }
 
     private async void DownloadSummarizer_Click(object sender, RoutedEventArgs e)
     {
@@ -1293,23 +1391,38 @@ public partial class MainWindow : Window
             ?? SummarizerModelResolver.DefaultPreferenceOrder.FirstOrDefault();
         if (string.IsNullOrWhiteSpace(model))
         {
+            SetAiSettingsActionStatus("Select a summarizer or suggested model to download.");
             return;
         }
 
+        SetAiSettingsActionStatus($"Downloading {model}...");
+        SetAiSettingsButtonsEnabled(false);
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
             try
             {
-                var progress = new Progress<string>(s => _svc.ActivityLog.Write("Download", s));
+                var progress = new Progress<string>(s =>
+                {
+                    _svc.ActivityLog.Write("Download", s);
+                    UiDispatcher.InvokeAsync(() => SetAiSettingsActionStatus($"Downloading {model}: {s}"));
+                });
                 await _svc.ApiClient.PullAsync(model, progress, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Task", $"Downloaded summarizer {model}.");
-                await UiDispatcher.InvokeAsync(async () => await RefreshAiSettingsUiAsync().ConfigureAwait(true))
-                    .ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    SetAiSettingsActionStatus($"Downloaded {model}.");
+                    await RefreshAiSettingsUiAsync().ConfigureAwait(true);
+                }).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
+                await UiDispatcher.InvokeAsync(() => SetAiSettingsActionStatus(msg)).ConfigureAwait(false);
+            }
+            finally
+            {
+                await UiDispatcher.InvokeAsync(() => SetAiSettingsButtonsEnabled(true)).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }
@@ -1320,9 +1433,13 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(model))
         {
             SummarizerTestResult.Text = "Select a summarizer model first.";
+            SetAiSettingsActionStatus("Select a summarizer model first.");
             return;
         }
 
+        SetAiSettingsActionStatus($"Testing summarizer ({model})...");
+        SummarizerTestResult.Text = string.Empty;
+        SetAiSettingsButtonsEnabled(false);
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
             try
@@ -1332,12 +1449,23 @@ public partial class MainWindow : Window
                     "Summarize in one short phrase: Llama is a family of open large language models.",
                     32, 2048, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
-                    SummarizerTestResult.Text = $"Test OK: {result.Trim()}").ConfigureAwait(false);
+                {
+                    SummarizerTestResult.Text = $"Test OK: {result.Trim()}";
+                    SetAiSettingsActionStatus("Summarizer test complete.");
+                }).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
-                await UiDispatcher.InvokeAsync(() => SummarizerTestResult.Text = msg).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    SummarizerTestResult.Text = msg;
+                    SetAiSettingsActionStatus(msg);
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                await UiDispatcher.InvokeAsync(() => SetAiSettingsButtonsEnabled(true)).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }

@@ -214,20 +214,21 @@
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12">
                     <StackPanel>
                         <TextBlock x:Name="AiSettingsStatus" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <TextBlock Text="Summarizer model:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" />
                             <ComboBox x:Name="SummarizerCombo" Width="240" Margin="8,0,0,0" SelectionChanged="SummarizerCombo_SelectionChanged" />
-                            <Button Content="Refresh List" Style="{StaticResource ToolkitButton}" Click="RefreshSummarizerList_Click" />
-                            <Button Content="Download Selected" Style="{StaticResource ToolkitButton}" Click="DownloadSummarizer_Click" />
-                            <Button Content="Test Summarizer" Style="{StaticResource ToolkitButton}" Click="TestSummarizer_Click" />
+                            <Button x:Name="RefreshSummarizerListBtn" Content="Refresh List" Style="{StaticResource ToolkitButton}" Click="RefreshSummarizerList_Click" />
+                            <Button x:Name="DownloadSummarizerBtn" Content="Download Selected" Style="{StaticResource ToolkitButton}" Click="DownloadSummarizer_Click" />
+                            <Button x:Name="TestSummarizerBtn" Content="Test Summarizer" Style="{StaticResource ToolkitButton}" Click="TestSummarizer_Click" />
                         </StackPanel>
+                        <TextBlock x:Name="AiSettingsActionStatus" TextWrapping="Wrap" Foreground="{StaticResource Brush.Warning}" Margin="0,0,0,8" />
                         <TextBlock x:Name="SummarizerTestResult" TextWrapping="Wrap" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,16" />
                         <TextBlock Text="Suggested models (not installed):" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,4" />
                         <ListBox x:Name="SuggestedModelsList" Height="120" Margin="0,0,0,16" />
                         <TextBlock x:Name="CategoryStatusLabel" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
                         <StackPanel Orientation="Horizontal">
-                            <Button Content="Categorize All" Style="{StaticResource ToolkitButton}" Click="CategorizeAll_Click" />
-                            <Button Content="Recategorize All" Style="{StaticResource ToolkitButton}" Click="RecategorizeAll_Click" />
+                            <Button x:Name="CategorizeAllBtn" Content="Categorize All" Style="{StaticResource ToolkitButton}" Click="CategorizeAll_Click" />
+                            <Button x:Name="RecategorizeAllBtn" Content="Recategorize All" Style="{StaticResource ToolkitButton}" Click="RecategorizeAll_Click" />
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>

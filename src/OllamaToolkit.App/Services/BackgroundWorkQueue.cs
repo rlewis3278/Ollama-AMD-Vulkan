@@ -9,9 +9,11 @@ public sealed class BackgroundWorkQueue
 
     private readonly CancellationTokenSource _cts = new();
     private readonly Task _worker;
+    private readonly ActivityLogService? _activityLog;
 
-    public BackgroundWorkQueue()
+    public BackgroundWorkQueue(ActivityLogService? activityLog = null)
     {
+        _activityLog = activityLog;
         _worker = Task.Run(ProcessAsync);
     }
 
@@ -48,6 +50,7 @@ public sealed class BackgroundWorkQueue
             }
             catch (Exception ex)
             {
+                _activityLog?.Write("Error", $"Background job failed: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"BackgroundWorkQueue: {ex}");
             }
         }
