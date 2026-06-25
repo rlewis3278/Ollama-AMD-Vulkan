@@ -1400,23 +1400,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        CatalogStatusLabel.Text = "Loading catalog...";
-        await _svc.WorkQueue.EnqueueAsync(async ct =>
-        {
-            if (_catalogRefreshInProgress || _descriptionRefreshInProgress)
-            {
-                return;
-            }
-
-            if (await _svc.CatalogStore.IsStaleAsync(ct).ConfigureAwait(false))
-            {
-                await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
-                _svc.CatalogStore.ClearCache();
-            }
-
-            await UiDispatcher.InvokeAsync(async () => await RefreshCatalogUiAsync().ConfigureAwait(true))
-                .ConfigureAwait(false);
-        }).ConfigureAwait(true);
+        await RefreshCatalogUiAsync().ConfigureAwait(true);
     }
 
     private void CancelCatalogFileSizeEnrichment() => _svc.CatalogStore.CancelFileSizeEnrichment();

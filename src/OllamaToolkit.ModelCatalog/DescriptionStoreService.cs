@@ -91,7 +91,7 @@ public sealed class DescriptionStoreService
                 Tags: {entry.Tags}
                 Summary:
                 """;
-            var text = await _apiClient.GenerateAsync(summarizer, prompt, 96, 4096, cancellationToken)
+            var text = await _apiClient.GenerateAsync(summarizer, prompt, 512, 8192, cancellationToken)
                 .ConfigureAwait(false);
             var listDesc = NormalizeListDescription(text);
 

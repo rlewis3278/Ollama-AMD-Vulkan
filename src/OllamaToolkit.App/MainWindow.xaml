@@ -154,6 +154,10 @@
                                     ToolTip="Select at least 2 LLM models to compare" />
                             <Button x:Name="ClearCatalogSelectionsBtn" Content="Clear Selections"
                                     Style="{StaticResource ToolkitButton}" Click="ClearCatalogSelections_Click" />
+                            <TextBlock Text="Hold CTRL to select more than one LLM"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource Brush.Muted}"
+                                       Margin="12,0,0,0" />
                         </StackPanel>
                     </Grid>
                     <TextBlock x:Name="CatalogStatusLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />

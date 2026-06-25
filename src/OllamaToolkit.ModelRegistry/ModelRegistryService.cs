@@ -64,7 +64,7 @@ public sealed class ModelRegistryService
                 : string.Empty;
             var listDesc = !string.IsNullOrEmpty(e.ListDescription)
                 ? e.ListDescription
-                : DescriptionStoreService.TruncateListDescription(e.Description);
+                : DescriptionStoreService.NormalizeListDescription(e.Description);
             var displayDescription = descriptionMode == CatalogDescriptionDisplayMode.Ai
                 ? (string.IsNullOrWhiteSpace(aiDescription) ? "(not summarized)" : aiDescription)
                 : downloadDescription;
