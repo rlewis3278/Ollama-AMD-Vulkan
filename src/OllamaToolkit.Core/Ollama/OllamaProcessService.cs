@@ -5,6 +5,7 @@ namespace OllamaToolkit.Core.Ollama;
 public sealed class OllamaProcessService
 {
     private static readonly string[] ProcessNames = ["ollama", "ollama app"];
+    private Process? _serveProcess;
 
     public async Task StopAsync(bool quick = false, int timeoutSec = 45, CancellationToken cancellationToken = default)
     {
@@ -12,6 +13,8 @@ public sealed class OllamaProcessService
         {
             timeoutSec = Math.Min(timeoutSec, 5);
         }
+
+        StopServeProcess();
 
         foreach (var process in GetProcesses())
         {
@@ -50,15 +53,41 @@ public sealed class OllamaProcessService
 
     public Task StartApplicationAsync(CancellationToken cancellationToken = default)
     {
-        if (!File.Exists(ConfigPaths.OllamaAppPath))
+        cancellationToken.ThrowIfCancellationRequested();
+        var appPath = ResolveOllamaAppPath();
+        if (appPath is null)
         {
-            throw new FileNotFoundException($"Ollama app not found: {ConfigPaths.OllamaAppPath}");
+            throw new FileNotFoundException(
+                $"Ollama tray app not found. Expected under {ConfigPaths.OllamaAppPath}.");
         }
 
         Process.Start(new ProcessStartInfo
         {
-            FileName = ConfigPaths.OllamaAppPath,
+            FileName = appPath,
             UseShellExecute = true
+        });
+
+        return Task.CompletedTask;
+    }
+
+    public Task StartServeProcessAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var servePath = ResolveOllamaServePath();
+        if (servePath is null)
+        {
+            throw new FileNotFoundException(
+                $"Ollama serve executable not found. Expected under {ConfigPaths.OllamaServeExePath}.");
+        }
+
+        StopServeProcess();
+        _serveProcess = Process.Start(new ProcessStartInfo
+        {
+            FileName = servePath,
+            Arguments = "serve",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WindowStyle = ProcessWindowStyle.Hidden
         });
 
         return Task.CompletedTask;
@@ -72,10 +101,12 @@ public sealed class OllamaProcessService
         await StopAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         if (autoStart)
         {
-            await StartApplicationAsync(cancellationToken).ConfigureAwait(false);
+            var result = await EnsureApiReadyAsync(timeoutSec, cancellationToken).ConfigureAwait(false);
+            if (!result.Success)
+            {
+                throw new InvalidOperationException(result.Message);
+            }
         }
-
-        await WaitForApiReadyAsync(timeoutSec, autoStart, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task WaitForApiReadyAsync(
@@ -83,32 +114,166 @@ public sealed class OllamaProcessService
         bool autoStart = true,
         CancellationToken cancellationToken = default)
     {
-        var client = new OllamaApiClient();
+        var result = await EnsureApiReadyAsync(timeoutSec, cancellationToken, autoStart).ConfigureAwait(false);
+        if (!result.Success)
+        {
+            throw new TimeoutException(result.Message);
+        }
+    }
+
+    public async Task<OllamaStartupResult> EnsureApiReadyAsync(
+        int timeoutSec = 90,
+        CancellationToken cancellationToken = default,
+        bool autoStart = true)
+    {
+        using var client = new OllamaApiClient();
         var deadline = DateTime.UtcNow.AddSeconds(timeoutSec);
         var attempt = 0;
-        var started = false;
+        var startedTray = false;
+        var startedServe = false;
+        var recycled = false;
+        string? lastError = null;
 
         while (DateTime.UtcNow < deadline)
         {
             cancellationToken.ThrowIfCancellationRequested();
             attempt++;
 
-            if (await client.IsReadyAsync(cancellationToken).ConfigureAwait(false))
+            try
             {
-                await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken).ConfigureAwait(false);
-                return;
+                if (await client.IsReadyAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+                    if (await client.IsReadyAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        return new OllamaStartupResult
+                        {
+                            Success = true,
+                            Message = "Ollama API is ready.",
+                            StartedTrayApp = startedTray,
+                            StartedServeProcess = startedServe,
+                            RecycledStuckProcesses = recycled
+                        };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                lastError = ex.Message;
             }
 
-            if (autoStart && !started && attempt >= 3 && GetProcesses().Count == 0)
+            if (!autoStart)
             {
-                await StartApplicationAsync(cancellationToken).ConfigureAwait(false);
-                started = true;
+                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+                continue;
+            }
+
+            if (!startedTray && attempt >= 2)
+            {
+                try
+                {
+                    await StartApplicationAsync(cancellationToken).ConfigureAwait(false);
+                    startedTray = true;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex.Message;
+                }
+            }
+
+            if (!startedServe && attempt >= 10)
+            {
+                try
+                {
+                    await StartServeProcessAsync(cancellationToken).ConfigureAwait(false);
+                    startedServe = true;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex.Message;
+                }
+            }
+
+            if (!recycled && attempt >= 20 && GetProcesses().Count > 0)
+            {
+                try
+                {
+                    await StopAsync(quick: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    recycled = true;
+                    startedTray = false;
+                    startedServe = false;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex.Message;
+                }
             }
 
             await Task.Delay(500, cancellationToken).ConfigureAwait(false);
         }
 
-        throw new TimeoutException($"Ollama API not ready after {timeoutSec}s.");
+        var detail = string.IsNullOrWhiteSpace(lastError)
+            ? "Start the Ollama app from the system tray or reinstall Ollama."
+            : lastError;
+        return new OllamaStartupResult
+        {
+            Success = false,
+            Message = $"Ollama API not ready after {timeoutSec}s. {detail}",
+            StartedTrayApp = startedTray,
+            StartedServeProcess = startedServe,
+            RecycledStuckProcesses = recycled
+        };
+    }
+
+    private void StopServeProcess()
+    {
+        if (_serveProcess is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (!_serveProcess.HasExited)
+            {
+                _serveProcess.Kill(entireProcessTree: true);
+            }
+        }
+        catch
+        {
+            // Best effort.
+        }
+        finally
+        {
+            _serveProcess.Dispose();
+            _serveProcess = null;
+        }
+    }
+
+    private static string? ResolveOllamaAppPath()
+    {
+        foreach (var path in ConfigPaths.OllamaAppCandidates())
+        {
+            if (File.Exists(path))
+            {
+                return path;
+            }
+        }
+
+        return null;
+    }
+
+    private static string? ResolveOllamaServePath()
+    {
+        foreach (var path in ConfigPaths.OllamaServeCandidates())
+        {
+            if (File.Exists(path))
+            {
+                return path;
+            }
+        }
+
+        return null;
     }
 
     private static List<Process> GetProcesses()

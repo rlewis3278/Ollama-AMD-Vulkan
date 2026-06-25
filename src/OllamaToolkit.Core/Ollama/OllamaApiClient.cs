@@ -137,6 +137,26 @@ public sealed class OllamaApiClient : IDisposable
         _readyCheckedAt = DateTime.MinValue;
     }
 
+    private async Task<HttpResponseMessage> SendPullRequestAsync(
+        string model,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var body = new { name = model, stream = true };
+            var json = JsonSerializer.Serialize(body, JsonFileHelper.Options);
+            using var content = new StringContent(json, Encoding.UTF8, "application/json");
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_host}/api/pull") { Content = content };
+            return await _httpClient.SendAsync(
+                request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (OllamaConnectionHelper.IsConnectionError(ex))
+        {
+            InvalidateCaches();
+            throw new InvalidOperationException(OllamaConnectionHelper.FormatUserMessage(ex), ex);
+        }
+    }
+
     public async Task<BenchmarkEmbedResult> BenchmarkEmbedAsync(
         string model,
         string input,
@@ -308,12 +328,7 @@ public sealed class OllamaApiClient : IDisposable
         IProgress<ModelPullProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var body = new { name = model, stream = true };
-        var json = JsonSerializer.Serialize(body, JsonFileHelper.Options);
-        using var content = new StringContent(json, Encoding.UTF8, "application/json");
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_host}/api/pull") { Content = content };
-        using var response = await _httpClient.SendAsync(
-            request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        using var response = await SendPullRequestAsync(model, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);

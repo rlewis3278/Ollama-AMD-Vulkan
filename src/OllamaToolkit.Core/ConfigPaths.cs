@@ -22,6 +22,26 @@ public static class ConfigPaths
         Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),
             "Programs", "Ollama", "ollama app.exe");
 
+    public static string OllamaServeExePath =>
+        Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData),
+            "Programs", "Ollama", "ollama.exe");
+
+    public static IEnumerable<string> OllamaAppCandidates()
+    {
+        yield return OllamaAppPath;
+        yield return Path.Combine(
+            System.Environment.GetFolderPath(System.Environment.SpecialFolder.ProgramFiles),
+            "Ollama", "ollama app.exe");
+    }
+
+    public static IEnumerable<string> OllamaServeCandidates()
+    {
+        yield return OllamaServeExePath;
+        yield return Path.Combine(
+            System.Environment.GetFolderPath(System.Environment.SpecialFolder.ProgramFiles),
+            "Ollama", "ollama.exe");
+    }
+
     public static string DefaultOllamaHost => "http://localhost:11434";
 
     public static readonly string[] ManagedEnvironmentVariables =

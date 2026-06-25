@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
-using System.Net.Http;
+
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -1361,11 +1361,13 @@ public partial class MainWindow : Window
 
     private async Task RunUndownloadTestQueueAsync(object? flashSender = null)
     {
-        if (!await EnsureOllamaApiReadyAsync(CancellationToken.None, "Undownload test requires Ollama").ConfigureAwait(true))
+        var startup = await EnsureOllamaApiReadyAsync(
+            CancellationToken.None, "Undownload test requires Ollama", timeoutSec: 90).ConfigureAwait(true);
+        if (!startup.Success)
         {
             await UiDispatcher.InvokeAsync(() =>
             {
-                AppendTestLog("ABORT: Ollama API is not reachable at localhost:11434. Start Ollama and retry.");
+                AppendTestLog($"ABORT: {startup.Message}");
                 TestStatusLabel.Text = "Undownload test aborted — Ollama API not reachable.";
                 FinishTestOperation(flashSender, success: false, cancelled: false);
             }).ConfigureAwait(true);
@@ -1449,6 +1451,13 @@ public partial class MainWindow : Window
                                 aiSummarizer,
                                 includeDownloadRow: true))
                             .ConfigureAwait(false);
+
+                        var pullStartup = await EnsureOllamaApiReadyAsync(
+                            ct, $"Download requires Ollama ({pullTag})", timeoutSec: 60).ConfigureAwait(false);
+                        if (!pullStartup.Success)
+                        {
+                            throw new InvalidOperationException(pullStartup.Message);
+                        }
 
                         var lastPullLogPercent = -1;
                         var pullProgress = new Progress<ModelPullProgress>(update =>
@@ -1549,19 +1558,22 @@ public partial class MainWindow : Window
                     }
                     catch (Exception ex)
                     {
-                        var connectionLost = IsOllamaConnectionError(ex);
+                        var connectionLost = OllamaConnectionHelper.IsConnectionError(ex);
+                        var userMessage = OllamaConnectionHelper.FormatUserMessage(ex);
                         await UiDispatcher.InvokeAsync(() =>
                         {
-                            AppendTestLog($"FAIL ({pullTag}): {ex.Message}");
+                            AppendTestLog($"FAIL ({pullTag}): {userMessage}");
                             TestStatusLabel.Text = connectionLost
                                 ? "Undownload test aborted — Ollama API connection lost."
                                 : $"Undownload test failed for {pullTag}: {ex.Message} — continuing queue…";
+                            if (connectionLost)
+                            {
+                                AppendTestLog($"ABORT: {userMessage}");
+                            }
                         }).ConfigureAwait(false);
 
                         if (connectionLost)
                         {
-                            AppendTestLog(
-                                "ABORT: Ollama is not reachable at localhost:11434. Start Ollama and rerun Test Undownload.");
                             cancelled = true;
                             break;
                         }
@@ -2693,45 +2705,43 @@ public partial class MainWindow : Window
         return null;
     }
 
-    private async Task<bool> EnsureOllamaApiReadyAsync(CancellationToken cancellationToken, string? statusPrefix = null)
+    private async Task<(bool Success, string Message)> EnsureOllamaApiReadyAsync(
+        CancellationToken cancellationToken,
+        string? statusPrefix = null,
+        int timeoutSec = 90)
     {
         if (await _svc.ApiClient.IsReadyAsync(cancellationToken).ConfigureAwait(false))
         {
-            return true;
+            return (true, "Ollama API is ready.");
         }
 
         var prefix = string.IsNullOrWhiteSpace(statusPrefix) ? "Ollama API not reachable" : statusPrefix;
         await UiDispatcher.InvokeAsync(() =>
-            CatalogStatusLabel.Text = $"{prefix} — starting Ollama and waiting for localhost:11434…")
-            .ConfigureAwait(false);
+        {
+            CatalogStatusLabel.Text = $"{prefix} — starting Ollama and waiting for localhost:11434…";
+            BeginCatalogDownloadProgressUi("Ollama", "Starting API…");
+        }).ConfigureAwait(false);
 
-        try
+        var startup = await _svc.ModeService.Processes
+            .EnsureApiReadyAsync(timeoutSec, cancellationToken, autoStart: true)
+            .ConfigureAwait(false);
+        _svc.ApiClient.InvalidateCaches();
+
+        if (!startup.Success)
         {
-            await _svc.ModeService.Processes.WaitForApiReadyAsync(60, autoStart: true, cancellationToken)
-                .ConfigureAwait(false);
-            _svc.ApiClient.InvalidateCaches();
-            return await _svc.ApiClient.IsReadyAsync(cancellationToken).ConfigureAwait(false);
+            _svc.ActivityLog.Write("Error", startup.Message);
+            return (false, startup.Message);
         }
-        catch
-        {
-            return false;
-        }
+
+        return (true, startup.Message);
     }
 
-    private static bool IsOllamaConnectionError(Exception ex)
+    private void BeginCatalogDownloadProgressUi(string model, string status)
     {
-        for (var current = ex; current is not null; current = current.InnerException)
-        {
-            var message = current.Message;
-            if (message.Contains("actively refused", StringComparison.OrdinalIgnoreCase)
-                || message.Contains("localhost:11434", StringComparison.OrdinalIgnoreCase)
-                || message.Contains("No connection could be made", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return ex is HttpRequestException;
+        CatalogDownloadProgressPanel.Visibility = Visibility.Visible;
+        CatalogDownloadProgress.Value = 0;
+        CatalogDownloadProgressLabel.Text = $"{model} — {status}";
+        CatalogStatusLabel.Text = CatalogDownloadProgressLabel.Text;
     }
 
     private void ShowCatalogDownloadProgress(string model, ModelPullProgress update)
@@ -2803,17 +2813,20 @@ public partial class MainWindow : Window
             await UiDispatcher.InvokeAsync(() =>
             {
                 BeginCatalogDownloadRow(row);
-                HideCatalogDownloadProgress();
-                CatalogStatusLabel.Text = $"Preparing download for {model}…";
+                BeginCatalogDownloadProgressUi(model, "Preparing download…");
             }).ConfigureAwait(false);
 
             try
             {
-                if (!await EnsureOllamaApiReadyAsync(token, $"Cannot download {model}").ConfigureAwait(false))
+                var startup = await EnsureOllamaApiReadyAsync(token, $"Cannot download {model}", timeoutSec: 90)
+                    .ConfigureAwait(false);
+                if (!startup.Success)
                 {
-                    throw new InvalidOperationException(
-                        "Ollama API is not reachable at localhost:11434. Start Ollama and try again.");
+                    throw new InvalidOperationException(startup.Message);
                 }
+
+                await UiDispatcher.InvokeAsync(() =>
+                    BeginCatalogDownloadProgressUi(model, "Downloading…")).ConfigureAwait(false);
 
                 var progress = new Progress<ModelPullProgress>(update =>
                 {

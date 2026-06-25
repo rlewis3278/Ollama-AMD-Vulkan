@@ -2173,3 +2173,38 @@ EOF
 [2026-06-25 05:58:44] [FIX] Installed Yes/No/Unknown; catalog download progress+flash; abort undownload on connection refused
 [2026-06-25 05:58:44] [SYNC] Processed updates.jsonl lines 9284..9287
 [2026-06-25 05:58:44] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 06:05:30] [FIX] Robust Ollama startup: tray+serve+recycle stuck; connection helper; download progress visible at start
+[2026-06-25 06:05:31] [TOOL] StrReplace - StrReplace
+[2026-06-25 06:05:31] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add DEVELOPMENT-ARCHIVE.md; git commit -m "docs: post-execution archive entry for Phase 11 (5a470fb)"
+[2026-06-25 06:05:31] [TOOL] Read - Read
+[2026-06-25 06:05:31] [TOOL] Read - Read
+[2026-06-25 06:05:31] [TOOL] Read - Read
+[2026-06-25 06:05:31] [TOOL] Grep - Grep
+[2026-06-25 06:05:31] [TOOL] Read - Read
+[2026-06-25 06:05:31] [TOOL] Read - Read
+[2026-06-25 06:05:31] [SHELL] Test-Path "$env:LOCALAPPDATA\Programs\Ollama\ollama app.exe"; Test-Path "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe"; Get-Process -Name "ollama*" -ErrorAction SilentlyContinue | Select-Object Name, Id; try { Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -UseBasicParsing -TimeoutSec 3 } catch { $_.Exception.Message }
+[2026-06-25 06:05:31] [TOOL] Glob - Glob
+[2026-06-25 06:05:31] [SHELL] Start-Process -FilePath "$env:LOCALAPPDATA\Programs\Ollama\ollama app.exe" -ErrorAction SilentlyContinue; Start-Sleep -Seconds 8; Get-Process -Name "ollama*" -ErrorAction SilentlyContinue | Select-Object Name, Id; try { (Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -UseBasicParsing -TimeoutSec 5).StatusCode } catch { $_.Exception.Message }
+[2026-06-25 06:05:31] [TOOL] Read - Read
+[2026-06-25 06:05:31] [TOOL] Read - Read
+[2026-06-25 06:05:31] [TOOL] Read - Read
+[2026-06-25 06:05:31] [TOOL] Grep - Grep
+[2026-06-25 06:05:31] [TOOL] Write - Write
+[2026-06-25 06:05:31] [TOOL] Write - Write
+[2026-06-25 06:05:31] [TOOL] Write - Write
+[2026-06-25 06:05:31] [TOOL] StrReplace - StrReplace
+[2026-06-25 06:05:31] [TOOL] StrReplace - StrReplace
+[2026-06-25 06:05:31] [TOOL] Read - Read
+[2026-06-25 06:05:31] [TOOL] StrReplace - StrReplace
+[2026-06-25 06:05:31] [TOOL] StrReplace - StrReplace
+[2026-06-25 06:05:31] [TOOL] StrReplace - StrReplace
+[2026-06-25 06:05:31] [TOOL] StrReplace - StrReplace
+[2026-06-25 06:05:31] [TOOL] StrReplace - StrReplace
+[2026-06-25 06:05:31] [TOOL] StrReplace - StrReplace
+[2026-06-25 06:05:31] [TOOL] StrReplace - StrReplace
+[2026-06-25 06:05:31] [TOOL] StrReplace - StrReplace
+[2026-06-25 06:05:31] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-25 06:05:31] [SHELL] Get-Process OllamaToolkit.App -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue; cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1
+[2026-06-25 06:05:31] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Update-DevelopmentArchive.ps1" -Entry "FIX|Robust Ollama startup: tray+serve+recycle stuck; connection helper; download progress visible at start"; git add -A; git commit -m "fix: robust Ollama API startup and connection error handling for downloads"
+[2026-06-25 06:05:31] [SYNC] Processed updates.jsonl lines 9288..9432
+[2026-06-25 06:05:31] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
