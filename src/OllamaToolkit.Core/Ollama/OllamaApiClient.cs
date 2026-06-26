@@ -449,6 +449,7 @@ public sealed class OllamaApiClient : IDisposable
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var reader = new StreamReader(stream);
+        var tracker = new PullProgressTracker();
 
         while (!reader.EndOfStream)
         {
@@ -476,17 +477,7 @@ public sealed class OllamaApiClient : IDisposable
 
             if (!string.IsNullOrEmpty(chunk?.Status))
             {
-                int? percent = null;
-                if (chunk.Total is > 0 && chunk.Completed is >= 0)
-                {
-                    percent = (int)Math.Clamp(100.0 * chunk.Completed.Value / chunk.Total.Value, 0, 100);
-                }
-
-                progress?.Report(new ModelPullProgress
-                {
-                    Status = chunk.Status,
-                    Percent = percent
-                });
+                progress?.Report(tracker.Update(chunk));
             }
 
             if (chunk?.Status?.Equals("success", StringComparison.OrdinalIgnoreCase) == true)
@@ -573,11 +564,108 @@ public sealed class OllamaApiClient : IDisposable
         [JsonPropertyName("error")]
         public string? Error { get; set; }
 
+        [JsonPropertyName("digest")]
+        public string? Digest { get; set; }
+
         [JsonPropertyName("completed")]
         public long? Completed { get; set; }
 
         [JsonPropertyName("total")]
         public long? Total { get; set; }
+    }
+
+    private sealed class PullProgressTracker
+    {
+        private readonly Dictionary<string, LayerProgress> _layers = new(StringComparer.Ordinal);
+
+        public ModelPullProgress Update(PullChunk chunk)
+        {
+            if (chunk.Total is > 0 || chunk.Completed is >= 0)
+            {
+                var key = ResolveLayerKey(chunk);
+                if (!_layers.TryGetValue(key, out var layer))
+                {
+                    layer = new LayerProgress();
+                    _layers[key] = layer;
+                }
+
+                if (chunk.Total is > 0)
+                {
+                    layer.Total = chunk.Total.Value;
+                }
+
+                if (chunk.Completed is >= 0)
+                {
+                    layer.Completed = chunk.Completed.Value;
+                }
+            }
+
+            var (completedBytes, totalBytes, percent) = ComputeAggregateProgress(chunk);
+            return new ModelPullProgress
+            {
+                Status = chunk.Status ?? string.Empty,
+                Percent = percent,
+                CompletedBytes = completedBytes,
+                TotalBytes = totalBytes
+            };
+        }
+
+        private (long? CompletedBytes, long? TotalBytes, int? Percent) ComputeAggregateProgress(PullChunk chunk)
+        {
+            long totalBytes = 0;
+            long completedBytes = 0;
+            foreach (var layer in _layers.Values)
+            {
+                if (layer.Total <= 0)
+                {
+                    continue;
+                }
+
+                totalBytes += layer.Total;
+                completedBytes += Math.Min(layer.Completed, layer.Total);
+            }
+
+            if (totalBytes > 0)
+            {
+                var pct = (int)Math.Clamp(100.0 * completedBytes / totalBytes, 0, 100);
+                return (completedBytes, totalBytes, pct);
+            }
+
+            if (chunk.Total is > 0 && chunk.Completed is >= 0)
+            {
+                var pct = (int)Math.Clamp(100.0 * chunk.Completed.Value / chunk.Total.Value, 0, 100);
+                return (chunk.Completed.Value, chunk.Total.Value, pct);
+            }
+
+            return (null, null, null);
+        }
+
+        private static string ResolveLayerKey(PullChunk chunk)
+        {
+            if (!string.IsNullOrWhiteSpace(chunk.Digest))
+            {
+                return chunk.Digest;
+            }
+
+            if (!string.IsNullOrWhiteSpace(chunk.Status))
+            {
+                var shaIndex = chunk.Status.IndexOf("sha256:", StringComparison.OrdinalIgnoreCase);
+                if (shaIndex >= 0)
+                {
+                    return chunk.Status[shaIndex..].Trim();
+                }
+
+                return chunk.Status;
+            }
+
+            return "layer";
+        }
+
+        private sealed class LayerProgress
+        {
+            public long Completed { get; set; }
+            public long Total { get; set; }
+        }
     }
 }
 

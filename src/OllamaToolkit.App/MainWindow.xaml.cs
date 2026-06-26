@@ -1858,16 +1858,36 @@ public partial class MainWindow : Window
         row.Bar.Foreground = (Brush)FindResource("Brush.Purple");
         if (update.Percent is >= 0)
         {
-            _testProgressAnimator.SetCeiling(row.Bar, update.Percent.Value);
-            row.Status.Text = $"{update.Percent.Value}%";
+            _testProgressAnimator.SetAuthoritative(row.Bar, update.Percent.Value);
+            _testProgressAnimator.SetAuthoritative(TestOverallProgress, update.Percent.Value);
+            row.Status.Text = FormatDownloadProgressStatus(update);
         }
-        else
+        else if (!string.IsNullOrWhiteSpace(update.Status))
         {
-            _testProgressAnimator.SetCeiling(row.Bar, row.Bar.Value > 0 ? row.Bar.Value : 5);
             row.Status.Text = update.Status;
         }
 
         row.Status.Foreground = (Brush)FindResource("Brush.Purple");
+    }
+
+    private static string FormatDownloadProgressStatus(ModelPullProgress update)
+    {
+        if (update.TotalBytes is > 0 && update.CompletedBytes is >= 0)
+        {
+            var pct = update.Percent ?? (int)Math.Clamp(
+                100.0 * update.CompletedBytes.Value / update.TotalBytes.Value,
+                0,
+                100);
+            return
+                $"{ModelSizeFormatter.FormatBytes(update.CompletedBytes.Value)} / {ModelSizeFormatter.FormatBytes(update.TotalBytes.Value)} ({pct}%)";
+        }
+
+        if (update.Percent is int percent)
+        {
+            return $"{percent}%";
+        }
+
+        return string.IsNullOrWhiteSpace(update.Status) ? "Downloading…" : update.Status;
     }
 
     private void ResetTestProgressUi(
@@ -2275,7 +2295,9 @@ public partial class MainWindow : Window
                         {
                             if (_testModeProgress.TryGetValue("Download", out var row))
                             {
-                                _testProgressAnimator.SetCeiling(row.Bar, 100);
+                                _testProgressAnimator.SetAuthoritative(row.Bar, 100);
+                                _testProgressAnimator.FreezeBar(row.Bar, 100);
+                                _testProgressAnimator.SetAuthoritative(TestOverallProgress, 100);
                                 row.Status.Text = "Complete";
                                 row.Status.Foreground = (Brush)FindResource("Brush.Active");
                             }
@@ -3756,10 +3778,13 @@ public partial class MainWindow : Window
     private void ShowCatalogDownloadProgress(string model, ModelPullProgress update)
     {
         CatalogDownloadProgressPanel.Visibility = Visibility.Visible;
-        CatalogDownloadProgress.Value = update.Percent ?? CatalogDownloadProgress.Value;
-        CatalogDownloadProgressLabel.Text = update.Percent is int percent
-            ? $"{model} — {update.Status} ({percent}%)"
-            : $"{model} — {update.Status}";
+        if (update.Percent is int percent)
+        {
+            CatalogDownloadProgress.Value = percent;
+        }
+
+        var detail = FormatDownloadProgressStatus(update);
+        CatalogDownloadProgressLabel.Text = $"{model} — {detail}";
         CatalogStatusLabel.Text = CatalogDownloadProgressLabel.Text;
     }
 
