@@ -713,22 +713,7 @@ public partial class MainWindow : Window
             var category = categories.TryGetValue(lib, out var c)
                 ? c
                 : CategoryNormalizer.HeuristicCategory(lib, string.Empty, string.Empty);
-            return new ModelProfileSummary
-            {
-                Model = s.Model,
-                SizeGB = s.SizeGB,
-                Quantization = s.Quantization,
-                ParameterSize = s.ParameterSize,
-                Digest = s.Digest,
-                Status = s.Status,
-                BestMode = s.BestMode,
-                BestTps = s.BestTps,
-                LastTested = s.LastTested,
-                NeedsRetest = s.NeedsRetest,
-                RecommendedCtx = s.RecommendedCtx,
-                Category = category,
-                Results = s.Results
-            };
+            return ModelLaunchRowViewModel.WithCategory(s, category);
         }).ToList();
         var rows = enriched.Select(ModelLaunchRowViewModel.FromSummary).ToList();
         ModelsGrid.ItemsSource = rows;

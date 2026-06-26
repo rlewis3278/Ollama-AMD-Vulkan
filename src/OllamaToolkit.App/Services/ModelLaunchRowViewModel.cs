@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using OllamaToolkit.BenchmarkStore;
 using OllamaToolkit.BenchmarkStore.Models;
 
 namespace OllamaToolkit.App.Services;
@@ -20,10 +21,7 @@ public sealed class ModelLaunchRowViewModel : INotifyPropertyChanged
     public string BestMode { get; init; } = string.Empty;
     public double BestTps { get; init; }
     public double BestEmbedMs { get; init; }
-    public string BestMetricDisplay =>
-        BenchmarkKind.Equals(BenchmarkKinds.Embed, StringComparison.OrdinalIgnoreCase)
-            ? BestEmbedMs > 0 ? $"{BestEmbedMs:F1} ms" : "-"
-            : BestTps > 0 ? $"{BestTps:F1}" : "-";
+    public string BestMetricDisplay { get; init; } = "-";
     public string LastTested { get; init; } = string.Empty;
     public bool NeedsRetest { get; init; } = true;
     public int RecommendedCtx { get; init; }
@@ -44,6 +42,26 @@ public sealed class ModelLaunchRowViewModel : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    public static ModelProfileSummary WithCategory(ModelProfileSummary summary, string category) =>
+        new()
+        {
+            Model = summary.Model,
+            BenchmarkKind = summary.BenchmarkKind,
+            SizeGB = summary.SizeGB,
+            Quantization = summary.Quantization,
+            ParameterSize = summary.ParameterSize,
+            Digest = summary.Digest,
+            Status = summary.Status,
+            BestMode = summary.BestMode,
+            BestTps = summary.BestTps,
+            BestEmbedMs = summary.BestEmbedMs,
+            LastTested = summary.LastTested,
+            NeedsRetest = summary.NeedsRetest,
+            RecommendedCtx = summary.RecommendedCtx,
+            Category = category,
+            Results = summary.Results
+        };
+
     public static ModelLaunchRowViewModel FromSummary(ModelProfileSummary summary) =>
         new()
         {
@@ -57,6 +75,8 @@ public sealed class ModelLaunchRowViewModel : INotifyPropertyChanged
             BestMode = summary.BestMode,
             BestTps = summary.BestTps,
             BestEmbedMs = summary.BestEmbedMs,
+            BestMetricDisplay = BenchmarkMetricFormatter.Format(
+                summary.BenchmarkKind, summary.BestTps, summary.BestEmbedMs),
             LastTested = summary.LastTested,
             NeedsRetest = summary.NeedsRetest,
             RecommendedCtx = summary.RecommendedCtx,

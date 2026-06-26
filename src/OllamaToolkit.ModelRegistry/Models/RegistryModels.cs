@@ -193,9 +193,7 @@ public sealed class TestResultRowViewModel
     public double BestTps { get; init; }
     public double BestEmbedMs { get; init; }
     public string BestMetricDisplay =>
-        BenchmarkKind.Equals("Embed", StringComparison.OrdinalIgnoreCase)
-            ? BestEmbedMs > 0 ? $"{BestEmbedMs:F1} ms" : "-"
-            : BestTps > 0 ? $"{BestTps:F1}" : "-";
+        OllamaToolkit.BenchmarkStore.BenchmarkMetricFormatter.Format(BenchmarkKind, BestTps, BestEmbedMs);
     public string CpuResult { get; init; } = "-";
     public string ApuResult { get; init; } = "-";
     public string GpuResult { get; init; } = "-";

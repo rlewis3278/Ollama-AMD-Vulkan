@@ -74,13 +74,14 @@
                               AutoGenerateColumns="False" IsReadOnly="True"
                               HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
                               SelectionMode="Extended"
-                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True">
+                              EnableRowVirtualization="False"
+                              ScrollViewer.CanContentScroll="False">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*" />
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="100" />
                             <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="80" />
-                            <DataGridTextColumn Header="Best Mode" Binding="{Binding BestMode}" Width="80" />
-                            <DataGridTextColumn Header="Metric" Binding="{Binding BestMetricDisplay}" Width="70" />
+                            <DataGridTextColumn Header="Best Mode" Binding="{Binding BestMode, Mode=OneWay}" Width="80" />
+                            <DataGridTextColumn Header="Metric" Binding="{Binding BestMetricDisplay, Mode=OneWay}" Width="70" />
                             <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
                             <DataGridTextColumn Header="Last Tested" Binding="{Binding LastTested}" Width="130" />
                         </DataGrid.Columns>
