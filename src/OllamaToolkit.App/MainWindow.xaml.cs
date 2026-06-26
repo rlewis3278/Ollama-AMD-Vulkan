@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -56,7 +56,6 @@ public partial class MainWindow : Window
     private static readonly string[] BenchmarkModeOrder = ["CPU", "APU", "GPU", "Hybrid", "ROCm"];
     private readonly Dictionary<string, (ProgressBar Bar, TextBlock Status)> _testModeProgress = new(StringComparer.OrdinalIgnoreCase);
     private readonly SmoothProgressPresenter _testProgressAnimator;
-    private TestSystemMonitorPresenter? _testSystemMonitorPresenter;
     private DispatcherTimer? _testSpinUpTimer;
     private double _testSpinUpProgress;
     private List<string> _nlRankedCatalog = new();
@@ -113,7 +112,6 @@ public partial class MainWindow : Window
         };
         _chatUpdater = new ThrottledUpdater(TimeSpan.FromMilliseconds(33), Dispatcher);
         _testProgressAnimator = new SmoothProgressPresenter(Dispatcher);
-        _testSystemMonitorPresenter = new TestSystemMonitorPresenter(TestSystemMonitorText, _svc.ModeDefinitions.DeviceMap, Dispatcher);
         TestLogText.SelectionChanged += (_, _) =>
         {
             if (_testLogAutoScrolling || _testOperations > 0)
@@ -138,7 +136,6 @@ public partial class MainWindow : Window
             _catalogRowAnimator.Stop();
             StopTestSpinUpCreep();
             _testProgressAnimator.Dispose();
-            _testSystemMonitorPresenter?.Dispose();
         };
     }
 
@@ -154,7 +151,6 @@ public partial class MainWindow : Window
         _activityTimer.Start();
         RefreshDiagnosticsLog();
         await RefreshAllAsync().ConfigureAwait(true);
-        UpdateTestSystemMonitorTabState();
         _ = ScheduleLogScanAsync();
     }
 
@@ -390,7 +386,7 @@ public partial class MainWindow : Window
 
         _benchmarkQueueRunning = false;
         _svc.ApiClient.InvalidateCaches();
-        _svc.Diagnostics.Write("Testing", "Stop Test clicked â€” cancelling benchmark queue");
+        _svc.Diagnostics.Write("Testing", "Stop Test clicked — cancelling benchmark queue");
 
         await UiDispatcher.InvokeAsync(ResetTestOperationState).ConfigureAwait(true);
     }
@@ -476,7 +472,7 @@ public partial class MainWindow : Window
     {
         var map = _svc.ModeDefinitions.DeviceMap;
         VulkanLabel.Text =
-            $"Your GPUs: Integrated {map.ApuName} (Vulkan #{map.ApuVulkanIndex}) Â· Discrete {map.GpuName} (Vulkan #{map.GpuVulkanIndex})";
+            $"Your GPUs: Integrated {map.ApuName} (Vulkan #{map.ApuVulkanIndex}) · Discrete {map.GpuName} (Vulkan #{map.GpuVulkanIndex})";
         foreach (var def in _svc.ModeDefinitions.Definitions.Values)
         {
             if (!_modeCards.TryGetValue(def.Mode.ToString(), out var card))
@@ -611,8 +607,8 @@ public partial class MainWindow : Window
             ? _svc.ModeDefinitions.Get(mode).ShortLabel
             : detected;
         ModeStatusLabel.Text = apiReady
-            ? $"Active: {modeLabel} â€” Ollama is running and ready"
-            : $"Active: {modeLabel} â€” Ollama API not reachable (start Ollama if needed)";
+            ? $"Active: {modeLabel} — Ollama is running and ready"
+            : $"Active: {modeLabel} — Ollama API not reachable (start Ollama if needed)";
 
         _modeCardPresenter.ApplyActiveMode(detected);
 
@@ -899,7 +895,7 @@ public partial class MainWindow : Window
         }
 
         _modeCardPresenter.BeginTransition(previousMode, tag);
-        ModeStatusLabel.Text = restart ? $"Applying {tag} and restarting Ollamaâ€¦" : $"Applying {tag}â€¦";
+        ModeStatusLabel.Text = restart ? $"Applying {tag} and restarting Ollama…" : $"Applying {tag}…";
         _svc.Diagnostics.Write("Modes",
             $"Apply {tag} requested (restart={restart}, previous={previousMode})");
 
@@ -923,8 +919,8 @@ public partial class MainWindow : Window
                     _modeCardPresenter.EndTransition();
                     await RefreshModesUiAsync().ConfigureAwait(true);
                     ModeStatusLabel.Text = restart
-                        ? $"Current mode: {mode} â€” Ollama restarted with new backend"
-                        : $"Current mode: {mode} â€” env saved; restart Ollama to activate backend";
+                        ? $"Current mode: {mode} — Ollama restarted with new backend"
+                        : $"Current mode: {mode} — env saved; restart Ollama to activate backend";
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -1052,7 +1048,7 @@ public partial class MainWindow : Window
 
         MainTabs.SelectedItem = ModelRunTab;
         _runModel = model.Model;
-        ModelRunStatus.Text = $"Applying {model.BestMode} and restarting Ollamaâ€¦";
+        ModelRunStatus.Text = $"Applying {model.BestMode} and restarting Ollama…";
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
@@ -1095,8 +1091,8 @@ public partial class MainWindow : Window
         {
             if (IsBenchmarkQueueRunning())
             {
-                TestStatusLabel.Text = "Benchmark already running â€” click Stop Test first.";
-                AppendTestLog("Benchmark already running â€” click Stop Test first.");
+                TestStatusLabel.Text = "Benchmark already running — click Stop Test first.";
+                AppendTestLog("Benchmark already running — click Stop Test first.");
             }
 
             return;
@@ -1113,8 +1109,8 @@ public partial class MainWindow : Window
         {
             if (IsBenchmarkQueueRunning())
             {
-                TestStatusLabel.Text = "Benchmark already running â€” click Stop Test first.";
-                AppendTestLog("Benchmark already running â€” click Stop Test first.");
+                TestStatusLabel.Text = "Benchmark already running — click Stop Test first.";
+                AppendTestLog("Benchmark already running — click Stop Test first.");
             }
             else
             {
@@ -1169,7 +1165,7 @@ public partial class MainWindow : Window
         var storeBefore = await _svc.Profiles.LoadAsync().ConfigureAwait(true);
         var profileCountBefore = storeBefore.Models.Count;
         _svc.Diagnostics.Write("Profile",
-            $"ClearAll requested â€” profiles before: {profileCountBefore}");
+            $"ClearAll requested — profiles before: {profileCountBefore}");
 
         var cleared = await _svc.Profiles.ClearAllTestDataAsync().ConfigureAwait(true);
         _suppressReportImport = true;
@@ -1183,7 +1179,7 @@ public partial class MainWindow : Window
         var storeAfter = await _svc.Profiles.LoadAsync().ConfigureAwait(true);
         var profileCountAfter = storeAfter.Models.Count;
         _svc.Diagnostics.Write("Profile",
-            $"ClearAll complete â€” removed {cleared.ReportDirsRemoved} report dir(s), " +
+            $"ClearAll complete — removed {cleared.ReportDirsRemoved} report dir(s), " +
             $"{cleared.ReportFilesRemoved} file(s); profiles after: {profileCountAfter}");
 
         await UiDispatcher.InvokeAsync(async () =>
@@ -1209,7 +1205,7 @@ public partial class MainWindow : Window
 
         try
         {
-        await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Checking Ollama APIâ€¦")).ConfigureAwait(true);
+        await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Checking Ollama API…")).ConfigureAwait(true);
         ct.ThrowIfCancellationRequested();
 
         var startup = await EnsureOllamaApiReadyAsync(
@@ -1220,13 +1216,13 @@ public partial class MainWindow : Window
             await UiDispatcher.InvokeAsync(() =>
             {
                 AppendTestLog($"ABORT: {startup.Message}");
-                TestStatusLabel.Text = "Test Local Untested aborted â€” Ollama API not reachable.";
+                TestStatusLabel.Text = "Test Local Untested aborted — Ollama API not reachable.";
                 FinishTestOperation(flashSender, success: false, cancelled: false);
             }).ConfigureAwait(true);
             return;
         }
 
-        await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Building local retest queueâ€¦")).ConfigureAwait(true);
+        await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Building local retest queue…")).ConfigureAwait(true);
         ct.ThrowIfCancellationRequested();
 
         var build = await _svc.Profiles.BuildLocalRetestQueueAsync().ConfigureAwait(true);
@@ -1267,11 +1263,11 @@ public partial class MainWindow : Window
 
                 if (build.Decisions.Count(d => !d.Included) > 10)
                 {
-                    AppendTestLog($"  â€¦ and {build.Decisions.Count(d => !d.Included) - 10} more excluded (see Diagnostics tab)");
+                    AppendTestLog($"  … and {build.Decisions.Count(d => !d.Included) - 10} more excluded (see Diagnostics tab)");
                 }
 
                 TestStatusLabel.Text = build.LocalModelCount == 0
-                    ? "No local models detected â€” start Ollama and refresh the Models tab."
+                    ? "No local models detected — start Ollama and refresh the Models tab."
                     : "No local models need testing or failed-mode retest.";
                 FinishTestOperation(flashSender, success: false, cancelled: false);
             }).ConfigureAwait(true);
@@ -1279,7 +1275,7 @@ public partial class MainWindow : Window
         }
 
         var failedRetests = build.Queue.Count(s => !s.NeedsRetest);
-        await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Prioritizing queue with AIâ€¦")).ConfigureAwait(true);
+        await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Prioritizing queue with AI…")).ConfigureAwait(true);
         ct.ThrowIfCancellationRequested();
         var summaries = await _svc.Profiles.GetAllSummariesAsync(ct).ConfigureAwait(true);
         var queue = await _svc.QueueAdvisor.PrioritizeAsync(names, summaries).ConfigureAwait(true);
@@ -1419,10 +1415,10 @@ public partial class MainWindow : Window
         {
             await UiDispatcher.InvokeAsync(() =>
             {
-                TestNumCtxBox.Text = "â€”";
-                TestNumPredictBox.Text = "â€”";
+                TestNumCtxBox.Text = "—";
+                TestNumPredictBox.Text = "—";
                 TestSettingsLabel.Text =
-                    "Embedding model â€” /api/embed benchmark (latency ms; no generation settings).";
+                    "Embedding model — /api/embed benchmark (latency ms; no generation settings).";
             }).ConfigureAwait(false);
             return (0, 0);
         }
@@ -1455,21 +1451,21 @@ public partial class MainWindow : Window
     {
         MainTabs.SelectedItem = TestingSuiteTab;
         TestProgressPanel.Visibility = Visibility.Visible;
-        TestOverallLabel.Text = "Overall: Initializing testsâ€¦";
+        TestOverallLabel.Text = "Overall: Initializing tests…";
         TestOverallProgress.IsIndeterminate = false;
         TestOverallProgress.ClearValue(Control.ForegroundProperty);
         _testProgressAnimator.SetImmediate(TestOverallProgress, 0);
 
         BuildTestModeProgressRows(Array.Empty<string>());
-        AddTestProgressRow("Initializingâ€¦", 72);
-        if (_testModeProgress.TryGetValue("Initializingâ€¦", out var row))
+        AddTestProgressRow("Initializing…", 72);
+        if (_testModeProgress.TryGetValue("Initializing…", out var row))
         {
             row.Bar.IsIndeterminate = true;
-            row.Status.Text = "Spinning upâ€¦";
+            row.Status.Text = "Spinning up…";
             row.Status.Foreground = (Brush)FindResource("Brush.Warning");
         }
 
-        TestStatusLabel.Text = "Tests Spinning Up â€” Please Waitâ€¦";
+        TestStatusLabel.Text = "Tests Spinning Up — Please Wait…";
         AppendTestLog("Tests Spinning Up.....Please Wait.");
         BeginTestProgressSession();
         StartTestSpinUpCreep();
@@ -1608,7 +1604,7 @@ public partial class MainWindow : Window
             ? "AI insights LLM: (none)"
             : $"AI insights LLM: {aiSummarizer}";
         TestOverallLabel.Text =
-            $"Overall: {model} ({modelIndex + 1}/{modelCount}) â€” {aiLine}";
+            $"Overall: {model} ({modelIndex + 1}/{modelCount}) — {aiLine}";
         BuildTestModeProgressRows(modes, includeDownloadRow);
 
         _testProgressAnimator.ResetModeBars();
@@ -1670,7 +1666,7 @@ public partial class MainWindow : Window
                 ? "AI insights LLM: (none)"
                 : $"AI insights LLM: {update.AiSummarizerModel}";
             TestOverallLabel.Text =
-                $"Overall: {update.Model} ({update.ModelIndex + 1}/{update.ModelCount}) [{kindLabel}] â€” {aiLine}";
+                $"Overall: {update.Model} ({update.ModelIndex + 1}/{update.ModelCount}) [{kindLabel}] — {aiLine}";
         }
 
         if (string.IsNullOrWhiteSpace(update.Mode) || !_testModeProgress.TryGetValue(update.Mode, out var row))
@@ -1678,8 +1674,8 @@ public partial class MainWindow : Window
             if (update.Phase == BenchmarkProgressPhase.ModelCompleted && update.BestMode is not null)
             {
                 TestStatusLabel.Text = isEmbed
-                    ? $"{update.Model} complete â€” winner: {update.BestMode} @ {update.BestEmbedMs:F1} ms/embed"
-                    : $"{update.Model} complete â€” winner: {update.BestMode} @ {update.BestTps:F2} tok/s";
+                    ? $"{update.Model} complete — winner: {update.BestMode} @ {update.BestEmbedMs:F1} ms/embed"
+                    : $"{update.Model} complete — winner: {update.BestMode} @ {update.BestTps:F2} tok/s";
             }
 
             return;
@@ -1702,8 +1698,8 @@ public partial class MainWindow : Window
                 _testProgressAnimator.SetAuthoritative(row.Bar, modeBarValue);
                 row.Status.Text = statusDetail ?? update.Phase switch
                 {
-                    BenchmarkProgressPhase.ModeApplying => "Applying modeâ€¦",
-                    _ => isEmbed ? "Embeddingâ€¦" : "Benchmarkingâ€¦"
+                    BenchmarkProgressPhase.ModeApplying => "Applying mode…",
+                    _ => isEmbed ? "Embedding…" : "Benchmarking…"
                 };
                 row.Status.Foreground = (Brush)FindResource("Brush.Warning");
                 break;
@@ -1734,21 +1730,21 @@ public partial class MainWindow : Window
             TestStatusLabel.Text = update.Phase switch
             {
                 BenchmarkProgressPhase.ModeApplying =>
-                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} â€” applying compute modeâ€¦",
+                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — applying compute mode…",
                 BenchmarkProgressPhase.ModeBenchmarking when isEmbed =>
-                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} â€” running embed benchmark on {update.Model}â€¦",
+                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — running embed benchmark on {update.Model}…",
                 BenchmarkProgressPhase.ModeBenchmarking =>
-                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} â€” running benchmark on {update.Model}â€¦",
+                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — running benchmark on {update.Model}…",
                 BenchmarkProgressPhase.ModeCompleted when isEmbed =>
-                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} â€” {update.EmbedLatencyMs:F1} ms/embed",
+                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — {update.EmbedLatencyMs:F1} ms/embed",
                 BenchmarkProgressPhase.ModeCompleted =>
-                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} â€” {update.GenerationTps:F2} tok/s",
+                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — {update.GenerationTps:F2} tok/s",
                 BenchmarkProgressPhase.ModeFailed =>
-                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} â€” failed",
+                    $"[{update.ModeIndex + 1}/{update.ModeCount}] {update.Mode} — failed",
                 BenchmarkProgressPhase.ModelCompleted when update.BestMode is not null && isEmbed =>
-                    $"{update.Model} complete â€” winner: {update.BestMode} @ {update.BestEmbedMs:F1} ms/embed",
+                    $"{update.Model} complete — winner: {update.BestMode} @ {update.BestEmbedMs:F1} ms/embed",
                 BenchmarkProgressPhase.ModelCompleted when update.BestMode is not null =>
-                    $"{update.Model} complete â€” winner: {update.BestMode} @ {update.BestTps:F2} tok/s",
+                    $"{update.Model} complete — winner: {update.BestMode} @ {update.BestTps:F2} tok/s",
                 _ => TestStatusLabel.Text
             };
         }
@@ -1759,11 +1755,11 @@ public partial class MainWindow : Window
         if (IsBenchmarkQueueRunning())
         {
             _svc.Diagnostics.Write("Testing",
-                $"Benchmark queue rejected â€” already running ({models.Count} model(s) requested)");
+                $"Benchmark queue rejected — already running ({models.Count} model(s) requested)");
             await UiDispatcher.InvokeAsync(() =>
             {
-                AppendTestLog("Benchmark already running â€” click Stop Test first.");
-                TestStatusLabel.Text = "Benchmark already running â€” click Stop Test first.";
+                AppendTestLog("Benchmark already running — click Stop Test first.");
+                TestStatusLabel.Text = "Benchmark already running — click Stop Test first.";
                 FinishTestOperation(flashSender, success: false, cancelled: false);
             }).ConfigureAwait(true);
             return;
@@ -1782,7 +1778,7 @@ public partial class MainWindow : Window
             var cancelled = false;
             try
             {
-                await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Resolving AI summarizerâ€¦"))
+                await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Resolving AI summarizer…"))
                     .ConfigureAwait(false);
 
                 var aiSummarizer = await _svc.Summarizer.ResolveAsync(cancellationToken: ct).ConfigureAwait(false);
@@ -1858,7 +1854,7 @@ public partial class MainWindow : Window
 
     private async Task RunUndownloadTestQueueAsync(object? flashSender = null)
     {
-        await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Checking Ollama APIâ€¦")).ConfigureAwait(true);
+        await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Checking Ollama API…")).ConfigureAwait(true);
 
         var startup = await EnsureOllamaApiReadyAsync(
             CancellationToken.None, "Undownload test requires Ollama", timeoutSec: 90).ConfigureAwait(true);
@@ -1867,13 +1863,13 @@ public partial class MainWindow : Window
             await UiDispatcher.InvokeAsync(() =>
             {
                 AppendTestLog($"ABORT: {startup.Message}");
-                TestStatusLabel.Text = "Undownload test aborted â€” Ollama API not reachable.";
+                TestStatusLabel.Text = "Undownload test aborted — Ollama API not reachable.";
                 FinishTestOperation(flashSender, success: false, cancelled: false);
             }).ConfigureAwait(true);
             return;
         }
 
-        await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Building undownload test queueâ€¦"))
+        await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Building undownload test queue…"))
             .ConfigureAwait(true);
 
         var candidates = await _svc.Registry.GetUndownloadTestQueueAsync().ConfigureAwait(true);
@@ -1901,7 +1897,7 @@ public partial class MainWindow : Window
                 $"--- Undownload test queue ({candidates.Count} model(s), smallest file size first) ---");
             AppendTestLog(
                 $"Order: {string.Join(" -> ", candidates.Select(c => c.LibraryName))}");
-            TestStatusLabel.Text = $"Undownload batch started â€” {candidates.Count} model(s) queued.";
+            TestStatusLabel.Text = $"Undownload batch started — {candidates.Count} model(s) queued.";
         }).ConfigureAwait(true);
 
         await _svc.WorkQueue.EnqueueAsync(async _ =>
@@ -1928,7 +1924,7 @@ public partial class MainWindow : Window
                         _undownloadPurpleLibraries.Add(candidate.LibraryName);
                         SetCatalogTestingHighlight(candidate.LibraryName, on: true);
                         TestStatusLabel.Text =
-                            $"[{i + 1}/{candidates.Count}] Downloading {candidate.LibraryName} ({pullTag})â€¦";
+                            $"[{i + 1}/{candidates.Count}] Downloading {candidate.LibraryName} ({pullTag})…";
                     }).ConfigureAwait(false);
 
                     try
@@ -1939,7 +1935,7 @@ public partial class MainWindow : Window
                             AppendTestLog(
                                 $"=== Undownload test [{i + 1}/{candidates.Count}]: {candidate.LibraryName} ===");
                             AppendTestLog($"Tag: {pullTag} | Catalog file size: {fileSizeLabel}");
-                            AppendTestLog($"Step 1/3: Downloading {pullTag} from Ollama libraryâ€¦");
+                            AppendTestLog($"Step 1/3: Downloading {pullTag} from Ollama library…");
                         }).ConfigureAwait(false);
 
                         var aiSummarizer = await _svc.Summarizer.ResolveAsync(cancellationToken: ct)
@@ -2001,7 +1997,7 @@ public partial class MainWindow : Window
                             }
 
                             AppendTestLog($"Download verified: {pullTag} is installed locally.");
-                            AppendTestLog("Step 2/3: Running 5-mode benchmark on downloaded modelâ€¦");
+                            AppendTestLog("Step 2/3: Running 5-mode benchmark on downloaded model…");
                         }).ConfigureAwait(false);
 
                         await RunBenchmarkQueueCoreAsync(
@@ -2020,7 +2016,7 @@ public partial class MainWindow : Window
                         }
 
                         await UiDispatcher.InvokeAsync(() =>
-                            AppendTestLog($"Step 3/3: Removing local copy {pullTag} (keeping benchmark data)â€¦"))
+                            AppendTestLog($"Step 3/3: Removing local copy {pullTag} (keeping benchmark data)…"))
                             .ConfigureAwait(false);
 
                         await _svc.ModelSessions.UninstallModelAsync(pullTag, ct).ConfigureAwait(false);
@@ -2068,8 +2064,8 @@ public partial class MainWindow : Window
                         {
                             AppendTestLog($"FAIL ({pullTag}): {userMessage}");
                             TestStatusLabel.Text = connectionLost
-                                ? "Undownload test aborted â€” Ollama API connection lost."
-                                : $"Undownload test failed for {pullTag}: {ex.Message} â€” continuing queueâ€¦";
+                                ? "Undownload test aborted — Ollama API connection lost."
+                                : $"Undownload test failed for {pullTag}: {ex.Message} — continuing queue…";
                             if (connectionLost)
                             {
                                 AppendTestLog($"ABORT: {userMessage}");
@@ -2147,7 +2143,7 @@ public partial class MainWindow : Window
                         model, globalIndex, totalModels, benchmarkModes, aiSummarizer);
                 }
 
-                TestStatusLabel.Text = $"Resolving AI benchmark settings for {model}â€¦";
+                TestStatusLabel.Text = $"Resolving AI benchmark settings for {model}…";
             }).ConfigureAwait(false);
 
             try
@@ -2163,8 +2159,8 @@ public partial class MainWindow : Window
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     TestStatusLabel.Text = isEmbed
-                        ? $"Embedding benchmark {model} ({globalIndex + 1}/{totalModels}) â€” /api/embed latency testâ€¦"
-                        : $"Benchmarking {model} ({globalIndex + 1}/{totalModels}) â€” num_ctx={numCtx}, num_predict={numPredict}â€¦";
+                        ? $"Embedding benchmark {model} ({globalIndex + 1}/{totalModels}) — /api/embed latency test…"
+                        : $"Benchmarking {model} ({globalIndex + 1}/{totalModels}) — num_ctx={numCtx}, num_predict={numPredict}…";
                 }).ConfigureAwait(false);
 
                 var log = new Progress<string>(AppendTestLog);
@@ -2384,7 +2380,6 @@ public partial class MainWindow : Window
 
     private async void MainTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        UpdateTestSystemMonitorTabState();
         if (e.AddedItems.Contains(ModelLibraryTab))
         {
             await LoadCatalogTabAsync().ConfigureAwait(true);
@@ -2403,23 +2398,6 @@ public partial class MainWindow : Window
         {
             await RefreshAiSettingsUiAsync().ConfigureAwait(true);
             RefreshActivityLog();
-        }
-    }
-
-    private void UpdateTestSystemMonitorTabState()
-    {
-        if (_testSystemMonitorPresenter is null)
-        {
-            return;
-        }
-
-        if (MainTabs.SelectedItem == TestingSuiteTab)
-        {
-            _testSystemMonitorPresenter.Start();
-        }
-        else
-        {
-            _testSystemMonitorPresenter.Stop();
         }
     }
 
@@ -2539,7 +2517,7 @@ public partial class MainWindow : Window
                     _descriptionRefreshInProgress = false;
                     _catalogRowAnimator.Stop();
                     ScrollCatalogGridToTop();
-                    CatalogStatusLabel.Text = $"Descriptions refreshed â€” {count} AI summary(s) updated.";
+                    CatalogStatusLabel.Text = $"Descriptions refreshed — {count} AI summary(s) updated.";
                     EndTaskFlashSuccess(
                         sender,
                         "Refreshed",
@@ -2941,9 +2919,9 @@ public partial class MainWindow : Window
     {
         if (MessageBox.Show(
                 "Delete all cached catalog data?\n\nThis removes:\n" +
-                "â€¢ Cached ollama.com catalog\n" +
-                "â€¢ AI descriptions\n" +
-                "â€¢ Usage categories\n\n" +
+                "• Cached ollama.com catalog\n" +
+                "• AI descriptions\n" +
+                "• Usage categories\n\n" +
                 "Installed Ollama models on this PC are not removed.",
                 "Clear Catalog",
                 MessageBoxButton.YesNo,
@@ -2976,7 +2954,7 @@ public partial class MainWindow : Window
                     CatalogRowRefreshAnimator.ResetAll(_catalogRows);
                     _catalogRows.Clear();
                     _catalogRowByName = new Dictionary<string, CatalogRowViewModel>(StringComparer.OrdinalIgnoreCase);
-                    CatalogStatusLabel.Text = "Catalog cleared â€” use Refresh Catalog to reload.";
+                    CatalogStatusLabel.Text = "Catalog cleared — use Refresh Catalog to reload.";
                     _svc.ActivityLog.Write("Task", "Catalog metadata cleared.");
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
@@ -3145,7 +3123,7 @@ public partial class MainWindow : Window
 
                     var doneMessage = count == 0
                         ? "All catalog models are already AI-categorized."
-                        : $"Done â€” AI classified {count} catalog model(s).";
+                        : $"Done — AI classified {count} catalog model(s).";
                     if (fromAiSettings)
                     {
                         SetAiSettingsActionStatus(doneMessage);
@@ -3275,8 +3253,8 @@ public partial class MainWindow : Window
         var prefix = string.IsNullOrWhiteSpace(statusPrefix) ? "Ollama API not reachable" : statusPrefix;
         await UiDispatcher.InvokeAsync(() =>
         {
-            CatalogStatusLabel.Text = $"{prefix} â€” starting Ollama and waiting for localhost:11434â€¦";
-            BeginCatalogDownloadProgressUi("Ollama", "Starting APIâ€¦");
+            CatalogStatusLabel.Text = $"{prefix} — starting Ollama and waiting for localhost:11434…";
+            BeginCatalogDownloadProgressUi("Ollama", "Starting API…");
         }).ConfigureAwait(false);
 
         var startup = await _svc.ModeService.Processes
@@ -3299,7 +3277,7 @@ public partial class MainWindow : Window
     {
         CatalogDownloadProgressPanel.Visibility = Visibility.Visible;
         CatalogDownloadProgress.Value = 0;
-        CatalogDownloadProgressLabel.Text = $"{model} â€” {status}";
+        CatalogDownloadProgressLabel.Text = $"{model} — {status}";
         CatalogStatusLabel.Text = CatalogDownloadProgressLabel.Text;
     }
 
@@ -3308,8 +3286,8 @@ public partial class MainWindow : Window
         CatalogDownloadProgressPanel.Visibility = Visibility.Visible;
         CatalogDownloadProgress.Value = update.Percent ?? CatalogDownloadProgress.Value;
         CatalogDownloadProgressLabel.Text = update.Percent is int percent
-            ? $"{model} â€” {update.Status} ({percent}%)"
-            : $"{model} â€” {update.Status}";
+            ? $"{model} — {update.Status} ({percent}%)"
+            : $"{model} — {update.Status}";
         CatalogStatusLabel.Text = CatalogDownloadProgressLabel.Text;
     }
 
@@ -3372,7 +3350,7 @@ public partial class MainWindow : Window
             await UiDispatcher.InvokeAsync(() =>
             {
                 BeginCatalogDownloadRow(row);
-                BeginCatalogDownloadProgressUi(model, "Preparing downloadâ€¦");
+                BeginCatalogDownloadProgressUi(model, "Preparing download…");
             }).ConfigureAwait(false);
 
             try
@@ -3385,7 +3363,7 @@ public partial class MainWindow : Window
                 }
 
                 await UiDispatcher.InvokeAsync(() =>
-                    BeginCatalogDownloadProgressUi(model, "Downloadingâ€¦")).ConfigureAwait(false);
+                    BeginCatalogDownloadProgressUi(model, "Downloading…")).ConfigureAwait(false);
 
                 var progress = new Progress<ModelPullProgress>(update =>
                 {
@@ -3720,7 +3698,7 @@ public partial class MainWindow : Window
 
         MainTabs.SelectedItem = ModelRunTab;
         _runModel = model.Model;
-        ModelRunStatus.Text = $"Applying {model.BestMode} and restarting Ollamaâ€¦";
+        ModelRunStatus.Text = $"Applying {model.BestMode} and restarting Ollama…";
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
@@ -3753,8 +3731,8 @@ public partial class MainWindow : Window
         var summarizer = await _svc.Summarizer.ResolveAsync().ConfigureAwait(true);
 
         AiSettingsStatus.Text = ready
-            ? (summarizer is not null ? $"AI Active â€” summarizer: {summarizer}" : "AI Inactive â€” no summarizer installed")
-            : "AI Inactive â€” Ollama API not reachable";
+            ? (summarizer is not null ? $"AI Active — summarizer: {summarizer}" : "AI Inactive — no summarizer installed")
+            : "AI Inactive — Ollama API not reachable";
 
         var tags = await _svc.ApiClient.GetTagsAsync(forceRefresh: true).ConfigureAwait(true);
         var installed = tags.Select(t => t.Name).ToList();
@@ -4213,7 +4191,7 @@ public partial class MainWindow : Window
             if (doc.Anomalies.Count > 0)
             {
                 await UiDispatcher.InvokeAsync(() =>
-                    AnomalySummary.Text = $"{doc.Anomalies.Count} anomaly pattern(s) detected â€” see AI Activity.")
+                    AnomalySummary.Text = $"{doc.Anomalies.Count} anomaly pattern(s) detected — see AI Activity.")
                     .ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
