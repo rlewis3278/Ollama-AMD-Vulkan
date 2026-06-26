@@ -78,6 +78,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _refreshDescriptionsCts;
     private CancellationTokenSource? _classificationCts;
     private CancellationTokenSource? _aiRecommendationsCts;
+    private object? _generateRecommendationsFlashSender;
     private int _catalogToolbarOperations;
     private bool _suppressReportImport;
 
@@ -3201,6 +3202,25 @@ public partial class MainWindow : Window
             EnterAiActivity();
             try
             {
+                if (!string.IsNullOrWhiteSpace(summarizer))
+                {
+                    var modeMsg = $"Applying summarizer best mode for {summarizer}...";
+                    await UiDispatcher.InvokeAsync(() =>
+                    {
+                        if (fromAiSettings)
+                        {
+                            SetAiSettingsActionStatus(modeMsg);
+                        }
+                        else
+                        {
+                            CatalogStatusLabel.Text = modeMsg;
+                        }
+                    }).ConfigureAwait(false);
+                    await _svc.SummarizerInference.ApplySummarizerBestModeAsync(summarizer, ct)
+                        .ConfigureAwait(false);
+                    await UiDispatcher.InvokeAsync(UpdateFooterComputeModeLabel).ConfigureAwait(false);
+                }
+
                 var progress = new Progress<string>(msg =>
                 {
                     UiDispatcher.InvokeAsync(() =>
@@ -3890,11 +3910,6 @@ public partial class MainWindow : Window
             _suppressSummarizerComboSave = false;
         }
 
-        var suggested = SummarizerModelResolver.DefaultPreferenceOrder
-            .Where(m => !installed.Contains(m, StringComparer.OrdinalIgnoreCase))
-            .ToList();
-        SuggestedModelsList.ItemsSource = suggested;
-
         await RefreshCategoryStatusAsync().ConfigureAwait(true);
         await BindAiRecommendationsFromCacheAsync().ConfigureAwait(true);
     }
@@ -3943,23 +3958,33 @@ public partial class MainWindow : Window
             return;
         }
 
+        _generateRecommendationsFlashSender = sender;
         SetAiRecommendationsActionStatus("Starting recommendation pipeline...");
         SetAiSettingsButtonsEnabled(false);
         _aiRecommendationsCts?.Cancel();
         _aiRecommendationsCts?.Dispose();
         _aiRecommendationsCts = new CancellationTokenSource();
 
-        await _svc.WorkQueue.EnqueueAsync(async workCt =>
+        await _svc.WorkQueue.EnqueueAsync(async _ =>
         {
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(workCt, _aiRecommendationsCts!.Token);
-            var ct = linked.Token;
+            var ct = _aiRecommendationsCts!.Token;
             EnterAiActivity();
             try
             {
                 if (!await ValidateAiRecommendationsPreflightAsync(ct).ConfigureAwait(false))
                 {
-                    await UiDispatcher.InvokeAsync(() => EndTaskFlashIdle(sender)).ConfigureAwait(false);
+                    await FinishGenerateRecommendationsAsync(cancelled: false, failed: true).ConfigureAwait(false);
                     return;
+                }
+
+                var summarizer = await _svc.Summarizer.ResolveAsync(cancellationToken: ct).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(summarizer))
+                {
+                    SetAiRecommendationsActionStatusOnUi(
+                        $"Applying summarizer best mode for {summarizer}...");
+                    await _svc.SummarizerInference.ApplySummarizerBestModeAsync(summarizer, ct)
+                        .ConfigureAwait(false);
+                    UpdateFooterComputeModeLabel();
                 }
 
                 var entries = await _svc.CatalogStore.GetEntriesAsync(cancellationToken: ct)
@@ -3969,23 +3994,25 @@ public partial class MainWindow : Window
 
                 if (classified < total)
                 {
-                    SetAiRecommendationsActionStatusOnUi("Catalog incomplete — running Categorize All...");
+                    _svc.Diagnostics.Write("AI",
+                        $"Generate recommendations: categorizing catalog ({classified}/{total} classified).");
+                    SetAiRecommendationsActionStatusOnUi(
+                        $"Catalog incomplete — categorizing {total - classified} remaining model(s)...");
                     if (!await RunClassificationCoreAsync(recategorize: false, ct, useRecommendationsStatus: true)
                             .ConfigureAwait(false))
                     {
+                        await FinishGenerateRecommendationsAsync(cancelled: false, failed: true).ConfigureAwait(false);
                         return;
                     }
                 }
-                else if (total > 0)
+                else
                 {
-                    SetAiRecommendationsActionStatusOnUi("Catalog categorized — running Recategorize All...");
-                    if (!await RunClassificationCoreAsync(recategorize: true, ct, useRecommendationsStatus: true)
-                            .ConfigureAwait(false))
-                    {
-                        return;
-                    }
+                    _svc.Diagnostics.Write("AI",
+                        "Generate recommendations: catalog fully classified — skipping full recategorize.");
+                    SetAiRecommendationsActionStatusOnUi("Using existing catalog categories...");
                 }
 
+                ct.ThrowIfCancellationRequested();
                 SetAiRecommendationsActionStatusOnUi("Generating AI recommendation lists...");
                 var intent = await UiDispatcher.InvokeAsync(() => AiRecommendationsIntentBox.Text?.Trim())
                     .ConfigureAwait(false);
@@ -4004,39 +4031,59 @@ public partial class MainWindow : Window
 
                 _svc.ActivityLog.Write("AI",
                     $"LLM recommendations: {doc.Installed.Count} installed, {doc.Uninstalled.Count} uninstalled.");
+                _svc.Diagnostics.Write("AI",
+                    $"Generate recommendations complete: {doc.Installed.Count} installed, {doc.Uninstalled.Count} uninstalled.");
                 await UiDispatcher.InvokeAsync(async () =>
                 {
                     BindAiRecommendationsDocument(doc);
                     SetAiRecommendationsActionStatus(
                         $"Done — {doc.Installed.Count} installed and {doc.Uninstalled.Count} uninstalled recommendations.");
                     await RefreshCategoryStatusAsync().ConfigureAwait(true);
-                    EndTaskFlashSuccess(sender, "Generated", 10);
+                    if (_generateRecommendationsFlashSender is not null)
+                    {
+                        EndTaskFlashSuccess(_generateRecommendationsFlashSender, "Generated", 10);
+                    }
                 }).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
-                await UiDispatcher.InvokeAsync(() =>
-                {
-                    SetAiRecommendationsActionStatus("Recommendation generation cancelled.");
-                    EndTaskFlashIdle(sender);
-                }).ConfigureAwait(false);
+                _svc.Diagnostics.Write("AI", "Generate recommendations cancelled.");
+                await FinishGenerateRecommendationsAsync(cancelled: true, failed: false).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
-                await UiDispatcher.InvokeAsync(() =>
-                {
-                    SetAiRecommendationsActionStatus(msg);
-                    EndTaskFlashIdle(sender);
-                }).ConfigureAwait(false);
+                _svc.Diagnostics.Write("AI", $"Generate recommendations failed: {ex.Message}");
+                await UiDispatcher.InvokeAsync(() => SetAiRecommendationsActionStatus(msg)).ConfigureAwait(false);
+                await FinishGenerateRecommendationsAsync(cancelled: false, failed: true).ConfigureAwait(false);
             }
             finally
             {
                 ExitAiActivity();
-                await UiDispatcher.InvokeAsync(() => SetAiSettingsButtonsEnabled(true)).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    SetAiSettingsButtonsEnabled(true);
+                    _generateRecommendationsFlashSender = null;
+                }).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
+    }
+
+    private async Task FinishGenerateRecommendationsAsync(bool cancelled, bool failed)
+    {
+        await UiDispatcher.InvokeAsync(() =>
+        {
+            if (cancelled)
+            {
+                SetAiRecommendationsActionStatus("Recommendation generation cancelled.");
+            }
+
+            if (_generateRecommendationsFlashSender is not null)
+            {
+                EndTaskFlashIdle(_generateRecommendationsFlashSender);
+            }
+        }).ConfigureAwait(false);
     }
 
     private async Task<bool> ValidateAiRecommendationsPreflightAsync(CancellationToken cancellationToken)
@@ -4177,7 +4224,15 @@ public partial class MainWindow : Window
     {
         _aiRecommendationsCts?.Cancel();
         _classificationCts?.Cancel();
+        if (_generateRecommendationsFlashSender is not null)
+        {
+            EndTaskFlashIdle(_generateRecommendationsFlashSender);
+            _generateRecommendationsFlashSender = null;
+        }
+
         SetAiRecommendationsActionStatus("Cancelling...");
+        SetAiSettingsButtonsEnabled(true);
+        UpdateFooterComputeModeLabel();
     }
 
     private async void AiDownloadRecommended_Click(object sender, RoutedEventArgs e)
@@ -4451,11 +4506,10 @@ public partial class MainWindow : Window
     private async void DownloadSummarizer_Click(object sender, RoutedEventArgs e)
     {
         var model = SummarizerCombo.SelectedItem as string
-            ?? SuggestedModelsList.SelectedItem as string
             ?? SummarizerModelResolver.DefaultPreferenceOrder.FirstOrDefault();
         if (string.IsNullOrWhiteSpace(model))
         {
-            SetAiSettingsActionStatus("Select a summarizer or suggested model to download.");
+            SetAiSettingsActionStatus("Select a summarizer model to download, or use Refresh List after installing one.");
             return;
         }
 
@@ -4525,6 +4579,11 @@ public partial class MainWindow : Window
             EnterAiActivity();
             try
             {
+                SetAiSettingsActionStatus($"Applying summarizer best mode for {model}...");
+                await _svc.SummarizerInference.ApplySummarizerBestModeAsync(model, ct)
+                    .ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(UpdateFooterComputeModeLabel).ConfigureAwait(false);
+                SetAiSettingsActionStatus($"Testing summarizer ({model})...");
                 var result = await _svc.ApiClient.GenerateAsync(
                     model,
                     "Summarize in one short phrase: Llama is a family of open large language models.",

@@ -119,6 +119,10 @@ public sealed class CatalogClassificationService
                 .ConfigureAwait(false);
             return ParseBatchResponse(response, batch);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch
         {
             return batch.ToDictionary(

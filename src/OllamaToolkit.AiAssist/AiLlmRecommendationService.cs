@@ -219,6 +219,10 @@ public sealed class AiLlmRecommendationService
                 .ConfigureAwait(false);
             return ParseRankedNames(text, candidates.Select(c => c.Model).ToList());
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch
         {
             return FallbackInstalledOrder(candidates);
@@ -259,6 +263,10 @@ public sealed class AiLlmRecommendationService
             var text = await _apiClient.GenerateAsync(summarizer, prompt, 256, 4096, cancellationToken)
                 .ConfigureAwait(false);
             return ParseRankedNames(text, subset.Select(c => c.LibraryName).ToList());
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch
         {

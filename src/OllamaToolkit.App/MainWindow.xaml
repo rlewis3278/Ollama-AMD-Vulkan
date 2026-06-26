@@ -347,11 +347,8 @@
                             <Button x:Name="TestSummarizerBtn" Content="Test Summarizer" Style="{StaticResource ToolkitButton}" Click="TestSummarizer_Click" />
                         </StackPanel>
                         <TextBlock x:Name="AiSettingsActionStatus" TextWrapping="Wrap" Foreground="{StaticResource Brush.Warning}" Margin="0,0,0,8" />
-                        <TextBlock x:Name="SummarizerTestResult" TextWrapping="Wrap" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
-                        <TextBlock Text="Suggested summarizer models (not installed):" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,4" />
-                        <ListBox x:Name="SuggestedModelsList" Height="90" Margin="0,0,0,16" />
+                        <TextBlock x:Name="SummarizerTestResult" TextWrapping="Wrap" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,16" />
 
-                        <TextBlock Text="Recommended LLMs" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
                         <TextBlock x:Name="AiRecommendationsStatusLabel" Foreground="{StaticResource Brush.Muted}" TextWrapping="Wrap" Margin="0,0,0,8" />
                         <TextBlock Text="Intent (optional):" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,4" />
                         <TextBox x:Name="AiRecommendationsIntentBox" Margin="0,0,0,8"
