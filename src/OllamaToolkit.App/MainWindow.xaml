@@ -240,7 +240,7 @@
                     </StackPanel>
                 </Grid>
             </TabItem>
-            <TabItem Header="Testing Suite">
+            <TabItem x:Name="TestingSuiteTab" Header="Testing Suite">
                 <Grid Margin="12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />

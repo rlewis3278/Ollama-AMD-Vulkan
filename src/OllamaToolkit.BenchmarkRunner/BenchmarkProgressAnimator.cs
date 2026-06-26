@@ -29,7 +29,7 @@ public sealed class BenchmarkProgressAnimator : IDisposable
         _progress.Report(Copy(template, Math.Clamp(fraction, 0, 1), detail));
     }
 
-    public void StartCreep(double from, double to, string detail, int intervalMs = 250)
+    public void StartCreep(double from, double to, string detail, int intervalMs = 100)
     {
         StopCreep();
         _cts = new CancellationTokenSource();
@@ -37,12 +37,19 @@ public sealed class BenchmarkProgressAnimator : IDisposable
         _creepTask = Task.Run(async () =>
         {
             var fraction = from;
-            var step = (to - from) / Math.Max(1, (int)((to - from) * 40));
-            while (!ct.IsCancellationRequested && fraction < to)
+            var range = to - from;
+            var steps = Math.Max(12, (int)Math.Ceiling(range * 80));
+            var step = range / steps;
+            while (!ct.IsCancellationRequested && fraction < to - step * 0.25)
             {
                 Report(fraction, detail);
                 await Task.Delay(intervalMs, ct).ConfigureAwait(false);
                 fraction = Math.Min(to, fraction + step);
+            }
+
+            if (!ct.IsCancellationRequested)
+            {
+                Report(to, detail);
             }
         }, ct);
     }

@@ -3079,3 +3079,94 @@ foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included
 [2026-06-25 18:02:43] [BUILD] Release build 0 errors; published OllamaToolkit.App
 [2026-06-25 18:02:43] [SYNC] Processed updates.jsonl lines 12698..12699
 [2026-06-25 18:02:43] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:17:46] [FILE] ShowTestSpinUpUi immediate test log + progress panel on button click
+[2026-06-25 18:17:46] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Grep - Grep
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Grep - Grep
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Glob - Glob
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 18:17:46] [SHELL] git -C "C:\Users\lewis\Ollama-AMD-Vulkan" status --short; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" branch --show-current
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 18:17:46] [TOOL] Grep - Grep
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Glob - Glob
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Grep - Grep
+[2026-06-25 18:17:46] [TOOL] Glob - Glob
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Grep - Grep
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Grep - Grep
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Grep - Grep
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Read - Read
+[2026-06-25 18:17:46] [TOOL] Grep - Grep
+[2026-06-25 18:17:46] [TOOL] Write - Write
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] SwitchMode - SwitchMode
+[2026-06-25 18:17:46] [TOOL] Write - Write
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] Grep - Grep
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] Grep - Grep
+[2026-06-25 18:17:46] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:17:46] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 18:17:46] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release --no-restore 2>&1; if (-not $?) { dotnet restore src/OllamaToolkit.App/OllamaToolkit.App.csproj; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release 2>&1 }
+[2026-06-25 18:17:46] [TOOL] Grep - Grep
+[2026-06-25 18:17:46] [TOOL] Grep - Grep
+[2026-06-25 18:17:46] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 --self-contained false -o publish/OllamaToolkit.App
+[2026-06-25 18:17:46] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|ShowTestSpinUpUi immediate test log + progress panel on button click"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|SmoothProgressPresenter lerp for overall + per-mode bars"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|BenchmarkProgressAnimator 100ms creep; spin-up status during pre-queue"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build 0 errors; published OllamaToolkit.App"; git add -A; git commit -m "feat: instant test spin-up UI and smooth progress bars`n`n- Show test log and progress panel immediately on Test Selected/Untested/Undownload`n- Tests Spinning Up.....Please Wait. message with pre-queue status updates`n- SmoothProgressPresenter animates overall and per-mode progress bars`n- BenchmarkProgressAnimator faster creep during long benchmark steps"
+[2026-06-25 18:17:46] [SYNC] Processed updates.jsonl lines 12700..13021
+[2026-06-25 18:17:46] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:17:46] [FILE] SmoothProgressPresenter lerp for overall + per-mode bars
+[2026-06-25 18:17:47] [SYNC] Processed updates.jsonl lines 13022..13026
+[2026-06-25 18:17:47] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:17:47] [FILE] BenchmarkProgressAnimator 100ms creep; spin-up status during pre-queue
+[2026-06-25 18:17:48] [SYNC] Processed updates.jsonl lines 13027..13028
+[2026-06-25 18:17:48] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:17:48] [BUILD] Release build 0 errors; published OllamaToolkit.App
+[2026-06-25 18:17:48] [SYNC] Processed updates.jsonl lines 13029..13031
+[2026-06-25 18:17:48] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
