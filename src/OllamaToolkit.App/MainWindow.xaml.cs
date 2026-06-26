@@ -105,6 +105,7 @@ public partial class MainWindow : Window
         {
             RefreshActivityLog();
             RefreshDiagnosticsLog();
+            _ = SyncComputeModeDisplayAsync();
         };
         _catalogSearchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
         _catalogSearchTimer.Tick += async (_, _) =>
@@ -680,25 +681,53 @@ public partial class MainWindow : Window
 
     private async Task RefreshModesUiAsync()
     {
-        var detected = _svc.ModeService.DetectCurrentMode();
-        var apiReady = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
-        var modeLabel = _svc.ModeDefinitions.TryParse(detected, out var mode)
-            ? _svc.ModeDefinitions.Get(mode).ShortLabel
-            : detected;
-        ModeStatusLabel.Text = apiReady
-            ? $"Active: {modeLabel} — Ollama is running and ready"
-            : $"Active: {modeLabel} — Ollama API not reachable (start Ollama if needed)";
+        await SyncComputeModeDisplayAsync().ConfigureAwait(true);
+    }
 
-        _modeCardPresenter.ApplyActiveMode(detected);
+    private async Task SyncComputeModeDisplayAsync()
+    {
+        var apiReady = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
+        if (apiReady)
+        {
+            _svc.ModeService.InitializeRunningModeFromConfigured();
+        }
+
+        var running = _svc.ModeService.GetRunningModeLabel(apiReady);
+        var configured = _svc.ModeService.DetectConfiguredMode();
+        var runningLabel = _svc.ModeDefinitions.TryParse(running, out var runningMode)
+            ? _svc.ModeDefinitions.Get(runningMode).ShortLabel
+            : running;
+        var pending = _svc.ModeService.HasPendingModeChange(apiReady);
+
+        if (pending)
+        {
+            var configuredLabel = _svc.ModeDefinitions.TryParse(configured, out var configuredMode)
+                ? _svc.ModeDefinitions.Get(configuredMode).ShortLabel
+                : configured;
+            ModeStatusLabel.Text = apiReady
+                ? $"Running: {runningLabel} — saved {configuredLabel} (restart Ollama to apply)"
+                : $"Saved: {configuredLabel} — Ollama API not reachable";
+        }
+        else
+        {
+            ModeStatusLabel.Text = apiReady
+                ? $"Running: {runningLabel} — Ollama is running and ready"
+                : $"Saved: {runningLabel} — Ollama API not reachable (start Ollama if needed)";
+        }
+
+        _modeCardPresenter.ApplyActiveMode(running);
 
         var snapshot = _svc.EnvBackup.ReadUserSnapshot();
         EnvBox.Text = ModeEnvSummaryBuilder.Build(
-            detected,
+            configured,
             snapshot,
             _svc.ModeDefinitions.DeviceMap,
             _svc.ModeDefinitions);
 
-        UpdateFooterComputeModeLabel();
+        var footerText = pending
+            ? $"Mode: {runningLabel} (running)"
+            : $"Mode: {runningLabel}";
+        ComputeModeFooterText.Text = footerText;
     }
 
     private async Task<Dictionary<string, string>> GetCategoryMapAsync()
@@ -803,14 +832,7 @@ public partial class MainWindow : Window
     private void UpdateFooterVersionLabel() =>
         AppVersionFooterText.Text = AppBuildInfo.GetShortFooterLabel();
 
-    private void UpdateFooterComputeModeLabel()
-    {
-        var detected = _svc.ModeService.DetectCurrentMode();
-        var modeLabel = _svc.ModeDefinitions.TryParse(detected, out var mode)
-            ? _svc.ModeDefinitions.Get(mode).ShortLabel
-            : detected;
-        ComputeModeFooterText.Text = $"Mode: {modeLabel}";
-    }
+    private void UpdateFooterComputeModeLabel() => _ = SyncComputeModeDisplayAsync();
 
     private async Task UpdateAiStatusAsync()
     {
@@ -1998,6 +2020,7 @@ public partial class MainWindow : Window
                         await RefreshModelsUiAsync().ConfigureAwait(true);
                         await RefreshTestResultsUiAsync().ConfigureAwait(true);
                         await RefreshCatalogUiAsync().ConfigureAwait(true);
+                        await SyncComputeModeDisplayAsync().ConfigureAwait(true);
                         if (!cancelled)
                         {
                             _testProgressAnimator.SetAuthoritative(TestOverallProgress, 100);
@@ -3011,9 +3034,9 @@ public partial class MainWindow : Window
         CatalogStatusLabel.Text = "Stopping catalog operation...";
     }
 
-    private async Task RefreshCatalogUiAsync()
+    private async Task RefreshCatalogUiAsync(bool force = false)
     {
-        if (IsCatalogUiLocked)
+        if (!force && IsCatalogUiLocked)
         {
             return;
         }
@@ -3415,7 +3438,7 @@ public partial class MainWindow : Window
                     }).ConfigureAwait(false);
                     await _svc.SummarizerInference.ApplySummarizerBestModeAsync(summarizer, ct)
                         .ConfigureAwait(false);
-                    await UiDispatcher.InvokeAsync(UpdateFooterComputeModeLabel).ConfigureAwait(false);
+                    await SyncComputeModeDisplayAsync().ConfigureAwait(false);
                 }
 
                 var progress = new Progress<string>(msg =>
@@ -3454,7 +3477,7 @@ public partial class MainWindow : Window
                     }
 
                     await RefreshCategoryFilterComboAsync().ConfigureAwait(true);
-                    await RefreshCatalogUiAsync().ConfigureAwait(true);
+                    await RefreshCatalogUiAsync(force: true).ConfigureAwait(true);
                     await RefreshCategoryStatusAsync().ConfigureAwait(true);
                     if (sender is not null)
                     {

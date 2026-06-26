@@ -23,7 +23,11 @@ public sealed class ModeService
 
     public OllamaProcessService Processes => _processes;
 
-    public string DetectCurrentMode()
+    public string? LastRunningMode { get; private set; }
+
+    public string DetectCurrentMode() => DetectConfiguredMode();
+
+    public string DetectConfiguredMode()
     {
         var snapshot = _envBackup.ReadUserSnapshot();
         foreach (var mode in Enum.GetValues<ComputeMode>())
@@ -36,6 +40,29 @@ public sealed class ModeService
 
         return "Custom/Unknown";
     }
+
+    public void InitializeRunningModeFromConfigured()
+    {
+        if (string.IsNullOrWhiteSpace(LastRunningMode))
+        {
+            LastRunningMode = DetectConfiguredMode();
+        }
+    }
+
+    public string GetRunningModeLabel(bool ollamaApiReady)
+    {
+        if (ollamaApiReady && !string.IsNullOrWhiteSpace(LastRunningMode))
+        {
+            return LastRunningMode;
+        }
+
+        return DetectConfiguredMode();
+    }
+
+    public bool HasPendingModeChange(bool ollamaApiReady) =>
+        ollamaApiReady
+        && !string.IsNullOrWhiteSpace(LastRunningMode)
+        && !string.Equals(LastRunningMode, DetectConfiguredMode(), StringComparison.OrdinalIgnoreCase);
 
     public async Task<ModeApplyResult> ApplyModeEnvAsync(
         ComputeMode mode,
@@ -101,6 +128,7 @@ public sealed class ModeService
         if (restartOllama)
         {
             await _processes.RestartAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+            LastRunningMode = mode.ToString();
         }
 
         return new ModeApplyResult

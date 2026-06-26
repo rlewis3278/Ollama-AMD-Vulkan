@@ -54,14 +54,20 @@ public sealed class ModelRegistryService
         var rows = new List<CatalogRowViewModel>();
         foreach (var e in entries)
         {
-            var category = e.Category;
-            if (string.IsNullOrEmpty(category)
-                && categoryDoc.Models.TryGetValue(e.Name, out var catEntry))
+            string category;
+            if (categoryDoc.Models.TryGetValue(e.Name, out var catEntry)
+                && !string.IsNullOrWhiteSpace(catEntry.Category))
             {
                 category = catEntry.Category;
             }
-
-            category ??= CategoryNormalizer.HeuristicCategory(e.Name, e.Description, e.Tags);
+            else if (!string.IsNullOrWhiteSpace(e.Category))
+            {
+                category = e.Category;
+            }
+            else
+            {
+                category = CategoryNormalizer.HeuristicCategory(e.Name, e.Description, e.Tags);
+            }
             var downloadDescription = string.IsNullOrWhiteSpace(e.Description)
                 ? string.Empty
                 : e.Description.Trim();
