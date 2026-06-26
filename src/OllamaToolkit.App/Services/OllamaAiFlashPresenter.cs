@@ -8,8 +8,8 @@ public sealed class OllamaAiFlashPresenter
 {
     private readonly AiProcessingFlashPresenter _inner;
 
-    public OllamaAiFlashPresenter(Button button, Window window) =>
-        _inner = new AiProcessingFlashPresenter(button, window);
+    public OllamaAiFlashPresenter(Button button, Window window, MasterFlashClock clock) =>
+        _inner = new AiProcessingFlashPresenter(button, window, clock);
 
     public void SetPresentation(
         string idleContent,

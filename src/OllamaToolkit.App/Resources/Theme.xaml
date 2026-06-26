@@ -291,6 +291,31 @@
         <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
     </Style>
 
+    <Style x:Key="ModelsLaunchRow" TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
+        <Style.Triggers>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsBeingTested}" Value="True" />
+                    <Condition Binding="{Binding TestingFlashPhase}" Value="True" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brush.Warning}" />
+                <Setter Property="Foreground" Value="Black" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsBeingTested}" Value="True" />
+                    <Condition Binding="{Binding TestingFlashPhase}" Value="False" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brush.Bg}" />
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+            </MultiDataTrigger>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.Accent}" />
+                <Setter Property="Foreground" Value="White" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <Style x:Key="CatalogInstalledRow" TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
         <Style.Triggers>
             <MultiDataTrigger>
@@ -314,29 +339,37 @@
                 </MultiDataTrigger.Conditions>
                 <Setter Property="Background" Value="{StaticResource Brush.InfoBg}" />
             </MultiDataTrigger>
-            <DataTrigger Binding="{Binding IsTesting}" Value="True">
-                <Setter Property="Background" Value="{StaticResource Brush.PurpleBg}" />
-            </DataTrigger>
-            <MultiDataTrigger>
-                <MultiDataTrigger.Conditions>
-                    <Condition Binding="{Binding RefreshState}" Value="Complete" />
-                    <Condition Binding="{Binding RefreshHighlight}" Value="Testing" />
-                </MultiDataTrigger.Conditions>
-                <Setter Property="Background" Value="{StaticResource Brush.PurpleBg}" />
-            </MultiDataTrigger>
             <MultiDataTrigger>
                 <MultiDataTrigger.Conditions>
                     <Condition Binding="{Binding RefreshState}" Value="Processing" />
                     <Condition Binding="{Binding RefreshFlashPhase}" Value="True" />
                 </MultiDataTrigger.Conditions>
                 <Setter Property="Background" Value="{StaticResource Brush.Warning}" />
+                <Setter Property="Foreground" Value="Black" />
             </MultiDataTrigger>
             <MultiDataTrigger>
                 <MultiDataTrigger.Conditions>
                     <Condition Binding="{Binding RefreshState}" Value="Processing" />
                     <Condition Binding="{Binding RefreshFlashPhase}" Value="False" />
                 </MultiDataTrigger.Conditions>
-                <Setter Property="Background" Value="White" />
+                <Setter Property="Background" Value="{StaticResource Brush.Bg}" />
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding RefreshState}" Value="Testing" />
+                    <Condition Binding="{Binding RefreshFlashPhase}" Value="True" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brush.Warning}" />
+                <Setter Property="Foreground" Value="Black" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding RefreshState}" Value="Testing" />
+                    <Condition Binding="{Binding RefreshFlashPhase}" Value="False" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Background" Value="{StaticResource Brush.Bg}" />
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
             </MultiDataTrigger>
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{StaticResource Brush.Accent}" />

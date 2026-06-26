@@ -67,6 +67,7 @@ public partial class MainWindow : Window
     private readonly StartupSplashPresenter _startupSplash;
     private readonly ObservableCollection<CatalogRowViewModel> _catalogRows = new();
     private readonly CatalogRowRefreshAnimator _catalogRowAnimator;
+    private readonly TestingRowHighlightCoordinator _testingHighlight;
     private Dictionary<string, CatalogRowViewModel> _catalogRowByName = new(StringComparer.OrdinalIgnoreCase);
     private bool _suppressCatalogUiEvents;
     private bool _catalogRefreshInProgress;
@@ -83,13 +84,17 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         _startupSplash = new StartupSplashPresenter(StartupSplashOverlay, MainContentRoot, SplashRevisionText);
-        _flashButtons = new FlashButtonRegistry(this);
-        _aiProcessingFlash = new AiProcessingFlashPresenter(AiStatusButton, this);
-        _ollamaAiFlash = new OllamaAiFlashPresenter(OllamaAiStatusButton, this);
+        _flashButtons = new FlashButtonRegistry(this, _svc.FlashClock);
+        _aiProcessingFlash = new AiProcessingFlashPresenter(AiStatusButton, this, _svc.FlashClock);
+        _ollamaAiFlash = new OllamaAiFlashPresenter(OllamaAiStatusButton, this, _svc.FlashClock);
         WireAiActivityPresenters();
-        _catalogRowAnimator = new CatalogRowRefreshAnimator(Dispatcher);
+        _catalogRowAnimator = new CatalogRowRefreshAnimator(_svc.FlashClock);
+        _testingHighlight = new TestingRowHighlightCoordinator(_svc.FlashClock);
+        _testingHighlight.Bind(
+            () => _catalogRows,
+            () => ModelsGrid.ItemsSource as IEnumerable<ModelLaunchRowViewModel> ?? []);
         CatalogGrid.ItemsSource = _catalogRows;
-        _modeCardPresenter = new ModeCardPresenter(this);
+        _modeCardPresenter = new ModeCardPresenter(this, _svc.FlashClock);
         _modeCards["CPU"] = CpuCard;
         _modeCards["APU"] = ApuCard;
         _modeCards["GPU"] = GpuCard;
@@ -139,6 +144,7 @@ public partial class MainWindow : Window
             _aiProcessingFlash.Stop();
             _ollamaAiFlash.Stop();
             _catalogRowAnimator.Stop();
+            _testingHighlight.Dispose();
             StopTestSpinUpCreep();
             _testProgressAnimator.Dispose();
         };
@@ -421,31 +427,19 @@ public partial class MainWindow : Window
         await UiDispatcher.InvokeAsync(ResetTestOperationState).ConfigureAwait(true);
     }
 
-    private void SetCatalogTestingHighlight(string modelOrLibrary, bool on)
-    {
-        var library = modelOrLibrary.Split(':')[0];
-        if (!_catalogRowByName.TryGetValue(library, out var row))
-        {
-            return;
-        }
-
-        row.IsTesting = on;
-        row.RefreshHighlight = on ? CatalogRowRefreshHighlight.Testing : CatalogRowRefreshHighlight.None;
-        row.RefreshState = on ? CatalogRowRefreshState.Complete : CatalogRowRefreshState.None;
-    }
+    private void SetCatalogTestingHighlight(string modelOrLibrary, bool on) =>
+        _testingHighlight.SetActive(modelOrLibrary, on);
 
     private void ClearCatalogTestingHighlights()
     {
         _undownloadBatchActive = false;
         _undownloadPurpleLibraries.Clear();
+        _testingHighlight.ClearAll();
         foreach (var row in _catalogRows)
         {
-            if (row.IsTesting || row.IsDownloading)
+            if (row.IsDownloading)
             {
-                row.IsTesting = false;
                 row.IsDownloading = false;
-                row.RefreshHighlight = CatalogRowRefreshHighlight.None;
-                row.RefreshState = CatalogRowRefreshState.None;
             }
         }
     }
@@ -459,7 +453,7 @@ public partial class MainWindow : Window
 
         foreach (var library in _undownloadPurpleLibraries)
         {
-            SetCatalogTestingHighlight(library, on: true);
+            _testingHighlight.SetActive(library, on: true);
         }
     }
 
@@ -706,7 +700,7 @@ public partial class MainWindow : Window
 
     private async Task RefreshModelsUiAsync()
     {
-        var selectedModel = ModelsGrid.SelectedItem is ModelProfileSummary selected
+        var selectedModel = ModelsGrid.SelectedItem is ModelLaunchRowViewModel selected
             ? selected.Model
             : null;
         var testComboSelection = TestModelCombo.SelectedItem as string;
@@ -736,12 +730,14 @@ public partial class MainWindow : Window
                 Results = s.Results
             };
         }).ToList();
-        ModelsGrid.ItemsSource = enriched;
+        var rows = enriched.Select(ModelLaunchRowViewModel.FromSummary).ToList();
+        ModelsGrid.ItemsSource = rows;
         TestModelCombo.ItemsSource = enriched.Select(s => s.Model).ToList();
+        _testingHighlight.ReapplyActive();
 
         if (!string.IsNullOrEmpty(selectedModel))
         {
-            var match = enriched.FirstOrDefault(e =>
+            var match = rows.FirstOrDefault(e =>
                 e.Model.Equals(selectedModel, StringComparison.OrdinalIgnoreCase));
             if (match is not null)
             {
@@ -1083,15 +1079,15 @@ public partial class MainWindow : Window
 
     private ModelProfileSummary? GetSelectedModel()
     {
-        if (ModelsGrid.SelectedItem is ModelProfileSummary s)
+        if (ModelsGrid.SelectedItem is ModelLaunchRowViewModel row)
         {
-            return s;
+            return row.ToSummary();
         }
 
         if (ModelsGrid.Items.Count > 0)
         {
             ModelsGrid.SelectedIndex = 0;
-            return ModelsGrid.SelectedItem as ModelProfileSummary;
+            return (ModelsGrid.SelectedItem as ModelLaunchRowViewModel)?.ToSummary();
         }
 
         return null;
@@ -3770,8 +3766,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        ModelsGrid.ItemsSource = summaries;
-        ModelsGrid.SelectedItem = match;
+        var launchRows = summaries.Select(ModelLaunchRowViewModel.FromSummary).ToList();
+        ModelsGrid.ItemsSource = launchRows;
+        ModelsGrid.SelectedItem = launchRows.FirstOrDefault(r =>
+            r.Model.Equals(match.Model, StringComparison.OrdinalIgnoreCase));
+        _testingHighlight.ReapplyActive();
         try
         {
             await LaunchBestMode_Click_Internal(match).ConfigureAwait(true);
@@ -4102,7 +4101,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        var summaries = (ModelsGrid.ItemsSource as IEnumerable<ModelProfileSummary>)?.ToList()
+        var summaries = (ModelsGrid.ItemsSource as IEnumerable<ModelLaunchRowViewModel>)?
+            .Select(r => r.ToSummary()).ToList()
             ?? await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
         var categories = await GetCategoryMapAsync().ConfigureAwait(true);
         AiFlyoutTitle.Text = $"Recommended for \"{intent}\"";
@@ -4156,7 +4156,7 @@ public partial class MainWindow : Window
 
     private async void CompareModels_Click(object sender, RoutedEventArgs e)
     {
-        var selected = ModelsGrid.SelectedItems.Cast<ModelProfileSummary>().ToList();
+        var selected = ModelsGrid.SelectedItems.Cast<ModelLaunchRowViewModel>().ToList();
         if (selected.Count < 2)
         {
             MessageBox.Show("Select at least two models (Ctrl+click).", "Compare", MessageBoxButton.OK,
@@ -4170,7 +4170,7 @@ public partial class MainWindow : Window
         }
 
         var models = selected
-            .Select(s => (s.Model, (string?)s.Category, (ModelProfileSummary?)s))
+            .Select(s => (s.Model, (string?)s.Category, (ModelProfileSummary?)s.ToSummary()))
             .ToList();
         await RunCompareManyAsync(models, sender).ConfigureAwait(true);
     }

@@ -21,6 +21,7 @@ public sealed class FlashButtonPresenter
 {
     private readonly Button _button;
     private readonly Window _window;
+    private readonly MasterFlashClock _clock;
     private readonly string _defaultContent;
     private readonly Brush _idleBg;
     private readonly Brush _idleBorder;
@@ -36,17 +37,17 @@ public sealed class FlashButtonPresenter
     private readonly Brush _infoBorder;
     private readonly Brush _infoForeground;
 
-    private readonly DispatcherTimer _flashTimer;
     private readonly DispatcherTimer _restoreTimer;
     private ControlTemplate? _savedTemplate;
-    private bool _flashPhase;
+    private IDisposable? _clockSubscription;
     private bool _flashing;
     private Action? _onRestored;
 
-    public FlashButtonPresenter(Button button, Window window)
+    public FlashButtonPresenter(Button button, Window window, MasterFlashClock clock)
     {
         _button = button;
         _window = window;
+        _clock = clock;
         _defaultContent = button.Content?.ToString() ?? string.Empty;
         _idleBg = GetBrush(window, "Brush.Button");
         _idleBorder = GetBrush(window, "Brush.PanelBorder");
@@ -61,8 +62,6 @@ public sealed class FlashButtonPresenter
         _infoBorder = GetBrush(window, "Brush.Info");
         _infoForeground = GetBrush(window, "Brush.Info");
 
-        _flashTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
-        _flashTimer.Tick += (_, _) => FlashTick();
         _restoreTimer = new DispatcherTimer();
         _restoreTimer.Tick += (_, _) => RestoreIdle();
     }
@@ -74,11 +73,10 @@ public sealed class FlashButtonPresenter
         _colorScheme = scheme;
         _restoreTimer.Stop();
         _flashing = true;
-        _flashPhase = true;
         UseFlashTemplate();
-        ApplyPendingFlash(true);
-        _flashTimer.Start();
-        _button.Dispatcher.BeginInvoke(DispatcherPriority.Render, () => ApplyPendingFlash(_flashPhase));
+        _clockSubscription ??= _clock.Subscribe(OnPhaseChanged);
+        OnPhaseChanged(_clock.IsAccentPhase);
+        _button.Dispatcher.BeginInvoke(DispatcherPriority.Render, () => OnPhaseChanged(_clock.IsAccentPhase));
     }
 
     public void EndSuccess(
@@ -87,7 +85,7 @@ public sealed class FlashButtonPresenter
         Action? onRestored = null,
         FlashSuccessStyle style = FlashSuccessStyle.Active)
     {
-        _flashTimer.Stop();
+        StopClockSubscription();
         _flashing = false;
         RestoreDefaultTemplate();
         _onRestored = onRestored;
@@ -112,7 +110,7 @@ public sealed class FlashButtonPresenter
 
     public void EndIdle()
     {
-        _flashTimer.Stop();
+        StopClockSubscription();
         _restoreTimer.Stop();
         _flashing = false;
         _onRestored = null;
@@ -122,22 +120,27 @@ public sealed class FlashButtonPresenter
 
     public void Stop()
     {
-        _flashTimer.Stop();
+        StopClockSubscription();
         _restoreTimer.Stop();
         _flashing = false;
         _onRestored = null;
         RestoreDefaultTemplate();
     }
 
-    private void FlashTick()
+    private void OnPhaseChanged(bool accentPhase)
     {
         if (!_flashing)
         {
             return;
         }
 
-        _flashPhase = !_flashPhase;
-        ApplyPendingFlash(_flashPhase);
+        ApplyPendingFlash(accentPhase);
+    }
+
+    private void StopClockSubscription()
+    {
+        _clockSubscription?.Dispose();
+        _clockSubscription = null;
     }
 
     private void ApplyPendingFlash(bool flashOn)

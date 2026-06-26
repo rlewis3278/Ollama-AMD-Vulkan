@@ -70,6 +70,7 @@
                         <Button Content="Import Reports" Style="{StaticResource ToolkitButton}" Click="ImportReports_Click" />
                     </StackPanel>
                     <DataGrid x:Name="ModelsGrid" Grid.Row="1" Style="{StaticResource ToolkitDataGrid}"
+                              RowStyle="{StaticResource ModelsLaunchRow}"
                               AutoGenerateColumns="False" IsReadOnly="True"
                               HeadersVisibility="Column" CanUserAddRows="False" CanUserDeleteRows="False"
                               SelectionMode="Extended"

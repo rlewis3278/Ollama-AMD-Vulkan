@@ -6,15 +6,20 @@ namespace OllamaToolkit.App.Services;
 public sealed class FlashButtonRegistry
 {
     private readonly Window _window;
+    private readonly MasterFlashClock _clock;
     private readonly Dictionary<Button, FlashButtonPresenter> _presenters = new();
 
-    public FlashButtonRegistry(Window window) => _window = window;
+    public FlashButtonRegistry(Window window, MasterFlashClock clock)
+    {
+        _window = window;
+        _clock = clock;
+    }
 
     public FlashButtonPresenter For(Button button)
     {
         if (!_presenters.TryGetValue(button, out var presenter))
         {
-            presenter = new FlashButtonPresenter(button, _window);
+            presenter = new FlashButtonPresenter(button, _window, _clock);
             _presenters[button] = presenter;
         }
 

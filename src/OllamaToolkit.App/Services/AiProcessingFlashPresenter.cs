@@ -9,11 +9,11 @@ public sealed class AiProcessingFlashPresenter
 {
     private readonly Button _button;
     private readonly Window _window;
+    private readonly MasterFlashClock _clock;
     private readonly Brush _pendingYellow;
     private readonly Brush _pendingBlack;
-    private readonly DispatcherTimer _flashTimer;
     private ControlTemplate? _savedTemplate;
-    private bool _flashPhase;
+    private IDisposable? _clockSubscription;
     private bool _flashing;
     private string _idleContent = string.Empty;
     private string _activeContent = string.Empty;
@@ -21,23 +21,13 @@ public sealed class AiProcessingFlashPresenter
     private Brush _idleBorder = Brushes.Transparent;
     private Brush _idleForeground = Brushes.White;
 
-    public AiProcessingFlashPresenter(Button button, Window window)
+    public AiProcessingFlashPresenter(Button button, Window window, MasterFlashClock clock)
     {
         _button = button;
         _window = window;
+        _clock = clock;
         _pendingYellow = GetBrush(window, "Brush.Warning");
         _pendingBlack = GetBrush(window, "Brush.Bg");
-        _flashTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
-        _flashTimer.Tick += (_, _) =>
-        {
-            if (!_flashing)
-            {
-                return;
-            }
-
-            _flashPhase = !_flashPhase;
-            ApplyFlash(_flashPhase);
-        };
     }
 
     public void SetPresentation(
@@ -77,26 +67,32 @@ public sealed class AiProcessingFlashPresenter
     public void BeginProcessingFlash()
     {
         _flashing = true;
-        _flashPhase = true;
         UseFlashTemplate();
-        ApplyFlash(true);
-        if (!_flashTimer.IsEnabled)
-        {
-            _flashTimer.Start();
-        }
-
-        _button.Dispatcher.BeginInvoke(DispatcherPriority.Render, () => ApplyFlash(_flashPhase));
+        _clockSubscription ??= _clock.Subscribe(OnPhaseChanged);
+        OnPhaseChanged(_clock.IsAccentPhase);
+        _button.Dispatcher.BeginInvoke(DispatcherPriority.Render, () => OnPhaseChanged(_clock.IsAccentPhase));
     }
 
     public void EndProcessingFlash()
     {
-        _flashTimer.Stop();
+        _clockSubscription?.Dispose();
+        _clockSubscription = null;
         _flashing = false;
         RestoreDefaultTemplate();
         ApplyIdle();
     }
 
     public void Stop() => EndProcessingFlash();
+
+    private void OnPhaseChanged(bool accentPhase)
+    {
+        if (!_flashing)
+        {
+            return;
+        }
+
+        ApplyFlash(accentPhase);
+    }
 
     private void ApplyFlash(bool flashOn)
     {

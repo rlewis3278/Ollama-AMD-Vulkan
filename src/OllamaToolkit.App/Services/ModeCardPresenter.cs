@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using System.Windows.Threading;
 using OllamaToolkit.Core.Modes;
 
 namespace OllamaToolkit.App.Services;
@@ -39,14 +38,16 @@ public sealed class ModeCardPresenter
     private readonly Brush _supersededBg;
     private readonly Brush _supersededBorder;
 
-    private readonly DispatcherTimer _flashTimer;
+    private readonly MasterFlashClock _clock;
+    private IDisposable? _clockSubscription;
     private bool _flashPhase;
     private string? _pendingMode;
     private string? _hoveredMode;
     private bool _transitionActive;
 
-    public ModeCardPresenter(Window window)
+    public ModeCardPresenter(Window window, MasterFlashClock clock)
     {
+        _clock = clock;
         _idleBg = GetBrush(window, "Brush.Button");
         _idleBorder = GetBrush(window, "Brush.PanelBorder");
         _hoverBg = GetBrush(window, "Brush.Bg");
@@ -61,8 +62,6 @@ public sealed class ModeCardPresenter
         _supersededBg = new SolidColorBrush(SupersededBgColor);
         _supersededBorder = new SolidColorBrush(SupersededBorderColor);
 
-        _flashTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
-        _flashTimer.Tick += (_, _) => FlashTick();
     }
 
     public bool IsTransitionActive => _transitionActive;
@@ -150,12 +149,14 @@ public sealed class ModeCardPresenter
             SetVisual(key, ModeCardVisual.Idle);
         }
 
-        _flashTimer.Start();
+        _clockSubscription ??= _clock.Subscribe(OnPhaseChanged);
+        OnPhaseChanged(_clock.IsAccentPhase);
     }
 
     public void EndTransition()
     {
-        _flashTimer.Stop();
+        _clockSubscription?.Dispose();
+        _clockSubscription = null;
         _transitionActive = false;
         _pendingMode = null;
     }
@@ -177,7 +178,8 @@ public sealed class ModeCardPresenter
 
     public void Stop()
     {
-        _flashTimer.Stop();
+        _clockSubscription?.Dispose();
+        _clockSubscription = null;
         _transitionActive = false;
         _pendingMode = null;
         _hoveredMode = null;
@@ -249,14 +251,14 @@ public sealed class ModeCardPresenter
         }
     }
 
-    private void FlashTick()
+    private void OnPhaseChanged(bool accentPhase)
     {
         if (!_transitionActive || _pendingMode is null)
         {
             return;
         }
 
-        _flashPhase = !_flashPhase;
+        _flashPhase = accentPhase;
         RenderCard(_pendingMode);
     }
 

@@ -13,7 +13,8 @@ public enum CatalogRowRefreshState
 {
     None,
     Processing,
-    Complete
+    Complete,
+    Testing
 }
 
 public enum CatalogRowRefreshHighlight

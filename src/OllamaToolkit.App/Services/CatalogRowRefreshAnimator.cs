@@ -1,38 +1,22 @@
-using System.Windows.Threading;
 using OllamaToolkit.ModelRegistry.Models;
 
 namespace OllamaToolkit.App.Services;
 
 public sealed class CatalogRowRefreshAnimator
 {
-    private readonly DispatcherTimer _flashTimer;
-    private CatalogRowViewModel? _activeRow;
+    private readonly MasterFlashClock _clock;
+    private readonly HashSet<CatalogRowViewModel> _processingRows = new();
+    private IDisposable? _subscription;
 
-    public CatalogRowRefreshAnimator(Dispatcher dispatcher)
-    {
-        _flashTimer = new DispatcherTimer(DispatcherPriority.Render, dispatcher)
-        {
-            Interval = TimeSpan.FromMilliseconds(400)
-        };
-        _flashTimer.Tick += (_, _) =>
-        {
-            if (_activeRow?.RefreshState == CatalogRowRefreshState.Processing)
-            {
-                _activeRow.RefreshFlashPhase = !_activeRow.RefreshFlashPhase;
-            }
-        };
-    }
+    public CatalogRowRefreshAnimator(MasterFlashClock clock) => _clock = clock;
 
     public void BeginRow(CatalogRowViewModel row)
     {
-        _activeRow = row;
         row.RefreshHighlight = CatalogRowRefreshHighlight.None;
         row.RefreshState = CatalogRowRefreshState.Processing;
-        row.RefreshFlashPhase = true;
-        if (!_flashTimer.IsEnabled)
-        {
-            _flashTimer.Start();
-        }
+        row.RefreshFlashPhase = _clock.IsAccentPhase;
+        _processingRows.Add(row);
+        EnsureSubscribed();
     }
 
     public void CompleteRow(
@@ -44,16 +28,19 @@ public sealed class CatalogRowRefreshAnimator
             ? CatalogRowRefreshState.Complete
             : CatalogRowRefreshState.None;
         row.RefreshFlashPhase = false;
-        if (_activeRow == row)
+        _processingRows.Remove(row);
+        if (_processingRows.Count == 0)
         {
-            _activeRow = null;
+            _subscription?.Dispose();
+            _subscription = null;
         }
     }
 
     public void Stop()
     {
-        _flashTimer.Stop();
-        _activeRow = null;
+        _subscription?.Dispose();
+        _subscription = null;
+        _processingRows.Clear();
     }
 
     public static void ResetAll(IEnumerable<CatalogRowViewModel> rows)
@@ -63,6 +50,27 @@ public sealed class CatalogRowRefreshAnimator
             row.RefreshState = CatalogRowRefreshState.None;
             row.RefreshHighlight = CatalogRowRefreshHighlight.None;
             row.RefreshFlashPhase = false;
+        }
+    }
+
+    private void EnsureSubscribed()
+    {
+        if (_subscription is not null)
+        {
+            return;
+        }
+
+        _subscription = _clock.Subscribe(OnPhaseChanged);
+    }
+
+    private void OnPhaseChanged(bool accentPhase)
+    {
+        foreach (var row in _processingRows)
+        {
+            if (row.RefreshState == CatalogRowRefreshState.Processing)
+            {
+                row.RefreshFlashPhase = accentPhase;
+            }
         }
     }
 }

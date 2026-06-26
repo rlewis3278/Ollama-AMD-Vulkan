@@ -13,6 +13,8 @@ namespace OllamaToolkit.App.Services;
 
 public sealed class AppServices : IDisposable
 {
+    private MasterFlashClock? _flashClock;
+
     public AppServices()
     {
         ActivityHub = new AiActivityHub();
@@ -57,6 +59,10 @@ public sealed class AppServices : IDisposable
         ModelComparison = new ModelComparisonService(AiSettings, ApiClient, Summarizer);
     }
 
+    public MasterFlashClock FlashClock =>
+        _flashClock ??= new MasterFlashClock(
+            System.Windows.Application.Current?.Dispatcher
+            ?? System.Windows.Threading.Dispatcher.CurrentDispatcher);
     public AiActivityHub ActivityHub { get; }
     public BackgroundWorkQueue WorkQueue { get; }
     public OllamaApiClient ApiClient { get; }
