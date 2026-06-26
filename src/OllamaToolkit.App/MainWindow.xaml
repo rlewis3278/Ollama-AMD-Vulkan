@@ -432,6 +432,8 @@
 
         <Border x:Name="StartupSplashOverlay"
                 Panel.ZIndex="1000"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch"
                 Background="#CC000000"
                 Visibility="Visible"
                 Opacity="0"

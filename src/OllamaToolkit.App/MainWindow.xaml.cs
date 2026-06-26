@@ -149,6 +149,7 @@ public partial class MainWindow : Window
         try
         {
             await _startupSplash.ShowAndFadeInAsync().ConfigureAwait(true);
+            _svc.Diagnostics.Write("App", "Startup splash visible");
 
             _svc.Diagnostics.Write("App", "MainWindow loaded");
             LogBuildStamp();
