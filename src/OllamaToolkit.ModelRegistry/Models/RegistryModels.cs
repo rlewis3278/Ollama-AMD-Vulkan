@@ -184,6 +184,7 @@ public sealed class UndownloadTestCandidate
     public required string LibraryName { get; init; }
     public required string PullTag { get; init; }
     public long FileSizeBytes { get; init; }
+    public bool HasKnownFileSize { get; init; }
 }
 
 public sealed class TestResultRowViewModel

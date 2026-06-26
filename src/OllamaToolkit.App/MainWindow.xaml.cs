@@ -2158,12 +2158,19 @@ public partial class MainWindow : Window
 
     private async Task RunUndownloadTestQueueAsync(object? flashSender = null)
     {
+        _svc.Diagnostics.Write("Testing", "Test Undownload clicked");
+        var ct = _testCts?.Token ?? CancellationToken.None;
+
+        try
+        {
         await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Checking Ollama API…")).ConfigureAwait(true);
+        ct.ThrowIfCancellationRequested();
 
         var startup = await EnsureOllamaApiReadyAsync(
-            CancellationToken.None, "Undownload test requires Ollama", timeoutSec: 90).ConfigureAwait(true);
+            ct, "Undownload test requires Ollama", timeoutSec: 90).ConfigureAwait(true);
         if (!startup.Success)
         {
+            _svc.Diagnostics.Write("Ollama", $"Test Undownload aborted: {startup.Message}");
             await UiDispatcher.InvokeAsync(() =>
             {
                 AppendTestLog($"ABORT: {startup.Message}");
@@ -2175,8 +2182,9 @@ public partial class MainWindow : Window
 
         await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Building undownload test queue…"))
             .ConfigureAwait(true);
+        ct.ThrowIfCancellationRequested();
 
-        var candidates = await _svc.Registry.GetUndownloadTestQueueAsync().ConfigureAwait(true);
+        var candidates = (await _svc.Registry.GetUndownloadTestQueueAsync(ct).ConfigureAwait(true)).ToList();
         if (candidates.Count == 0)
         {
             await UiDispatcher.InvokeAsync(() =>
@@ -2187,9 +2195,52 @@ public partial class MainWindow : Window
             return;
         }
 
+        _svc.Diagnostics.Write("Testing",
+            $"Undownload queue built ({candidates.Count} model(s)) before AI prioritization.");
+
+        await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Prioritizing queue with AI…")).ConfigureAwait(true);
+        ct.ThrowIfCancellationRequested();
+
+        var categories = await GetCategoryMapAsync().ConfigureAwait(true);
+        var queueItems = candidates
+            .Select(c => new BenchmarkQueueAdvisorService.UndownloadQueueItem(
+                c.LibraryName,
+                c.PullTag,
+                c.FileSizeBytes,
+                c.HasKnownFileSize))
+            .ToList();
+
+        EnterAiActivity();
+        BenchmarkQueueAdvisorService.PrioritizedUndownloadQueue queue;
+        try
+        {
+            queue = await _svc.QueueAdvisor.PrioritizeUndownloadAsync(queueItems, categories, ct)
+                .ConfigureAwait(true);
+        }
+        finally
+        {
+            ExitAiActivity();
+        }
+
+        ct.ThrowIfCancellationRequested();
+        candidates = queue.Candidates
+            .Select(item => new UndownloadTestCandidate
+            {
+                LibraryName = item.LibraryName,
+                PullTag = item.PullTag,
+                FileSizeBytes = item.FileSizeBytes,
+                HasKnownFileSize = item.HasKnownFileSize
+            })
+            .ToList();
+
+        var unknownCount = candidates.Count(c => !c.HasKnownFileSize);
+        _svc.Diagnostics.Write("Testing",
+            $"AI prioritized undownload queue ({candidates.Count} model(s), {unknownCount} unknown size last): " +
+            $"{string.Join(" -> ", candidates.Select(c => c.LibraryName))}");
+
         _undownloadCts?.Cancel();
         _undownloadCts = new CancellationTokenSource();
-        var ct = _undownloadCts.Token;
+        var workCt = _undownloadCts.Token;
         var workTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _activeTestWork = workTcs.Task;
 
@@ -2201,8 +2252,18 @@ public partial class MainWindow : Window
                 $"--- Undownload test queue ({candidates.Count} model(s), smallest file size first) ---");
             AppendTestLog(
                 $"Order: {string.Join(" -> ", candidates.Select(c => c.LibraryName))}");
-            TestStatusLabel.Text = $"Undownload batch started — {candidates.Count} model(s) queued.";
+            if (unknownCount > 0)
+            {
+                AppendTestLog(
+                    $"Unknown catalog file size queued last ({unknownCount} model(s)).");
+            }
+
+            var queueLabel = unknownCount > 0
+                ? $"AI ordered undownload queue ({unknownCount} unknown size last): {string.Join(" -> ", candidates.Select(c => c.LibraryName))}"
+                : $"AI ordered undownload queue: {string.Join(" -> ", candidates.Select(c => c.LibraryName))}";
+            TestStatusLabel.Text = queueLabel;
         }).ConfigureAwait(true);
+        _svc.ActivityLog.Write("AI", queue.Rationale);
 
         await _svc.WorkQueue.EnqueueAsync(async _ =>
         {
@@ -2212,14 +2273,14 @@ public partial class MainWindow : Window
                 for (var i = 0; i < candidates.Count; i++)
                 {
                     var candidate = candidates[i];
-                    if (ct.IsCancellationRequested)
+                    if (workCt.IsCancellationRequested)
                     {
                         cancelled = true;
                         break;
                     }
 
                     var pullTag = candidate.PullTag;
-                    var fileSizeLabel = candidate.FileSizeBytes < long.MaxValue
+                    var fileSizeLabel = candidate.HasKnownFileSize
                         ? ModelSizeFormatter.FormatBytes(candidate.FileSizeBytes)
                         : "unknown";
 
@@ -2242,7 +2303,7 @@ public partial class MainWindow : Window
                             AppendTestLog($"Step 1/3: Downloading {pullTag} from Ollama library…");
                         }).ConfigureAwait(false);
 
-                        var aiSummarizer = await _svc.Summarizer.ResolveAsync(cancellationToken: ct)
+                        var aiSummarizer = await _svc.Summarizer.ResolveAsync(cancellationToken: workCt)
                             .ConfigureAwait(false);
                         await UiDispatcher.InvokeAsync(() =>
                             ResetTestProgressUi(
@@ -2255,7 +2316,7 @@ public partial class MainWindow : Window
                             .ConfigureAwait(false);
 
                         var pullStartup = await EnsureOllamaApiReadyAsync(
-                            ct, $"Download requires Ollama ({pullTag})", timeoutSec: 60).ConfigureAwait(false);
+                            workCt, $"Download requires Ollama ({pullTag})", timeoutSec: 60).ConfigureAwait(false);
                         if (!pullStartup.Success)
                         {
                             throw new InvalidOperationException(pullStartup.Message);
@@ -2282,10 +2343,10 @@ public partial class MainWindow : Window
                             });
                         });
 
-                        await _svc.ApiClient.PullAsync(pullTag, pullProgress, ct).ConfigureAwait(false);
+                        await _svc.ApiClient.PullAsync(pullTag, pullProgress, workCt).ConfigureAwait(false);
                         _svc.Profiles.ClearCache();
 
-                        if (!await _svc.ApiClient.IsModelInstalledAsync(pullTag, ct).ConfigureAwait(false))
+                        if (!await _svc.ApiClient.IsModelInstalledAsync(pullTag, workCt).ConfigureAwait(false))
                         {
                             throw new InvalidOperationException(
                                 $"Download finished but {pullTag} was not found in the local Ollama model list.");
@@ -2309,14 +2370,14 @@ public partial class MainWindow : Window
                         await RunBenchmarkQueueCoreAsync(
                             new[] { pullTag },
                             flashSender: null,
-                            externalCt: ct,
+                            externalCt: workCt,
                             modelIndexOffset: i,
                             totalModels: candidates.Count,
                             holdCatalogHighlight: true,
                             skipDownloadProgressRow: true)
                             .ConfigureAwait(false);
 
-                        if (ct.IsCancellationRequested)
+                        if (workCt.IsCancellationRequested)
                         {
                             cancelled = true;
                         }
@@ -2325,7 +2386,7 @@ public partial class MainWindow : Window
                             AppendTestLog($"Step 3/3: Removing local copy {pullTag} (keeping benchmark data)…"))
                             .ConfigureAwait(false);
 
-                        await _svc.ModelSessions.UninstallModelAsync(pullTag, ct).ConfigureAwait(false);
+                        await _svc.ModelSessions.UninstallModelAsync(pullTag, workCt).ConfigureAwait(false);
                         _svc.ApiClient.InvalidateCaches();
                         _svc.Profiles.ClearCache();
 
@@ -2415,6 +2476,20 @@ public partial class MainWindow : Window
         }).ConfigureAwait(true);
 
         await workTcs.Task.ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            _svc.Diagnostics.Write("Testing", "Test Undownload cancelled during pre-queue");
+            await UiDispatcher.InvokeAsync(() =>
+            {
+                if (_acceptProgressUpdates)
+                {
+                    ApplyTestStoppedProgressUi();
+                }
+
+                FinishTestOperation(flashSender, success: false, cancelled: true);
+            }).ConfigureAwait(true);
+        }
     }
 
     private async Task RunBenchmarkQueueCoreAsync(

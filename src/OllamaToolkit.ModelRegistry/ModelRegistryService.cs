@@ -272,10 +272,10 @@ public sealed class ModelRegistryService
                 continue;
             }
 
-            var fileSize = entry.FileSize;
-            if (!ModelSizeFormatter.TryParseSizeLabelToBytes(fileSize, out var bytes))
+            var hasKnownFileSize = ModelSizeFormatter.TryParseSizeLabelToBytes(entry.FileSize, out var bytes);
+            if (!hasKnownFileSize)
             {
-                bytes = entry.IsCloudOnly ? long.MaxValue - 1 : long.MaxValue;
+                bytes = long.MaxValue;
             }
 
             var pullTag = !string.IsNullOrWhiteSpace(entry.DefaultPullTag)
@@ -286,14 +286,12 @@ public sealed class ModelRegistryService
             {
                 LibraryName = entry.Name,
                 PullTag = pullTag,
-                FileSizeBytes = bytes
+                FileSizeBytes = bytes,
+                HasKnownFileSize = hasKnownFileSize
             });
         }
 
-        return candidates
-            .OrderBy(c => c.FileSizeBytes)
-            .ThenBy(c => c.LibraryName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        return SortUndownloadCandidates(candidates);
     }
 
     private static bool CatalogEntryNeedsRetest(string libraryName, ModelProfileStoreDocument profileDoc)
@@ -354,4 +352,12 @@ public sealed class ModelRegistryService
 
         return (profile.BestMode, profile.BestTps > 0 ? $"{profile.BestTps:F1}" : "-");
     }
+
+    internal static IReadOnlyList<UndownloadTestCandidate> SortUndownloadCandidates(
+        IReadOnlyList<UndownloadTestCandidate> candidates) =>
+        candidates
+            .OrderBy(c => c.HasKnownFileSize ? 0 : 1)
+            .ThenBy(c => c.FileSizeBytes)
+            .ThenBy(c => c.LibraryName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 }
