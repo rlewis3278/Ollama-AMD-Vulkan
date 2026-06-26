@@ -27,7 +27,8 @@ public sealed class AppServices : IDisposable
         AiSettings = new AiSettingsService();
         Profiles = new ProfileStoreService(ApiClient);
         ReportImporter = new ReportImporter(Profiles);
-        BenchmarkRunner = new AutomatedBenchmarkService(ModeService, ApiClient, Profiles, ModelSessions);
+        ServerTuning = new OllamaServerTuningService();
+        BenchmarkRunner = new AutomatedBenchmarkService(ModeService, ServerTuning, ApiClient, Profiles, ModelSessions);
         PlainErrors = new PlainLanguageErrorService(AiSettings, ApiClient);
         CatalogStore = new LibraryCatalogStoreService();
         Descriptions = new DescriptionStoreService(AiSettings, ApiClient);
@@ -39,7 +40,8 @@ public sealed class AppServices : IDisposable
         LogAnomalies = new LogAnomalyService(AiSettings, ApiClient, Summarizer);
         NlSearch = new NaturalLanguageSearchService(AiSettings, ApiClient, Summarizer);
         ModelAdvisor = new ModelAdvisorService(AiSettings, ApiClient, Summarizer);
-        BenchmarkSettingsAdvisor = new BenchmarkSettingsAdvisorService(AiSettings, ApiClient, Summarizer);
+        BenchmarkSettingsAdvisor = new BenchmarkSettingsAdvisorService(
+            AiSettings, ApiClient, Summarizer, ModeDefinitions.DeviceMap);
         QueueAdvisor = new BenchmarkQueueAdvisorService(AiSettings, ApiClient, Summarizer);
         ModelComparison = new ModelComparisonService(AiSettings, ApiClient, Summarizer);
     }
@@ -50,6 +52,7 @@ public sealed class AppServices : IDisposable
     public OllamaModelSessionService ModelSessions { get; }
     public ModeDefinitionService ModeDefinitions { get; }
     public ModeService ModeService { get; }
+    public OllamaServerTuningService ServerTuning { get; }
     public EnvBackupService EnvBackup { get; }
     public AiSettingsService AiSettings { get; }
     public ProfileStoreService Profiles { get; }

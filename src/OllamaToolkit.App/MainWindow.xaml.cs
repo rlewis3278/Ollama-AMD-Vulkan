@@ -1054,16 +1054,9 @@ public partial class MainWindow : Window
         {
             try
             {
-                await _svc.ModeService.ApplyModeWithRestartAsync(mode, cancellationToken: ct)
-                    .ConfigureAwait(false);
-                _svc.ApiClient.InvalidateCaches();
-                await _svc.ModelSessions.SwitchToModelAsync(model.Model, warmLoad: true, ct).ConfigureAwait(false);
+                await ApplyLaunchParallelAndModeAsync(model, mode, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    ModelRunStatus.Text =
-                        $"{model.Model} | {model.BestMode} ({model.BestMetricDisplay}) | Ollama restarted, model loaded";
-                    ChatHistory.Text = string.Empty;
-                    _chatMessages.Clear();
                     EndTaskFlashSuccess(sender, "Launched");
                 }).ConfigureAwait(false);
             }
@@ -1345,7 +1338,14 @@ public partial class MainWindow : Window
 
         TestNumCtxBox.Text = settings.NumCtx.ToString();
         TestNumPredictBox.Text = settings.NumPredict.ToString();
-        TestSettingsLabel.Text = settings.Rationale ?? string.Empty;
+        TestSettingsLabel.Text = FormatTestSettingsLabel(settings);
+    }
+
+    private static string FormatTestSettingsLabel(BenchmarkSettingsEntry settings)
+    {
+        var parallel = BenchmarkParallelSettings.FormatParallelSummary(settings.NumParallelByMode);
+        var rationale = settings.Rationale ?? string.Empty;
+        return string.IsNullOrWhiteSpace(rationale) ? parallel : $"{rationale} | {parallel}";
     }
 
     private static (int NumCtx, int NumPredict) ParseBenchmarkSpinners(string ctxText, string predictText)
@@ -1355,7 +1355,7 @@ public partial class MainWindow : Window
         return (ctx, pred);
     }
 
-    private async Task<(int NumCtx, int NumPredict)> ResolveBenchmarkSettingsForModelAsync(
+    private async Task<BenchmarkSettingsEntry> ResolveBenchmarkSettingsForModelAsync(
         string model,
         CancellationToken cancellationToken)
     {
@@ -1413,14 +1413,20 @@ public partial class MainWindow : Window
 
         if (CategoryNormalizer.IsEmbeddingModel(model, modelCategory))
         {
+            var embedSettings = new BenchmarkSettingsEntry
+            {
+                NumCtx = 0,
+                NumPredict = 0,
+                NumParallelByMode = BenchmarkParallelSettings.EmbedDefaults(),
+                Rationale = "Embedding model — /api/embed benchmark (latency ms; no generation settings)."
+            };
             await UiDispatcher.InvokeAsync(() =>
             {
                 TestNumCtxBox.Text = "—";
                 TestNumPredictBox.Text = "—";
-                TestSettingsLabel.Text =
-                    "Embedding model — /api/embed benchmark (latency ms; no generation settings).";
+                TestSettingsLabel.Text = FormatTestSettingsLabel(embedSettings);
             }).ConfigureAwait(false);
-            return (0, 0);
+            return embedSettings;
         }
 
         EnterAiActivity();
@@ -1441,10 +1447,10 @@ public partial class MainWindow : Window
         {
             TestNumCtxBox.Text = settings.NumCtx.ToString();
             TestNumPredictBox.Text = settings.NumPredict.ToString();
-            TestSettingsLabel.Text = settings.Rationale ?? string.Empty;
+            TestSettingsLabel.Text = FormatTestSettingsLabel(settings);
         }).ConfigureAwait(false);
 
-        return (settings.NumCtx, settings.NumPredict);
+        return settings;
     }
 
     private void ShowTestSpinUpUi()
@@ -2153,14 +2159,17 @@ public partial class MainWindow : Window
                 var modelCategory = categoriesMap.TryGetValue(library, out var cat) ? cat : string.Empty;
                 var isEmbed = CategoryNormalizer.IsEmbeddingModel(model, modelCategory);
 
-                var (numCtx, numPredict) = await ResolveBenchmarkSettingsForModelAsync(model, ct)
+                var benchmarkSettings = await ResolveBenchmarkSettingsForModelAsync(model, ct)
                     .ConfigureAwait(false);
+                var numCtx = benchmarkSettings.NumCtx;
+                var numPredict = benchmarkSettings.NumPredict;
+                var numParallelByMode = benchmarkSettings.NumParallelByMode;
 
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     TestStatusLabel.Text = isEmbed
                         ? $"Embedding benchmark {model} ({globalIndex + 1}/{totalModels}) — /api/embed latency test…"
-                        : $"Benchmarking {model} ({globalIndex + 1}/{totalModels}) — num_ctx={numCtx}, num_predict={numPredict}…";
+                        : $"Benchmarking {model} ({globalIndex + 1}/{totalModels}) — num_ctx={numCtx}, num_predict={numPredict}, {BenchmarkParallelSettings.FormatParallelSummary(numParallelByMode)}…";
                 }).ConfigureAwait(false);
 
                 var log = new Progress<string>(AppendTestLog);
@@ -2188,6 +2197,7 @@ public partial class MainWindow : Window
                     model,
                     numPredict: numPredict,
                     numCtx: numCtx,
+                    numParallelByMode: numParallelByMode,
                     modelIndex: globalIndex,
                     modelCount: totalModels,
                     aiSummarizerModel: aiSummarizer,
@@ -3704,17 +3714,7 @@ public partial class MainWindow : Window
         {
             try
             {
-                await _svc.ModeService.ApplyModeWithRestartAsync(mode, cancellationToken: ct)
-                    .ConfigureAwait(false);
-                _svc.ApiClient.InvalidateCaches();
-                await _svc.ModelSessions.SwitchToModelAsync(model.Model, warmLoad: true, ct).ConfigureAwait(false);
-                await UiDispatcher.InvokeAsync(() =>
-                {
-                    ModelRunStatus.Text =
-                        $"{model.Model} | {model.BestMode} ({model.BestMetricDisplay}) | Ollama restarted, model loaded";
-                    ChatHistory.Text = string.Empty;
-                    _chatMessages.Clear();
-                }).ConfigureAwait(false);
+                await ApplyLaunchParallelAndModeAsync(model, mode, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -3722,6 +3722,45 @@ public partial class MainWindow : Window
                 await UiDispatcher.InvokeAsync(() => ModelRunStatus.Text = msg).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
+    }
+
+    private async Task ApplyLaunchParallelAndModeAsync(
+        ModelProfileSummary model,
+        ComputeMode mode,
+        CancellationToken cancellationToken)
+    {
+        var parallelByMode = await ResolveLaunchParallelByModeAsync(model.Model, cancellationToken)
+            .ConfigureAwait(false);
+        var parallel = BenchmarkParallelSettings.GetParallel(mode, parallelByMode);
+        _svc.ServerTuning.ApplyParallelForMode(mode, parallelByMode);
+        await _svc.ModeService.ApplyModeWithRestartAsync(mode, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        _svc.ApiClient.InvalidateCaches();
+        await _svc.ModelSessions.SwitchToModelAsync(model.Model, warmLoad: true, cancellationToken)
+            .ConfigureAwait(false);
+        await UiDispatcher.InvokeAsync(() =>
+        {
+            ModelRunStatus.Text =
+                $"{model.Model} | {model.BestMode} ({model.BestMetricDisplay}) | parallel={parallel} | Ollama restarted, model loaded";
+            ChatHistory.Text = string.Empty;
+            _chatMessages.Clear();
+        }).ConfigureAwait(false);
+    }
+
+    private async Task<IReadOnlyDictionary<string, int>?> ResolveLaunchParallelByModeAsync(
+        string model,
+        CancellationToken cancellationToken)
+    {
+        var store = await _svc.Profiles.LoadAsync(cancellationToken).ConfigureAwait(false);
+        if (store.Models.TryGetValue(model, out var profile)
+            && profile.NumParallelByMode is { Count: > 0 })
+        {
+            return profile.NumParallelByMode;
+        }
+
+        var cached = await _svc.BenchmarkSettingsAdvisor.GetCachedAsync(model, cancellationToken)
+            .ConfigureAwait(false);
+        return cached?.NumParallelByMode;
     }
 
     private async Task RefreshAiSettingsUiAsync()

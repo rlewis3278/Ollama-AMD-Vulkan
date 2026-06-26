@@ -28,6 +28,7 @@ public sealed class BenchmarkSettingsEntry
 {
     public int NumCtx { get; set; } = 8192;
     public int NumPredict { get; set; } = 32;
+    public Dictionary<string, int>? NumParallelByMode { get; set; }
     public string? Rationale { get; set; }
     public string? SummaryModel { get; set; }
     public string GeneratedAt { get; set; } = DateTimeOffset.Now.ToString("o");

@@ -11,13 +11,15 @@ public static class BenchmarkProgressFormatter
         int numCtx,
         int numPredict,
         IReadOnlyList<ComputeMode> modes,
-        string? aiSummarizerModel)
+        string? aiSummarizerModel,
+        IReadOnlyDictionary<string, int>? numParallelByMode = null)
     {
         var lines = new List<string>
         {
             $"Benchmark model: {model} ({modelIndex + 1}/{modelCount} in queue)",
             $"Kind: generation (/api/generate)",
             $"Settings: num_ctx={numCtx}, num_predict={numPredict}",
+            $"OLLAMA_NUM_PARALLEL: {BenchmarkParallelSettings.FormatParallelSummary(numParallelByMode)}",
             $"Modes: {string.Join(", ", modes)}"
         };
 
@@ -38,13 +40,15 @@ public static class BenchmarkProgressFormatter
         int modelIndex,
         int modelCount,
         IReadOnlyList<ComputeMode> modes,
-        string? aiSummarizerModel)
+        string? aiSummarizerModel,
+        IReadOnlyDictionary<string, int>? numParallelByMode = null)
     {
         var lines = new List<string>
         {
             $"Benchmark model: {model} ({modelIndex + 1}/{modelCount} in queue)",
             "Kind: embedding (/api/embed)",
             "Metric: embed latency (ms) — lower is faster",
+            $"OLLAMA_NUM_PARALLEL: {BenchmarkParallelSettings.FormatParallelSummary(numParallelByMode)}",
             $"Modes: {string.Join(", ", modes)}"
         };
 
@@ -60,8 +64,8 @@ public static class BenchmarkProgressFormatter
         return string.Join(Environment.NewLine, lines);
     }
 
-    public static string ModeApplying(int modeIndex, int modeCount, ComputeMode mode) =>
-        $"[{modeIndex + 1}/{modeCount}] {mode} — Applying compute mode and restarting Ollama...";
+    public static string ModeApplying(int modeIndex, int modeCount, ComputeMode mode, int numParallel = 1) =>
+        $"[{modeIndex + 1}/{modeCount}] {mode} — Applying compute mode (parallel={numParallel}) and restarting Ollama...";
 
     public static string ModeAppliedWithRestart(ComputeMode mode, string envSummary) =>
         $"[{mode}] Ollama restarted with backend env: {envSummary}";

@@ -127,6 +127,7 @@ public static class ModeEnvSummaryBuilder
         "GGML_VK_VISIBLE_DEVICES" => "Vulkan GPU(s)",
         "OLLAMA_IGPU_ENABLE" => "Integrated GPU",
         "OLLAMA_NUM_GPU" => "GPU layers",
+        "OLLAMA_NUM_PARALLEL" => "Parallel slots",
         "HIP_VISIBLE_DEVICES" => "AMD HIP",
         "ROCR_VISIBLE_DEVICES" => "AMD ROCm",
         "CUDA_VISIBLE_DEVICES" => "NVIDIA CUDA",
@@ -139,6 +140,9 @@ public static class ModeEnvSummaryBuilder
         "GGML_VK_VISIBLE_DEVICES" => DescribeVkDevices(value, map),
         "OLLAMA_IGPU_ENABLE" => value == "1" ? "Allow integrated (APU) GPU" : "Discrete GPU only",
         "OLLAMA_NUM_GPU" => value == "(not set)" ? "Ollama default layer offload" : $"Offload up to {value} GPU layers",
+        "OLLAMA_NUM_PARALLEL" => value == "(not set)"
+            ? "Ollama default (typically 1 concurrent model slot)"
+            : $"{value} concurrent model slot(s) — multiplies VRAM reservation per loaded model",
         "HIP_VISIBLE_DEVICES" =>
             value == "-1" ? "HIP disabled (Vulkan path)" : value == "0" ? "HIP device 0 (discrete GPU)" : $"Set to {value}",
         "ROCR_VISIBLE_DEVICES" =>

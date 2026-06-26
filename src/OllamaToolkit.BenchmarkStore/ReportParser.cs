@@ -42,6 +42,7 @@ public static class ReportParser
             }
         }
 
+        var resolvedCtx = report.NumCtx > 0 ? report.NumCtx : numCtx;
         return new ModelProfileEntry
         {
             BenchmarkKind = isEmbed ? BenchmarkKinds.Embed : BenchmarkKinds.Generate,
@@ -49,8 +50,11 @@ public static class ReportParser
             BestTps = report.Winner?.GenerationTps ?? 0,
             BestEmbedMs = report.Winner?.EmbedLatencyMs ?? 0,
             Quantization = report.Quantization ?? "unknown",
-            NumCtx = isEmbed ? 0 : numCtx,
+            NumCtx = isEmbed ? 0 : resolvedCtx,
             NumPredict = isEmbed ? 0 : report.NumPredict > 0 ? report.NumPredict : 32,
+            NumParallelByMode = report.NumParallelByMode is null
+                ? null
+                : new Dictionary<string, int>(report.NumParallelByMode, StringComparer.OrdinalIgnoreCase),
             Runs = report.Runs > 0 ? report.Runs : 1,
             LastTested = report.CompletedAt ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             Results = results,

@@ -3,8 +3,10 @@ using OllamaToolkit.AiAssist.Models;
 using OllamaToolkit.BenchmarkStore;
 using OllamaToolkit.BenchmarkStore.Models;
 using OllamaToolkit.Core;
+using OllamaToolkit.Core.Modes;
 using OllamaToolkit.Core.Ollama;
 using OllamaToolkit.Core.Settings;
+using OllamaToolkit.Core.Vulkan;
 using OllamaToolkit.ModelCatalog;
 using OllamaToolkit.ModelCategory;
 
@@ -15,6 +17,7 @@ public sealed class BenchmarkSettingsAdvisorService
     private readonly AiSettingsService _settings;
     private readonly OllamaApiClient _apiClient;
     private readonly SummarizerModelResolver _summarizer;
+    private readonly VulkanDeviceMap _deviceMap;
     private BenchmarkSettingsDocument? _cache;
 
     public void ClearCache() => _cache = null;
@@ -39,11 +42,13 @@ public sealed class BenchmarkSettingsAdvisorService
     public BenchmarkSettingsAdvisorService(
         AiSettingsService? settings = null,
         OllamaApiClient? apiClient = null,
-        SummarizerModelResolver? summarizer = null)
+        SummarizerModelResolver? summarizer = null,
+        VulkanDeviceMap? deviceMap = null)
     {
         _settings = settings ?? new AiSettingsService();
         _apiClient = apiClient ?? new OllamaApiClient();
         _summarizer = summarizer ?? new SummarizerModelResolver(_settings, _apiClient);
+        _deviceMap = deviceMap ?? new ModeDefinitionService().DeviceMap;
     }
 
     public async Task<BenchmarkSettingsEntry?> GetCachedAsync(
@@ -65,6 +70,7 @@ public sealed class BenchmarkSettingsAdvisorService
             {
                 NumCtx = 0,
                 NumPredict = 0,
+                NumParallelByMode = BenchmarkParallelSettings.EmbedDefaults(),
                 Rationale = "Embedding model — uses /api/embed benchmark (latency ms; no generation settings).",
                 GeneratedAt = DateTimeOffset.Now.ToString("o")
             };
@@ -91,15 +97,21 @@ public sealed class BenchmarkSettingsAdvisorService
 
         var prior = summary.NeedsRetest ? "none" : $"{summary.BestMode} {summary.BestTps:F1} tok/s";
         var prompt = $"""
-            Suggest Ollama benchmark settings for AMD Vulkan Windows laptop. Reply JSON only with NumCtx, NumPredict, Rationale fields.
+            Suggest Ollama benchmark settings for AMD Vulkan Windows laptop. Reply JSON only.
+            Required fields: NumCtx (int), NumPredict (int), NumParallelByMode (object), Rationale (string).
+            NumParallelByMode keys: CPU, APU, GPU, Hybrid, ROCm — integer values 1-4 only.
+            OLLAMA_NUM_PARALLEL reserves VRAM per concurrent model slot. Benchmarks run one request at a time;
+            parallel >1 affects memory headroom when chatting after launch, not benchmark throughput.
             Model: {summary.Model} ({summary.SizeGB} GB, {summary.ParameterSize})
             Category: {category ?? "unknown"}
             Prior best: {prior}
+            Hardware: APU Vulkan {_deviceMap.ApuVulkanIndex} ({_deviceMap.ApuName}), GPU Vulkan {_deviceMap.GpuVulkanIndex} ({_deviceMap.GpuName}).
+            CPU mode: parallel 1. Large models (>=18 GB): prefer 1 on GPU modes. Small models on dGPU may use 2-3 if VRAM allows.
             """;
 
         try
         {
-            var text = await _apiClient.GenerateAsync(summarizer, prompt, 128, 4096, cancellationToken)
+            var text = await _apiClient.GenerateAsync(summarizer, prompt, 192, 4096, cancellationToken)
                 .ConfigureAwait(false);
             var entry = NormalizeEntry(ParseSettings(text) ?? DefaultEntry(summary), summary);
             entry.SummaryModel = summarizer;
@@ -122,6 +134,7 @@ public sealed class BenchmarkSettingsAdvisorService
         {
             entry.NumCtx = 0;
             entry.NumPredict = 0;
+            entry.NumParallelByMode = BenchmarkParallelSettings.EmbedDefaults();
             entry.Rationale ??= "Embedding model — uses /api/embed benchmark (latency ms; no generation settings).";
             return entry;
         }
@@ -138,17 +151,23 @@ public sealed class BenchmarkSettingsAdvisorService
 
         entry.NumCtx = Math.Clamp(entry.NumCtx, 2048, 32768);
         entry.NumPredict = Math.Clamp(entry.NumPredict, 8, 512);
+        entry.NumParallelByMode = BenchmarkParallelSettings.NormalizeByMode(
+            entry.NumParallelByMode, sizeGb, isEmbed: false);
         return entry;
     }
 
-    private static BenchmarkSettingsEntry DefaultEntry(ModelProfileSummary summary) =>
-        new()
+    private static BenchmarkSettingsEntry DefaultEntry(ModelProfileSummary summary)
+    {
+        var sizeGb = summary.SizeGB > 0 ? summary.SizeGB : 4;
+        return new BenchmarkSettingsEntry
         {
             NumCtx = summary.RecommendedCtx > 0 ? summary.RecommendedCtx : 8192,
             NumPredict = 32,
+            NumParallelByMode = BenchmarkParallelSettings.DefaultByMode(sizeGb),
             Rationale = $"Default for {summary.SizeGB} GB model.",
             GeneratedAt = DateTimeOffset.Now.ToString("o")
         };
+    }
 
     private static BenchmarkSettingsEntry? ParseSettings(string text)
     {
@@ -168,6 +187,7 @@ public sealed class BenchmarkSettingsAdvisorService
             {
                 NumCtx = root.TryGetProperty("NumCtx", out var ctx) ? ctx.GetInt32() : 8192,
                 NumPredict = root.TryGetProperty("NumPredict", out var pred) ? pred.GetInt32() : 32,
+                NumParallelByMode = ParseParallelByMode(root),
                 Rationale = root.TryGetProperty("Rationale", out var rat) ? rat.GetString() : null,
                 GeneratedAt = DateTimeOffset.Now.ToString("o")
             };
@@ -176,6 +196,27 @@ public sealed class BenchmarkSettingsAdvisorService
         {
             return null;
         }
+    }
+
+    private static Dictionary<string, int>? ParseParallelByMode(JsonElement root)
+    {
+        if (!root.TryGetProperty("NumParallelByMode", out var parallel)
+            || parallel.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var map = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var property in parallel.EnumerateObject())
+        {
+            if (property.Value.ValueKind == JsonValueKind.Number
+                && property.Value.TryGetInt32(out var value))
+            {
+                map[property.Name] = BenchmarkParallelSettings.Clamp(value);
+            }
+        }
+
+        return map.Count == 0 ? null : map;
     }
 
     private async Task<BenchmarkSettingsDocument> LoadAsync(CancellationToken cancellationToken)

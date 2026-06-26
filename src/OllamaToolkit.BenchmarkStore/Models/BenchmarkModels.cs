@@ -26,6 +26,7 @@ public sealed class ModelProfileEntry
     public string? Quantization { get; set; }
     public int NumCtx { get; set; }
     public int NumPredict { get; set; }
+    public Dictionary<string, int>? NumParallelByMode { get; set; }
     public int Runs { get; set; }
     public string? LastTested { get; set; }
     public Dictionary<string, ModeResultEntry>? Results { get; set; }
@@ -65,6 +66,8 @@ public sealed class BenchmarkReportDocument
     public string? Model { get; set; }
     public string? Quantization { get; set; }
     public int NumPredict { get; set; }
+    public int NumCtx { get; set; }
+    public Dictionary<string, int>? NumParallelByMode { get; set; }
     public int Runs { get; set; }
     public string? CompletedAt { get; set; }
     public string? OutputDir { get; set; }

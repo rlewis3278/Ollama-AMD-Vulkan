@@ -53,7 +53,8 @@ public static class ConfigPaths
         "ROCR_VISIBLE_DEVICES",
         "CUDA_VISIBLE_DEVICES",
         "OLLAMA_NUM_GPU",
-        "OLLAMA_IGPU_ENABLE"
+        "OLLAMA_IGPU_ENABLE",
+        "OLLAMA_NUM_PARALLEL"
     ];
 
     public static void EnsureConfigDirectory()

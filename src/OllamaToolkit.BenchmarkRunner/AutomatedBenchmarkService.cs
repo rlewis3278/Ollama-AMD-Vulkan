@@ -19,6 +19,7 @@ public sealed class AutomatedBenchmarkService
         + "and clustering applications across document collections.";
 
     private readonly ModeService _modeService;
+    private readonly OllamaServerTuningService _serverTuning;
     private readonly OllamaApiClient _apiClient;
     private readonly ProfileStoreService _profiles;
     private readonly OllamaModelSessionService _modelSessions;
@@ -26,11 +27,13 @@ public sealed class AutomatedBenchmarkService
 
     public AutomatedBenchmarkService(
         ModeService? modeService = null,
+        OllamaServerTuningService? serverTuning = null,
         OllamaApiClient? apiClient = null,
         ProfileStoreService? profiles = null,
         OllamaModelSessionService? modelSessions = null)
     {
         _modeService = modeService ?? new ModeService();
+        _serverTuning = serverTuning ?? new OllamaServerTuningService();
         _apiClient = apiClient ?? new OllamaApiClient();
         _profiles = profiles ?? new ProfileStoreService(_apiClient);
         _modelSessions = modelSessions ?? new OllamaModelSessionService();
@@ -41,6 +44,7 @@ public sealed class AutomatedBenchmarkService
         IReadOnlyList<ComputeMode>? modes = null,
         int numPredict = 32,
         int numCtx = 8192,
+        IReadOnlyDictionary<string, int>? numParallelByMode = null,
         int runs = 1,
         string? outputDir = null,
         int modelIndex = 0,
@@ -61,9 +65,9 @@ public sealed class AutomatedBenchmarkService
 
         var header = isEmbed
             ? BenchmarkProgressFormatter.EmbedModelHeader(
-                modelName, modelIndex, modelCount, modes, aiSummarizerModel)
+                modelName, modelIndex, modelCount, modes, aiSummarizerModel, numParallelByMode)
             : BenchmarkProgressFormatter.ModelHeader(
-                modelName, modelIndex, modelCount, numCtx, numPredict, modes, aiSummarizerModel);
+                modelName, modelIndex, modelCount, numCtx, numPredict, modes, aiSummarizerModel, numParallelByMode);
 
         BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
         {
@@ -85,6 +89,10 @@ public sealed class AutomatedBenchmarkService
             EmbedInput = isEmbed ? DefaultEmbedInput : null,
             Model = modelName,
             NumPredict = isEmbed ? 0 : numPredict,
+            NumCtx = isEmbed ? 0 : numCtx,
+            NumParallelByMode = numParallelByMode is null
+                ? null
+                : new Dictionary<string, int>(numParallelByMode, StringComparer.OrdinalIgnoreCase),
             Runs = runs,
             OutputDir = outputDir,
             StartedAt = DateTimeOffset.Now.ToString("o"),
@@ -113,6 +121,7 @@ public sealed class AutomatedBenchmarkService
             };
 
             var modeResult = new BenchmarkReportModeResult { Mode = mode.ToString() };
+            var modeParallel = BenchmarkParallelSettings.GetParallel(mode, numParallelByMode);
             var started = DateTime.UtcNow;
             string? modeEnvSummary = null;
             var lastFraction = 0.0;
@@ -124,11 +133,12 @@ public sealed class AutomatedBenchmarkService
                     ReportEmbedMilestone(
                         progress, log, modeTemplate, ref modePhase,
                         EmbedModeMilestone.ModeStarted,
-                        BenchmarkProgressFormatter.ModeApplying(modeIndex, modes.Count, mode));
+                        BenchmarkProgressFormatter.ModeApplying(modeIndex, modes.Count, mode, modeParallel));
 
                     if (_lastBenchmarkMode != mode)
                     {
                         ReportEmbedMilestone(progress, log, modeTemplate, ref modePhase, EmbedModeMilestone.ApplyingMode);
+                        _serverTuning.ApplyParallelForMode(mode, numParallelByMode);
                         await _modeService.ApplyModeWithRestartAsync(mode, saveBackup: false, cancellationToken)
                             .ConfigureAwait(false);
                         _apiClient.InvalidateCaches();
@@ -172,7 +182,7 @@ public sealed class AutomatedBenchmarkService
                     modeResult.EmbedLatencyMs = bench.LatencyMs;
                     modeResult.PromptEvalTps = bench.PromptEvalTps;
                     modeResult.Notes = BuildModeNotes(
-                        $"prompt_tokens={bench.PromptEvalCount}; dims={bench.Dimensions}; embed_ms={bench.LatencyMs:F1}",
+                        $"prompt_tokens={bench.PromptEvalCount}; dims={bench.Dimensions}; embed_ms={bench.LatencyMs:F1}; num_parallel={modeParallel}",
                         modeEnvSummary);
                     modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
 
@@ -191,7 +201,7 @@ public sealed class AutomatedBenchmarkService
                     ReportGenerateMilestone(
                         progress, log, modeTemplate, ref modePhase,
                         GenerateModeMilestone.ModeStarted,
-                        BenchmarkProgressFormatter.ModeApplying(modeIndex, modes.Count, mode));
+                        BenchmarkProgressFormatter.ModeApplying(modeIndex, modes.Count, mode, modeParallel));
 
                     if (_lastBenchmarkMode != mode)
                     {
@@ -207,6 +217,7 @@ public sealed class AutomatedBenchmarkService
                         }
 
                         ReportGenerateMilestone(progress, log, modeTemplate, ref modePhase, GenerateModeMilestone.ApplyingMode);
+                        _serverTuning.ApplyParallelForMode(mode, numParallelByMode);
                         await _modeService.ApplyModeWithRestartAsync(mode, saveBackup: false, cancellationToken)
                             .ConfigureAwait(false);
                         _apiClient.InvalidateCaches();
@@ -273,7 +284,7 @@ public sealed class AutomatedBenchmarkService
                     modeResult.PromptEvalTps = bench.PromptEvalTps;
                     modeResult.TtftMs = bench.TtftMs;
                     modeResult.Notes = BuildModeNotes(
-                        $"gen_tokens={bench.EvalCount}; num_ctx={numCtx}",
+                        $"gen_tokens={bench.EvalCount}; num_ctx={numCtx}; num_parallel={modeParallel}",
                         modeEnvSummary);
                     modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
 
@@ -362,7 +373,7 @@ public sealed class AutomatedBenchmarkService
         report.CompletedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         var reportPath = Path.Combine(outputDir, "report.json");
         await JsonFileHelper.WriteAsync(reportPath, report, cancellationToken).ConfigureAwait(false);
-        await _profiles.UpdateFromReportAsync(reportPath, numCtx, cancellationToken: cancellationToken)
+        await _profiles.UpdateFromReportAsync(reportPath, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
         BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
