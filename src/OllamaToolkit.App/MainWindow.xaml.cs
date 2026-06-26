@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Text;
 
 using System.Windows;
@@ -145,6 +146,8 @@ public partial class MainWindow : Window
     private async void OnLoadedAsync(object sender, RoutedEventArgs e)
     {
         _svc.Diagnostics.Write("App", "MainWindow loaded");
+        LogBuildStamp();
+        ApplyStatusButtonPresentations();
         ApplyCatalogDescriptionModeUi();
         UpdateCatalogStopButtonUi();
         UpdateStopTestButtonUi();
@@ -760,7 +763,7 @@ public partial class MainWindow : Window
         ScheduleFitGridColumns(ModelsGrid);
     }
 
-    private async Task UpdateAiStatusAsync()
+    private void ApplyStatusButtonPresentations()
     {
         _aiProcessingFlash.SetPresentation(
             "Program AI Inactive",
@@ -769,19 +772,84 @@ public partial class MainWindow : Window
             (Brush)FindResource("Brush.PanelBorder"),
             (Brush)FindResource("Brush.Text"));
 
-        await UpdateAiButtonStatesAsync().ConfigureAwait(true);
-        await UpdateOllamaAiStatusAsync().ConfigureAwait(true);
-    }
-
-    private Task UpdateOllamaAiStatusAsync()
-    {
         _ollamaAiFlash.SetPresentation(
             "Ollama AI Inactive",
             "Ollama Active",
             (Brush)FindResource("Brush.Button"),
             (Brush)FindResource("Brush.PanelBorder"),
             (Brush)FindResource("Brush.Text"));
-        return Task.CompletedTask;
+    }
+
+    private void LogBuildStamp()
+    {
+        var assemblyPath = Assembly.GetExecutingAssembly().Location;
+        var stamp = "unknown";
+        if (!string.IsNullOrWhiteSpace(assemblyPath) && File.Exists(assemblyPath))
+        {
+            stamp = File.GetLastWriteTime(assemblyPath).ToString("yyyy-MM-dd HH:mm:ss");
+        }
+
+        var gitHash = TryGetGitShortHash();
+        var message = string.IsNullOrWhiteSpace(gitHash)
+            ? $"Build stamp: DLL {stamp}"
+            : $"Build stamp: DLL {stamp}, git {gitHash}";
+        _svc.Diagnostics.Write("App", message);
+    }
+
+    private static string TryGetGitShortHash()
+    {
+        try
+        {
+            var repoRoot = FindGitRepoRoot(AppContext.BaseDirectory);
+            if (string.IsNullOrWhiteSpace(repoRoot))
+            {
+                return string.Empty;
+            }
+
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "git",
+                    Arguments = "rev-parse --short HEAD",
+                    WorkingDirectory = repoRoot,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                }
+            };
+            process.Start();
+            var output = process.StandardOutput.ReadToEnd().Trim();
+            process.WaitForExit();
+            return process.ExitCode == 0 ? output : string.Empty;
+        }
+        catch
+        {
+            return string.Empty;
+        }
+    }
+
+    private static string? FindGitRepoRoot(string startDirectory)
+    {
+        var current = startDirectory;
+        for (var depth = 0; depth < 12 && !string.IsNullOrWhiteSpace(current); depth++)
+        {
+            if (Directory.Exists(Path.Combine(current, ".git")))
+            {
+                return current;
+            }
+
+            current = Directory.GetParent(current)?.FullName;
+        }
+
+        return null;
+    }
+
+    private async Task UpdateAiStatusAsync()
+    {
+        ApplyStatusButtonPresentations();
+        await UpdateAiButtonStatesAsync().ConfigureAwait(true);
     }
 
     private void WireAiActivityPresenters()
