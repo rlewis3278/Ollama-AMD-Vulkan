@@ -47,6 +47,14 @@ public sealed class CatalogOperationCoordinator
 
     public void Cancel() => _cts?.Cancel();
 
+    public void ForceReset()
+    {
+        _cts?.Cancel();
+        _active = CatalogToolbarOperationType.None;
+        ActiveFlashSender = null;
+        _generation++;
+    }
+
     public void End(int generation)
     {
         if (generation != _generation)

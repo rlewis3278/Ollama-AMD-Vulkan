@@ -884,19 +884,23 @@ public partial class MainWindow : Window
         UpdateCatalogStopButtonUi();
     }
 
+    private Brush ThemeBrush(string key, Brush fallback) =>
+        TryFindResource(key) is Brush brush ? brush : fallback;
+
     private void UpdateCatalogStopButtonUi()
     {
         if (_catalogToolbarOperations > 0)
         {
-            CatalogStopBtn.Background = (Brush)FindResource("Brush.Accent");
-            CatalogStopBtn.BorderBrush = (Brush)FindResource("Brush.AccentHover");
+            var accent = ThemeBrush("Brush.Accent", Brushes.Red);
+            CatalogStopBtn.Background = accent;
+            CatalogStopBtn.BorderBrush = accent;
             CatalogStopBtn.Foreground = Brushes.White;
         }
         else
         {
-            CatalogStopBtn.Background = (Brush)FindResource("Brush.Button");
-            CatalogStopBtn.BorderBrush = (Brush)FindResource("Brush.PanelBorder");
-            CatalogStopBtn.Foreground = (Brush)FindResource("Brush.Text");
+            CatalogStopBtn.Background = ThemeBrush("Brush.Button", Brushes.Black);
+            CatalogStopBtn.BorderBrush = ThemeBrush("Brush.PanelBorder", Brushes.Gray);
+            CatalogStopBtn.Foreground = ThemeBrush("Brush.Text", Brushes.White);
         }
     }
 
@@ -913,7 +917,17 @@ public partial class MainWindow : Window
             return false;
         }
 
-        BeginCatalogToolbarOperation();
+        try
+        {
+            BeginCatalogToolbarOperation();
+        }
+        catch (Exception ex)
+        {
+            _catalogOps.ForceReset();
+            _svc.Diagnostics.Write("Catalog", $"Toolbar UI setup failed: {ex.Message}");
+            return false;
+        }
+
         _svc.Diagnostics.Write("Catalog", $"Started {type}.");
         return true;
     }
@@ -2964,7 +2978,9 @@ public partial class MainWindow : Window
 
     private async Task CancelActiveCatalogOperationsAsync()
     {
+        var flashSender = _catalogOps.ActiveFlashSender;
         _catalogOps.Cancel();
+        _catalogOps.ForceReset();
         _catalogDownloadCts?.Cancel();
         CancelCatalogFileSizeEnrichment();
         _svc.Diagnostics.Write("Catalog", "STOP requested for active catalog operation.");
@@ -2974,10 +2990,13 @@ public partial class MainWindow : Window
             _catalogRowAnimator.Stop();
             CatalogRowRefreshAnimator.ResetAll(_catalogRows);
             HideCatalogDownloadProgress();
-            if (_catalogOps.ActiveFlashSender is { } flashSender)
+            if (flashSender is not null)
             {
                 EndTaskFlashIdle(flashSender);
             }
+
+            _catalogToolbarOperations = 0;
+            UpdateCatalogStopButtonUi();
         }).ConfigureAwait(false);
     }
 

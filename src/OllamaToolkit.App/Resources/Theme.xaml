@@ -26,6 +26,7 @@
     <SolidColorBrush x:Key="Brush.Text" Color="{StaticResource Color.Text}" />
     <SolidColorBrush x:Key="Brush.Muted" Color="{StaticResource Color.Muted}" />
     <SolidColorBrush x:Key="Brush.Accent" Color="{StaticResource Color.Accent}" />
+    <SolidColorBrush x:Key="Brush.AccentHover" Color="{StaticResource Color.AccentHover}" />
     <SolidColorBrush x:Key="Brush.Active" Color="{StaticResource Color.Active}" />
     <SolidColorBrush x:Key="Brush.ActiveBg" Color="{StaticResource Color.ActiveBg}" />
     <SolidColorBrush x:Key="Brush.Warning" Color="{StaticResource Color.Warning}" />
@@ -33,6 +34,7 @@
     <SolidColorBrush x:Key="Brush.Info" Color="{StaticResource Color.Info}" />
     <SolidColorBrush x:Key="Brush.InfoBg" Color="{StaticResource Color.InfoBg}" />
     <SolidColorBrush x:Key="Brush.Button" Color="{StaticResource Color.Button}" />
+    <SolidColorBrush x:Key="Brush.ButtonHover" Color="{StaticResource Color.ButtonHover}" />
     <SolidColorBrush x:Key="Brush.LogBg" Color="{StaticResource Color.LogBg}" />
     <SolidColorBrush x:Key="Brush.RowAlt" Color="{StaticResource Color.RowAlt}" />
     <SolidColorBrush x:Key="Brush.Purple" Color="{StaticResource Color.Purple}" />
