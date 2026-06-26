@@ -2423,3 +2423,609 @@ entry without wiping all test data."; git push
 [2026-06-25 13:13:03] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
 [2026-06-25 13:13:04] [SYNC] Processed updates.jsonl lines 10247..10250
 [2026-06-25 13:13:04] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 17:59:51] [USER] Request: responsive test progress bars + auto-scroll Testing Suite log and AI Activity log
+[2026-06-25 17:59:54] [TOOL] Grep - Grep
+[2026-06-25 17:59:54] [TOOL] Read - Read
+[2026-06-25 17:59:54] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release --no-restore 2>&1; if (-not $?) { dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release }
+[2026-06-25 17:59:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/MainWindow.xaml; git commit -m "ui: start main window maximized"; git push
+[2026-06-25 17:59:54] [TOOL] Grep - Grep
+[2026-06-25 17:59:54] [TOOL] Read - Read
+[2026-06-25 17:59:54] [TOOL] Read - Read
+[2026-06-25 17:59:54] [TOOL] Grep - Grep
+[2026-06-25 17:59:54] [TOOL] Grep - Grep
+[2026-06-25 17:59:54] [TOOL] Write - Write
+[2026-06-25 17:59:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release
+[2026-06-25 17:59:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/Services/DataGridColumnHelper.cs; git commit -m "fix: auto-fit grid columns wide enough for header labels"; git push
+[2026-06-25 17:59:54] [TOOL] Grep - Grep
+[2026-06-25 17:59:54] [TOOL] Read - Read
+[2026-06-25 17:59:54] [TOOL] Read - Read
+[2026-06-25 17:59:54] [TOOL] Read - Read
+[2026-06-25 17:59:54] [TOOL] Read - Read
+[2026-06-25 17:59:54] [TOOL] Grep - Grep
+[2026-06-25 17:59:54] [TOOL] Read - Read
+[2026-06-25 17:59:54] [TOOL] Read - Read
+[2026-06-25 17:59:54] [TOOL] Read - Read
+[2026-06-25 17:59:54] [TOOL] Write - Write
+[2026-06-25 17:59:54] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:54] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:54] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:54] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:54] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:54] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:54] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:54] [TOOL] Read - Read
+[2026-06-25 17:59:54] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:54] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release
+[2026-06-25 17:59:55] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release
+[2026-06-25 17:59:55] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/Services/DataGridColumnHelper.cs src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/Resources/Theme.xaml; git commit -m "fix: robust DataGrid column auto-fit for all tabs
+
+Replace SizeToCells (broken with virtualization) with measurement of
+header text and all bound cell values from ItemsSource. Enable horizontal
+scroll on grids, disable text trimming, wrap long Insight/Description
+columns, and refit on tab switch, data refresh, and debounced resize."; git push
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release
+[2026-06-25 17:59:55] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/Services/DataGridColumnHelper.cs src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/Resources/Theme.xaml; git commit -m "fix: Test Results grid column sizing â€” dense fixed widths, no star column
+
+Test Results has 12 columns; star-sizing on Model caused WPF to compress
+all columns below their content. Use dense auto-fit (all fixed pixel widths
+from measured headers + cells), always-visible horizontal scroll, header
+template with no trimming, and explicit BestMetricDisplay measurement."; git push
+[2026-06-25 17:59:55] [TOOL] Grep - Grep
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:55] [TOOL] Grep - Grep
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:55] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release
+[2026-06-25 17:59:55] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/Services/DataGridColumnHelper.cs; git commit -m "fix: Test Results Insight column shows full text and expands
+
+Remove 60-character truncation on AI insights. Make Insight the flex (star)
+column with MinWidth sized to the longest insight string so text is not
+clipped; use single-line display with horizontal scroll when needed."; git push
+[2026-06-25 17:59:55] [TOOL] Grep - Grep
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:55] [TOOL] Grep - Grep
+[2026-06-25 17:59:55] [TOOL] Grep - Grep
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:55] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Grep - Grep
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Write - Write
+[2026-06-25 17:59:56] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:56] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:56] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:56] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:56] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:56] [TOOL] Grep - Grep
+[2026-06-25 17:59:56] [TOOL] Grep - Grep
+[2026-06-25 17:59:56] [TOOL] Grep - Grep
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release
+[2026-06-25 17:59:56] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/Services/ThrottledUpdater.cs src/OllamaToolkit.App/MainWindow.xaml.cs; git commit -m "fix: auto-scroll Testing Suite log as new lines are appended
+
+ThrottledUpdater was ignoring the apply callback and never called
+ScrollToEnd. Route all test log writes through AppendTestLog with
+deferred scroll after layout."; git push
+[2026-06-25 17:59:56] [TOOL] Grep - Grep
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:56] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:56] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:56] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:56] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:56] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:56] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:56] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release
+[2026-06-25 17:59:56] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.BenchmarkStore/ProfileStoreService.cs; git commit -m "fix: Test Suite log auto-scroll; retest failed benchmark modes
+
+Wrap test log in ScrollViewer and append immediately (no throttle) so
+new lines stay visible. Test Local Untested now queues installed models
+that need testing plus any with failed per-mode benchmark results."; git push
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Grep - Grep
+[2026-06-25 17:59:56] [TOOL] Grep - Grep
+[2026-06-25 17:59:56] [TOOL] Grep - Grep
+[2026-06-25 17:59:56] [TOOL] Glob - Glob
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Grep - Grep
+[2026-06-25 17:59:56] [TOOL] Read - Read
+[2026-06-25 17:59:56] [TOOL] Grep - Grep
+[2026-06-25 17:59:57] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git log --oneline -15 --grep="log\|scroll\|TestLog" --all 2>$null; git log --oneline -20 -- src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/MainWindow.xaml
+[2026-06-25 17:59:57] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git log --oneline -15 --grep="log\|scroll\|TestLog" --all 2>$null; git log --oneline -20 -- src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/MainWindow.xaml
+[2026-06-25 17:59:57] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --oneline -20 -- src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/MainWindow.xaml
+[2026-06-25 17:59:57] [TOOL] Grep - Grep
+[2026-06-25 17:59:57] [TOOL] Grep - Grep
+[2026-06-25 17:59:57] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git show 3e3d30e --stat; git show 3e3d30e -p -- src/OllamaToolkit.App/MainWindow.xaml.cs | Select-Object -First 80; git show 5552606 -p -- src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs | Select-Object -First 120
+[2026-06-25 17:59:57] [TOOL] Read - Read
+[2026-06-25 17:59:57] [TOOL] Grep - Grep
+[2026-06-25 17:59:57] [TOOL] Read - Read
+[2026-06-25 17:59:57] [TOOL] Read - Read
+[2026-06-25 17:59:57] [TOOL] Grep - Grep
+[2026-06-25 17:59:57] [TOOL] Grep - Grep
+[2026-06-25 17:59:57] [TOOL] Read - Read
+[2026-06-25 17:59:57] [TOOL] Grep - Grep
+[2026-06-25 17:59:57] [TOOL] Read - Read
+[2026-06-25 17:59:57] [TOOL] Read - Read
+[2026-06-25 17:59:57] [TOOL] Grep - Grep
+[2026-06-25 17:59:57] [TOOL] Grep - Grep
+[2026-06-25 17:59:57] [TOOL] Read - Read
+[2026-06-25 17:59:57] [TOOL] Glob - Glob
+[2026-06-25 17:59:57] [TOOL] Glob - Glob
+[2026-06-25 17:59:57] [TOOL] AskQuestion - AskQuestion
+[2026-06-25 17:59:57] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 17:59:57] [TOOL] Read - Read
+[2026-06-25 17:59:57] [TOOL] Read - Read
+[2026-06-25 17:59:57] [TOOL] Grep - Grep
+[2026-06-25 17:59:57] [TOOL] Read - Read
+[2026-06-25 17:59:57] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:57] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:57] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:57] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:57] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:57] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:57] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj --no-restore 2>&1
+[2026-06-25 17:59:57] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 17:59:57] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:57] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:57] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:57] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj --no-restore 2>&1
+[2026-06-25 17:59:57] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --oneline -8; git diff HEAD~3 -- src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.BenchmarkStore/ProfileStoreService.cs
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git status --short; git diff --stat HEAD
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] AskQuestion - AskQuestion
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:58] [TOOL] Grep - Grep
+[2026-06-25 17:59:58] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 17:59:58] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Grep - Grep
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj 2>&1
+[2026-06-25 17:59:59] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj 2>&1
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj 2>&1
+[2026-06-25 17:59:59] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 17:59:59] [TOOL] Grep - Grep
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Grep - Grep
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Grep - Grep
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Grep - Grep
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj 2>&1
+[2026-06-25 17:59:59] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj 2>&1
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Grep - Grep
+[2026-06-25 17:59:59] [TOOL] StrReplace - StrReplace
+[2026-06-25 17:59:59] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj 2>&1
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 17:59:59] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] Glob - Glob
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Glob - Glob
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Glob - Glob
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [SHELL] git -C "C:\Users\lewis\Ollama-AMD-Vulkan" status --short 2>$null; if (-not $?) { Get-ChildItem -Path "C:\Users\lewis" -Directory -Filter "*Ollama*" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName }
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Read - Read
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:00] [TOOL] Grep - Grep
+[2026-06-25 18:00:01] [TOOL] Grep - Grep
+[2026-06-25 18:00:01] [TOOL] Read - Read
+[2026-06-25 18:00:01] [TOOL] Read - Read
+[2026-06-25 18:00:01] [TOOL] Glob - Glob
+[2026-06-25 18:00:01] [TOOL] Grep - Grep
+[2026-06-25 18:00:01] [TOOL] Read - Read
+[2026-06-25 18:00:01] [TOOL] Read - Read
+[2026-06-25 18:00:01] [TOOL] Read - Read
+[2026-06-25 18:00:01] [TOOL] Read - Read
+[2026-06-25 18:00:01] [TOOL] Read - Read
+[2026-06-25 18:00:01] [TOOL] Read - Read
+[2026-06-25 18:00:01] [TOOL] Read - Read
+[2026-06-25 18:00:01] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 18:00:01] [TOOL] Write - Write
+[2026-06-25 18:00:01] [TOOL] Write - Write
+[2026-06-25 18:00:01] [TOOL] Write - Write
+[2026-06-25 18:00:01] [TOOL] Write - Write
+[2026-06-25 18:00:01] [TOOL] SwitchMode - SwitchMode
+[2026-06-25 18:00:01] [TOOL] Write - Write
+[2026-06-25 18:00:01] [TOOL] Write - Write
+[2026-06-25 18:00:01] [TOOL] Write - Write
+[2026-06-25 18:00:02] [TOOL] Write - Write
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] Write - Write
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] Grep - Grep
+[2026-06-25 18:00:02] [TOOL] Read - Read
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] Read - Read
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:02] [TOOL] Read - Read
+[2026-06-25 18:00:02] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" --no-restore 2>&1; if (-not $?) { dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" 2>&1 }
+[2026-06-25 18:00:02] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 18:00:02] [SHELL] git -C "C:\Users\lewis\Ollama-AMD-Vulkan" status --short && git -C "C:\Users\lewis\Ollama-AMD-Vulkan" branch --show-current
+[2026-06-25 18:00:02] [SHELL_FAIL] exit=1 git -C "C:\Users\lewis\Ollama-AMD-Vulkan" status --short && git -C "C:\Users\lewis\Ollama-AMD-Vulkan" branch --show-current
+[2026-06-25 18:00:02] [SHELL] git -C "C:\Users\lewis\Ollama-AMD-Vulkan" status --short; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" branch --show-current
+[2026-06-25 18:00:02] [SHELL] git -C "C:\Users\lewis\Ollama-AMD-Vulkan" diff src/OllamaToolkit.AiAssist/BenchmarkInsightService.cs
+[2026-06-25 18:00:03] [SHELL] git -C "C:\Users\lewis\Ollama-AMD-Vulkan" add -A; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" commit -m "Add app-wide diagnostics, retest queue builder, and test flow hardening
+
+- ToolkitDiagnosticsService: persistent log at ~/.ollama-amd-vulkan/toolkit-diagnostics.log
+- Diagnostics tab with Copy Diagnostics button and auto-refresh
+- RetestQueueBuilder with per-model include/exclude decisions and PS1-aligned gguf filter
+- Ensure Ollama API before Test Local Untested; reentrancy guard and ResetTestOperationState
+- ReportImporter returns imported model names; instrument WorkQueue and test actions
+- Match Failed status in BenchmarkInsightService"
+[2026-06-25 18:00:03] [TOOL] Read - Read
+[2026-06-25 18:00:03] [TOOL] Grep - Grep
+[2026-06-25 18:00:03] [TOOL] Read - Read
+[2026-06-25 18:00:03] [TOOL] Glob - Glob
+[2026-06-25 18:00:03] [TOOL] Glob - Glob
+[2026-06-25 18:00:03] [TOOL] Grep - Grep
+[2026-06-25 18:00:03] [TOOL] Read - Read
+[2026-06-25 18:00:03] [SHELL] try { $r = Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -TimeoutSec 10; $r.models | Select-Object -First 5 name, size, @{N='format';E={$_.details.format}}, @{N='hasDetails';E={$null -ne $_.details}} | Format-Table -AutoSize; Write-Host "Total models: $($r.models.Count)" } catch { Write-Host "Ollama API error: $_" }
+[2026-06-25 18:00:03] [TOOL] Read - Read
+[2026-06-25 18:00:03] [TOOL] Read - Read
+[2026-06-25 18:00:03] [TOOL] Grep - Grep
+[2026-06-25 18:00:03] [TOOL] Glob - Glob
+[2026-06-25 18:00:03] [TOOL] Grep - Grep
+[2026-06-25 18:00:03] [TOOL] Read - Read
+[2026-06-25 18:00:03] [TOOL] Glob - Glob
+[2026-06-25 18:00:03] [TOOL] Read - Read
+[2026-06-25 18:00:03] [TOOL] Glob - Glob
+[2026-06-25 18:00:03] [SHELL] Get-ChildItem -Path "C:\Users\lewis\Ollama-AMD-Vulkan\reports" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 20 FullName; Get-ChildItem -Path "C:\Users\lewis\.ollama-amd-vulkan" | Format-Table Name, Length, LastWriteTime
+[2026-06-25 18:00:03] [TOOL] Read - Read
+[2026-06-25 18:00:03] [TOOL] Grep - Grep
+[2026-06-25 18:00:03] [TOOL] Grep - Grep
+[2026-06-25 18:00:03] [TOOL] Read - Read
+[2026-06-25 18:00:03] [SHELL] $ollama = "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe"; if (Test-Path $ollama) { Start-Process -FilePath $ollama -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 5; try { $r = Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -TimeoutSec 15; Write-Host "Total raw models: $($r.models.Count)"; $r.models | ForEach-Object { $fmt = if ($_.details) { $_.details.format } else { '(no details)' }; [PSCustomObject]@{ name=$_.name; size=$_.size; format=$fmt } } | Format-Table -AutoSize; $gguf = $r.models | Where-Object { $_.size -gt 1MB -and $_.details -and $_.details.format -eq 'gguf' }; Write-Host "GGUF models >1MB: $($gguf.Count)" } catch { Write-Host "API error: $_" } } else { Write-Host "Ollama not found at $ollama" }
+[2026-06-25 18:00:03] [TOOL] Grep - Grep
+[2026-06-25 18:00:03] [TOOL] Grep - Grep
+[2026-06-25 18:00:03] [TOOL] Read - Read
+[2026-06-25 18:00:03] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.Cli\bin\Debug\net8.0"; dotnet OllamaToolkit.Cli.dll import-reports 2>&1; $code = @'
+using OllamaToolkit.BenchmarkStore;
+using OllamaToolkit.Core.Ollama;
+var api = new OllamaApiClient();
+var profiles = new ProfileStoreService(api);
+api.InvalidateCaches();
+var local = await profiles.GetLocalModelsAsync(forceRefresh: true);
+var build = await profiles.BuildLocalRetestQueueAsync();
+Console.WriteLine($"Local: {local.Count}, Queue: {build.IncludedCount}, Excluded: {build.ExcludedCount}");
+foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included ? "INCLUDE" : "SKIP")} ({d.Reason})");
+'@; Set-Content -Path "C:\Users\lewis\Ollama-AMD-Vulkan\_test-queue.csx" -Value $code -ErrorAction SilentlyContinue
+[2026-06-25 18:00:03] [SHELL] Get-ChildItem -Path "C:\Users\lewis\Ollama-AMD-Vulkan\reports\gui-tests" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName, Length, LastWriteTime
+[2026-06-25 18:00:03] [TOOL] Read - Read
+[2026-06-25 18:00:03] [TOOL] Read - Read
+[2026-06-25 18:00:03] [TOOL] Read - Read
+[2026-06-25 18:00:03] [TOOL] Glob - Glob
+[2026-06-25 18:00:03] [TOOL] Grep - Grep
+[2026-06-25 18:00:03] [SHELL] $testProj = @'
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="src\OllamaToolkit.BenchmarkStore\OllamaToolkit.BenchmarkStore.csproj" />
+    <ProjectReference Include="src\OllamaToolkit.Core\OllamaToolkit.Core.csproj" />
+  </ItemGroup>
+</Project>
+'@; $testCs = @'
+using OllamaToolkit.BenchmarkStore;
+using OllamaToolkit.Core.Ollama;
+var api = new OllamaApiClient();
+var profiles = new ProfileStoreService(api);
+var build = await profiles.BuildLocalRetestQueueAsync();
+Console.WriteLine($"Local={build.LocalModelCount} Included={build.IncludedCount} Excluded={build.ExcludedCount}");
+foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included?"IN":"SKIP")} {d.Reason}");
+'@; Set-Content "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" $testProj; Set-Content "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\Program.cs" $testCs; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [TOOL] Grep - Grep
+[2026-06-25 18:00:04] [SHELL_FAIL] exit=1 $testProj = @'
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="src\OllamaToolkit.BenchmarkStore\OllamaToolkit.BenchmarkStore.csproj" />
+    <ProjectReference Include="src\OllamaToolkit.Core\OllamaToolkit.Core.csproj" />
+  </ItemGroup>
+</Project>
+'@; $testCs = @'
+using OllamaToolkit.BenchmarkStore;
+using OllamaToolkit.Core.Ollama;
+var api = new OllamaApiClient();
+var profiles = new ProfileStoreService(api);
+var build = await profiles.BuildLocalRetestQueueAsync();
+Console.WriteLine($"Local={build.LocalModelCount} Included={build.IncludedCount} Excluded={build.ExcludedCount}");
+foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included?"IN":"SKIP")} {d.Reason}");
+'@; Set-Content "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" $testProj; Set-Content "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\Program.cs" $testCs; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [SHELL] New-Item -ItemType Directory -Path "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest" -Force | Out-Null; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [TOOL] Write - Write
+[2026-06-25 18:00:04] [TOOL] Write - Write
+[2026-06-25 18:00:04] [SHELL_FAIL] exit=1 New-Item -ItemType Directory -Path "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest" -Force | Out-Null; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:04] [SHELL] dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:04] [SHELL] try { Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -TimeoutSec 5 | Select-Object -ExpandProperty models | Measure-Object | Select-Object Count } catch { "API down: $_" }; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [TOOL] Grep - Grep
+[2026-06-25 18:00:04] [SHELL_FAIL] exit=1 try { Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -TimeoutSec 5 | Select-Object -ExpandProperty models | Measure-Object | Select-Object Count } catch { "API down: $_" }; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [SHELL] Start-Process -FilePath "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" -ArgumentList "serve" -WindowStyle Hidden; $ready = $false; for ($i=0; $i -lt 30; $i++) { try { $null = Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -TimeoutSec 3; $ready=$true; break } catch { Start-Sleep -Seconds 1 } }; Write-Host "Ollama ready=$ready"
+[2026-06-25 18:00:04] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:04] [SHELL] dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [SHELL] try { (Invoke-WebRequest -Uri "http://127.0.0.1:11434/api/tags" -TimeoutSec 5).StatusCode } catch { "127.0.0.1 fail: $_" }; try { (Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -TimeoutSec 5).StatusCode } catch { "localhost fail: $_" }; try { (Invoke-WebRequest -Uri "http://[::1]:11434/api/tags" -TimeoutSec 5).StatusCode } catch { "ipv6 fail: $_" }
+[2026-06-25 18:00:04] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:04] [SHELL] Start-Process -FilePath "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 4; Write-Host "PS tags:"; (Invoke-RestMethod "http://localhost:11434/api/tags" -TimeoutSec 5).models.Count; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [SHELL_FAIL] exit=1 Start-Process -FilePath "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 4; Write-Host "PS tags:"; (Invoke-RestMethod "http://localhost:11434/api/tags" -TimeoutSec 5).models.Count; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [TOOL] Write - Write
+[2026-06-25 18:00:04] [SHELL] dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [TOOL] Write - Write
+[2026-06-25 18:00:04] [SHELL] Start-Process -FilePath "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 4; Write-Host "PS:" (Invoke-RestMethod "http://127.0.0.1:11434/api/tags" -TimeoutSec 5).models.Count; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [SHELL_FAIL] exit=1 Start-Process -FilePath "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 4; Write-Host "PS:" (Invoke-RestMethod "http://127.0.0.1:11434/api/tags" -TimeoutSec 5).models.Count; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [TOOL] Write - Write
+[2026-06-25 18:00:04] [SHELL] dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+[2026-06-25 18:00:04] [TOOL] Read - Read
+[2026-06-25 18:00:04] [TOOL] Grep - Grep
+[2026-06-25 18:00:04] [SHELL] Start-Process -FilePath "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 4; $json = (Invoke-WebRequest "http://127.0.0.1:11434/api/tags" -TimeoutSec 5).Content; $json.Substring(0, [Math]::Min(500, $json.Length))
+[2026-06-25 18:00:04] [SHELL] try { $json = (Invoke-WebRequest "http://127.0.0.1:11434/api/tags" -TimeoutSec 5).Content; Write-Host $json.Substring(0, [Math]::Min(600, $json.Length)) } catch { Write-Host "Error: $_" }
+[2026-06-25 18:00:04] [TOOL] Grep - Grep
+[2026-06-25 18:00:04] [TOOL] Grep - Grep
+[2026-06-25 18:00:04] [TOOL] Grep - Grep
+[2026-06-25 18:00:04] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] Grep - Grep
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] Grep - Grep
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] Glob - Glob
+[2026-06-25 18:00:05] [SHELL] if (Test-Path "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.exe") { Get-Item "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.exe" | Select-Object FullName, Length, LastWriteTime } else { "No published exe" }; dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release 2>&1 | Select-Object -Last 8
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] Grep - Grep
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" -c Release 2>&1 | Select-Object -Last 15
+[2026-06-25 18:00:05] [TOOL] Delete - Delete
+[2026-06-25 18:00:05] [TOOL] Delete - Delete
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:00:05] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App" 2>&1 | Select-Object -Last 8
+[2026-06-25 18:00:05] [SHELL] Get-Item "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.exe" | Select-Object LastWriteTime; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" add -A; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" commit -m "Fix empty retest queue: reliable Ollama tags, relaxed filter, skip re-import after clear
+
+- Default Ollama host 127.0.0.1; retry /api/tags up to 3x on force refresh
+- Warm tags cache after EnsureOllama; BuildLocalRetestQueue uses single snapshot
+- Relax LocalModelFilter when details/format missing; exclude remote_host models
+- Clear All deletes report.json recursively; suppress startup import after clear
+- RetestQueueBuildResult reports rawTagCount, apiReachable, tagsError for diagnostics
+- Published updated build to publish/OllamaToolkit.App"
+[2026-06-25 18:00:05] [TOOL] Delete - Delete
+[2026-06-25 18:00:05] [SHELL] git -C "C:\Users\lewis\Ollama-AMD-Vulkan" rm --cached "_test-queue.csx" 2>$null; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" commit --amend -m "Fix empty retest queue: reliable Ollama tags, relaxed filter, skip re-import after clear
+
+- Default Ollama host 127.0.0.1; retry /api/tags up to 3x on force refresh
+- Warm tags cache after EnsureOllama; BuildLocalRetestQueue uses single snapshot
+- Relax LocalModelFilter when details/format missing; exclude remote_host models
+- Clear All deletes report.json recursively; suppress startup import after clear
+- RetestQueueBuildResult reports rawTagCount, apiReachable, tagsError for diagnostics
+- Published updated build to publish/OllamaToolkit.App" 2>&1
+[2026-06-25 18:00:05] [TOOL] Grep - Grep
+[2026-06-25 18:00:05] [TOOL] Grep - Grep
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] Grep - Grep
+[2026-06-25 18:00:05] [TOOL] Grep - Grep
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:05] [TOOL] Grep - Grep
+[2026-06-25 18:00:05] [TOOL] Read - Read
+[2026-06-25 18:00:06] [TOOL] Grep - Grep
+[2026-06-25 18:00:06] [TOOL] Read - Read
+[2026-06-25 18:00:06] [TOOL] Read - Read
+[2026-06-25 18:00:06] [TOOL] Read - Read
+[2026-06-25 18:00:06] [TOOL] Read - Read
+[2026-06-25 18:00:06] [TOOL] Read - Read
+[2026-06-25 18:00:06] [TOOL] AskQuestion - AskQuestion
+[2026-06-25 18:00:06] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 18:00:06] [TOOL] Glob - Glob
+[2026-06-25 18:00:06] [TOOL] Grep - Grep
+[2026-06-25 18:00:06] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 18:00:06] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 18:00:06] [SHELL] git -C "C:\Users\lewis\Ollama-AMD-Vulkan" status --short; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" branch --show-current
+[2026-06-25 18:00:06] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "USER|Request: responsive test progress bars + auto-scroll Testing Suite log and AI Activity log"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "REASONING|Plan: stream token progress from Ollama generate; fraction-based bars; TextBox scroll-to-end for test log; scroll AI Activity on refresh"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "GIT|checkpoint before test UI responsiveness work (working tree clean at 1be2e54)"; .\scripts\Update-DevelopmentArchive.ps1 2>&1 | Select-Object -Last 5
+[2026-06-25 18:00:06] [TOOL] Read - Read
+[2026-06-25 18:00:06] [TOOL] Read - Read
+[2026-06-25 18:00:06] [TOOL] Read - Read
+[2026-06-25 18:00:06] [SYNC] Processed updates.jsonl lines 10251..12424
+[2026-06-25 18:00:06] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:00:06] [REASONING] Plan: stream token progress from Ollama generate; fraction-based bars; TextBox scroll-to-end for test log; scroll AI Activity on refresh
+[2026-06-25 18:00:09] [SYNC] Processed updates.jsonl lines 12425..12551
+[2026-06-25 18:00:09] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:00:09] [GIT] checkpoint before test UI responsiveness work (working tree clean at 1be2e54)
+[2026-06-25 18:00:11] [SYNC] Processed updates.jsonl lines 12552..12553
+[2026-06-25 18:00:11] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:00:14] [SYNC] Processed updates.jsonl lines 12554..12556
+[2026-06-25 18:00:14] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

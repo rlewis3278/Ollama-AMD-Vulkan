@@ -247,3 +247,115 @@ cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/Olla
 Add a Clear button on each Test Results row to remove that model's
 benchmark profile, report folder, AI insights, and settings advisor
 entry without wiping all test data."; git push
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release --no-restore 2>&1; if (-not $?) { dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release }
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/MainWindow.xaml; git commit -m "ui: start main window maximized"; git push
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/Services/DataGridColumnHelper.cs; git commit -m "fix: auto-fit grid columns wide enough for header labels"; git push
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/Services/DataGridColumnHelper.cs src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/Resources/Theme.xaml; git commit -m "fix: robust DataGrid column auto-fit for all tabs
+
+Replace SizeToCells (broken with virtualization) with measurement of
+header text and all bound cell values from ItemsSource. Enable horizontal
+scroll on grids, disable text trimming, wrap long Insight/Description
+columns, and refit on tab switch, data refresh, and debounced resize."; git push
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/Services/DataGridColumnHelper.cs src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/Resources/Theme.xaml; git commit -m "fix: Test Results grid column sizing â€” dense fixed widths, no star column
+
+Test Results has 12 columns; star-sizing on Model caused WPF to compress
+all columns below their content. Use dense auto-fit (all fixed pixel widths
+from measured headers + cells), always-visible horizontal scroll, header
+template with no trimming, and explicit BestMetricDisplay measurement."; git push
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/Services/DataGridColumnHelper.cs; git commit -m "fix: Test Results Insight column shows full text and expands
+
+Remove 60-character truncation on AI insights. Make Insight the flex (star)
+column with MinWidth sized to the longest insight string so text is not
+clipped; use single-line display with horizontal scroll when needed."; git push
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/Services/ThrottledUpdater.cs src/OllamaToolkit.App/MainWindow.xaml.cs; git commit -m "fix: auto-scroll Testing Suite log as new lines are appended
+
+ThrottledUpdater was ignoring the apply callback and never called
+ScrollToEnd. Route all test log writes through AppendTestLog with
+deferred scroll after layout."; git push
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.BenchmarkStore/ProfileStoreService.cs; git commit -m "fix: Test Suite log auto-scroll; retest failed benchmark modes
+
+Wrap test log in ScrollViewer and append immediately (no throttle) so
+new lines stay visible. Test Local Untested now queues installed models
+that need testing plus any with failed per-mode benchmark results."; git push
+cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git log --oneline -15 --grep="log\|scroll\|TestLog" --all 2>$null; git log --oneline -20 -- src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/MainWindow.xaml
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --oneline -20 -- src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/MainWindow.xaml
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git show 3e3d30e --stat; git show 3e3d30e -p -- src/OllamaToolkit.App/MainWindow.xaml.cs | Select-Object -First 80; git show 5552606 -p -- src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs | Select-Object -First 120
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj --no-restore 2>&1
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --oneline -8; git diff HEAD~3 -- src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.BenchmarkStore/ProfileStoreService.cs
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git status --short; git diff --stat HEAD
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj 2>&1
+git -C "C:\Users\lewis\Ollama-AMD-Vulkan" status --short 2>$null; if (-not $?) { Get-ChildItem -Path "C:\Users\lewis" -Directory -Filter "*Ollama*" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName }
+dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" --no-restore 2>&1; if (-not $?) { dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" 2>&1 }
+git -C "C:\Users\lewis\Ollama-AMD-Vulkan" status --short && git -C "C:\Users\lewis\Ollama-AMD-Vulkan" branch --show-current
+git -C "C:\Users\lewis\Ollama-AMD-Vulkan" status --short; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" branch --show-current
+git -C "C:\Users\lewis\Ollama-AMD-Vulkan" diff src/OllamaToolkit.AiAssist/BenchmarkInsightService.cs
+git -C "C:\Users\lewis\Ollama-AMD-Vulkan" add -A; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" commit -m "Add app-wide diagnostics, retest queue builder, and test flow hardening
+
+- ToolkitDiagnosticsService: persistent log at ~/.ollama-amd-vulkan/toolkit-diagnostics.log
+- Diagnostics tab with Copy Diagnostics button and auto-refresh
+- RetestQueueBuilder with per-model include/exclude decisions and PS1-aligned gguf filter
+- Ensure Ollama API before Test Local Untested; reentrancy guard and ResetTestOperationState
+- ReportImporter returns imported model names; instrument WorkQueue and test actions
+- Match Failed status in BenchmarkInsightService"
+try { $r = Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -TimeoutSec 10; $r.models | Select-Object -First 5 name, size, @{N='format';E={$_.details.format}}, @{N='hasDetails';E={$null -ne $_.details}} | Format-Table -AutoSize; Write-Host "Total models: $($r.models.Count)" } catch { Write-Host "Ollama API error: $_" }
+Get-ChildItem -Path "C:\Users\lewis\Ollama-AMD-Vulkan\reports" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 20 FullName; Get-ChildItem -Path "C:\Users\lewis\.ollama-amd-vulkan" | Format-Table Name, Length, LastWriteTime
+$ollama = "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe"; if (Test-Path $ollama) { Start-Process -FilePath $ollama -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 5; try { $r = Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -TimeoutSec 15; Write-Host "Total raw models: $($r.models.Count)"; $r.models | ForEach-Object { $fmt = if ($_.details) { $_.details.format } else { '(no details)' }; [PSCustomObject]@{ name=$_.name; size=$_.size; format=$fmt } } | Format-Table -AutoSize; $gguf = $r.models | Where-Object { $_.size -gt 1MB -and $_.details -and $_.details.format -eq 'gguf' }; Write-Host "GGUF models >1MB: $($gguf.Count)" } catch { Write-Host "API error: $_" } } else { Write-Host "Ollama not found at $ollama" }
+cd "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.Cli\bin\Debug\net8.0"; dotnet OllamaToolkit.Cli.dll import-reports 2>&1; $code = @'
+using OllamaToolkit.BenchmarkStore;
+using OllamaToolkit.Core.Ollama;
+var api = new OllamaApiClient();
+var profiles = new ProfileStoreService(api);
+api.InvalidateCaches();
+var local = await profiles.GetLocalModelsAsync(forceRefresh: true);
+var build = await profiles.BuildLocalRetestQueueAsync();
+Console.WriteLine($"Local: {local.Count}, Queue: {build.IncludedCount}, Excluded: {build.ExcludedCount}");
+foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included ? "INCLUDE" : "SKIP")} ({d.Reason})");
+'@; Set-Content -Path "C:\Users\lewis\Ollama-AMD-Vulkan\_test-queue.csx" -Value $code -ErrorAction SilentlyContinue
+Get-ChildItem -Path "C:\Users\lewis\Ollama-AMD-Vulkan\reports\gui-tests" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName, Length, LastWriteTime
+$testProj = @'
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="src\OllamaToolkit.BenchmarkStore\OllamaToolkit.BenchmarkStore.csproj" />
+    <ProjectReference Include="src\OllamaToolkit.Core\OllamaToolkit.Core.csproj" />
+  </ItemGroup>
+</Project>
+'@; $testCs = @'
+using OllamaToolkit.BenchmarkStore;
+using OllamaToolkit.Core.Ollama;
+var api = new OllamaApiClient();
+var profiles = new ProfileStoreService(api);
+var build = await profiles.BuildLocalRetestQueueAsync();
+Console.WriteLine($"Local={build.LocalModelCount} Included={build.IncludedCount} Excluded={build.ExcludedCount}");
+foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included?"IN":"SKIP")} {d.Reason}");
+'@; Set-Content "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" $testProj; Set-Content "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\Program.cs" $testCs; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+New-Item -ItemType Directory -Path "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest" -Force | Out-Null; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+try { Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -TimeoutSec 5 | Select-Object -ExpandProperty models | Measure-Object | Select-Object Count } catch { "API down: $_" }; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+Start-Process -FilePath "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" -ArgumentList "serve" -WindowStyle Hidden; $ready = $false; for ($i=0; $i -lt 30; $i++) { try { $null = Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -TimeoutSec 3; $ready=$true; break } catch { Start-Sleep -Seconds 1 } }; Write-Host "Ollama ready=$ready"
+try { (Invoke-WebRequest -Uri "http://127.0.0.1:11434/api/tags" -TimeoutSec 5).StatusCode } catch { "127.0.0.1 fail: $_" }; try { (Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -TimeoutSec 5).StatusCode } catch { "localhost fail: $_" }; try { (Invoke-WebRequest -Uri "http://[::1]:11434/api/tags" -TimeoutSec 5).StatusCode } catch { "ipv6 fail: $_" }
+Start-Process -FilePath "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 4; Write-Host "PS tags:"; (Invoke-RestMethod "http://localhost:11434/api/tags" -TimeoutSec 5).models.Count; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+Start-Process -FilePath "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 4; Write-Host "PS:" (Invoke-RestMethod "http://127.0.0.1:11434/api/tags" -TimeoutSec 5).models.Count; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\_QueueTest\_QueueTest.csproj" 2>&1
+Start-Process -FilePath "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" -ArgumentList "serve" -WindowStyle Hidden; Start-Sleep -Seconds 4; $json = (Invoke-WebRequest "http://127.0.0.1:11434/api/tags" -TimeoutSec 5).Content; $json.Substring(0, [Math]::Min(500, $json.Length))
+try { $json = (Invoke-WebRequest "http://127.0.0.1:11434/api/tags" -TimeoutSec 5).Content; Write-Host $json.Substring(0, [Math]::Min(600, $json.Length)) } catch { Write-Host "Error: $_" }
+if (Test-Path "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.exe") { Get-Item "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.exe" | Select-Object FullName, Length, LastWriteTime } else { "No published exe" }; dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release 2>&1 | Select-Object -Last 8
+dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" -c Release 2>&1 | Select-Object -Last 15
+dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App" 2>&1 | Select-Object -Last 8
+Get-Item "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.exe" | Select-Object LastWriteTime; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" add -A; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" commit -m "Fix empty retest queue: reliable Ollama tags, relaxed filter, skip re-import after clear
+
+- Default Ollama host 127.0.0.1; retry /api/tags up to 3x on force refresh
+- Warm tags cache after EnsureOllama; BuildLocalRetestQueue uses single snapshot
+- Relax LocalModelFilter when details/format missing; exclude remote_host models
+- Clear All deletes report.json recursively; suppress startup import after clear
+- RetestQueueBuildResult reports rawTagCount, apiReachable, tagsError for diagnostics
+- Published updated build to publish/OllamaToolkit.App"
+git -C "C:\Users\lewis\Ollama-AMD-Vulkan" rm --cached "_test-queue.csx" 2>$null; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" commit --amend -m "Fix empty retest queue: reliable Ollama tags, relaxed filter, skip re-import after clear
+
+- Default Ollama host 127.0.0.1; retry /api/tags up to 3x on force refresh
+- Warm tags cache after EnsureOllama; BuildLocalRetestQueue uses single snapshot
+- Relax LocalModelFilter when details/format missing; exclude remote_host models
+- Clear All deletes report.json recursively; suppress startup import after clear
+- RetestQueueBuildResult reports rawTagCount, apiReachable, tagsError for diagnostics
+- Published updated build to publish/OllamaToolkit.App" 2>&1
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "USER|Request: responsive test progress bars + auto-scroll Testing Suite log and AI Activity log"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "REASONING|Plan: stream token progress from Ollama generate; fraction-based bars; TextBox scroll-to-end for test log; scroll AI Activity on refresh"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "GIT|checkpoint before test UI responsiveness work (working tree clean at 1be2e54)"; .\scripts\Update-DevelopmentArchive.ps1 2>&1 | Select-Object -Last 5
