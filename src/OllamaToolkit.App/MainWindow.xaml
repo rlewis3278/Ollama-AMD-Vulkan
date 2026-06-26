@@ -9,6 +9,7 @@
         WindowState="Maximized"
         Background="{StaticResource Brush.Bg}">
     <Grid Background="{StaticResource Brush.Bg}">
+        <Grid x:Name="MainContentRoot" Background="{StaticResource Brush.Bg}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -417,12 +418,59 @@
                            Foreground="{StaticResource Brush.Muted}" FontSize="14"
                            Text="Model lists load from Ollama API and cached profiles. Start Ollama if lists are empty." />
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                    <TextBlock x:Name="AppVersionFooterText"
+                               VerticalAlignment="Center" Margin="0,0,12,0"
+                               Foreground="{StaticResource Brush.Muted}" FontSize="13" />
                     <Button x:Name="OllamaAiStatusButton" Style="{StaticResource ToolkitButton}"
                             Content="Ollama AI Inactive" IsHitTestVisible="False" />
                     <Button x:Name="AiStatusButton" Style="{StaticResource ToolkitButton}"
                             Content="Program AI Inactive" Click="AiStatusButton_Click" />
                 </StackPanel>
             </Grid>
+        </Border>
+        </Grid>
+
+        <Border x:Name="StartupSplashOverlay"
+                Panel.ZIndex="1000"
+                Background="#CC000000"
+                Visibility="Visible"
+                Opacity="0"
+                IsHitTestVisible="True">
+            <Border Background="{StaticResource Brush.Panel}"
+                    BorderBrush="{StaticResource Brush.PanelBorder}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="32,28"
+                    MaxWidth="460"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock x:Name="SplashAppName"
+                               Text="Ollama AMD Vulkan Manager"
+                               FontSize="22"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource Brush.Text}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap" />
+                    <Image Source="/OllamaToolkit.App;component/Assets/ollama_gui_manager_icon.ico"
+                           MaxWidth="280" MaxHeight="280"
+                           Stretch="Uniform"
+                           Margin="0,20,0,16"
+                           HorizontalAlignment="Center" />
+                    <TextBlock Text="Developed by Lewisound"
+                               FontSize="16"
+                               Foreground="{StaticResource Brush.Text}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center" />
+                    <TextBlock x:Name="SplashRevisionText"
+                               FontSize="14"
+                               Foreground="{StaticResource Brush.Muted}"
+                               HorizontalAlignment="Center"
+                               TextAlignment="Center"
+                               Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
         </Border>
     </Grid>
 </Window>

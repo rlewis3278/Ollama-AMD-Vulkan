@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Text;
 
 using System.Windows;
@@ -65,6 +64,7 @@ public partial class MainWindow : Window
     private readonly FlashButtonRegistry _flashButtons;
     private readonly AiProcessingFlashPresenter _aiProcessingFlash;
     private readonly OllamaAiFlashPresenter _ollamaAiFlash;
+    private readonly StartupSplashPresenter _startupSplash;
     private readonly ObservableCollection<CatalogRowViewModel> _catalogRows = new();
     private readonly CatalogRowRefreshAnimator _catalogRowAnimator;
     private Dictionary<string, CatalogRowViewModel> _catalogRowByName = new(StringComparer.OrdinalIgnoreCase);
@@ -82,6 +82,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        _startupSplash = new StartupSplashPresenter(StartupSplashOverlay, MainContentRoot, SplashRevisionText);
         _flashButtons = new FlashButtonRegistry(this);
         _aiProcessingFlash = new AiProcessingFlashPresenter(AiStatusButton, this);
         _ollamaAiFlash = new OllamaAiFlashPresenter(OllamaAiStatusButton, this);
@@ -145,18 +146,40 @@ public partial class MainWindow : Window
 
     private async void OnLoadedAsync(object sender, RoutedEventArgs e)
     {
-        _svc.Diagnostics.Write("App", "MainWindow loaded");
-        LogBuildStamp();
-        ApplyStatusButtonPresentations();
-        ApplyCatalogDescriptionModeUi();
-        UpdateCatalogStopButtonUi();
-        UpdateStopTestButtonUi();
-        InitModeCards();
-        InitAiFeatureToggles();
-        InitCategoryFilter();
+        try
+        {
+            await _startupSplash.ShowAndFadeInAsync().ConfigureAwait(true);
+
+            _svc.Diagnostics.Write("App", "MainWindow loaded");
+            LogBuildStamp();
+            ApplyStatusButtonPresentations();
+            UpdateFooterVersionLabel();
+            ApplyCatalogDescriptionModeUi();
+            UpdateCatalogStopButtonUi();
+            UpdateStopTestButtonUi();
+            InitModeCards();
+            InitAiFeatureToggles();
+            InitCategoryFilter();
+
+            var loadTask = RefreshAllAsync();
+            var loadTimeout = Task.Delay(TimeSpan.FromSeconds(90));
+            var completed = await Task.WhenAny(loadTask, loadTimeout).ConfigureAwait(true);
+            if (completed == loadTimeout)
+            {
+                _svc.Diagnostics.Write("App", "Startup load exceeded 90s; dismissing splash");
+            }
+            else
+            {
+                await loadTask.ConfigureAwait(true);
+            }
+        }
+        finally
+        {
+            await _startupSplash.HideAndFadeOutAsync().ConfigureAwait(true);
+        }
+
         _activityTimer.Start();
         RefreshDiagnosticsLog();
-        await RefreshAllAsync().ConfigureAwait(true);
         _ = ScheduleLogScanAsync();
     }
 
@@ -780,71 +803,11 @@ public partial class MainWindow : Window
             (Brush)FindResource("Brush.Text"));
     }
 
-    private void LogBuildStamp()
-    {
-        var assemblyPath = Assembly.GetExecutingAssembly().Location;
-        var stamp = "unknown";
-        if (!string.IsNullOrWhiteSpace(assemblyPath) && File.Exists(assemblyPath))
-        {
-            stamp = File.GetLastWriteTime(assemblyPath).ToString("yyyy-MM-dd HH:mm:ss");
-        }
+    private void LogBuildStamp() =>
+        _svc.Diagnostics.Write("App", AppBuildInfo.GetDiagnosticStamp());
 
-        var gitHash = TryGetGitShortHash();
-        var message = string.IsNullOrWhiteSpace(gitHash)
-            ? $"Build stamp: DLL {stamp}"
-            : $"Build stamp: DLL {stamp}, git {gitHash}";
-        _svc.Diagnostics.Write("App", message);
-    }
-
-    private static string TryGetGitShortHash()
-    {
-        try
-        {
-            var repoRoot = FindGitRepoRoot(AppContext.BaseDirectory);
-            if (string.IsNullOrWhiteSpace(repoRoot))
-            {
-                return string.Empty;
-            }
-
-            using var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = "git",
-                    Arguments = "rev-parse --short HEAD",
-                    WorkingDirectory = repoRoot,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                }
-            };
-            process.Start();
-            var output = process.StandardOutput.ReadToEnd().Trim();
-            process.WaitForExit();
-            return process.ExitCode == 0 ? output : string.Empty;
-        }
-        catch
-        {
-            return string.Empty;
-        }
-    }
-
-    private static string? FindGitRepoRoot(string startDirectory)
-    {
-        var current = startDirectory;
-        for (var depth = 0; depth < 12 && !string.IsNullOrWhiteSpace(current); depth++)
-        {
-            if (Directory.Exists(Path.Combine(current, ".git")))
-            {
-                return current;
-            }
-
-            current = Directory.GetParent(current)?.FullName;
-        }
-
-        return null;
-    }
+    private void UpdateFooterVersionLabel() =>
+        AppVersionFooterText.Text = AppBuildInfo.GetShortFooterLabel();
 
     private async Task UpdateAiStatusAsync()
     {

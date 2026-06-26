@@ -28,7 +28,9 @@ $dllPath = Join-Path $publishDir 'OllamaToolkit.App.dll'
 $requiredMarkers = @(
     'Program AI Inactive',
     'Ollama AI Inactive',
-    '1. Description summarization'
+    '1. Description summarization',
+    'Developed by Lewisound',
+    'Ollama AMD Vulkan Manager'
 )
 
 function Test-DllContainsMarker {

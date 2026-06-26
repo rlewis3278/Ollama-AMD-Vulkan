@@ -8,7 +8,21 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>OllamaToolkit.App</AssemblyName>
     <ApplicationIcon>Assets\ollama_gui_manager_icon.ico</ApplicationIcon>
+    <Version>1.0.0</Version>
   </PropertyGroup>
+
+  <Target Name="SetSourceRevisionId" BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo"
+          Condition="'$(SourceRevisionId)' == ''">
+    <Exec Command="git rev-parse --short HEAD" ConsoleToMSBuild="true" IgnoreExitCode="true"
+          WorkingDirectory="$(MSBuildProjectDirectory)\..\..">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitShortHash" />
+    </Exec>
+    <PropertyGroup>
+      <SourceRevisionId Condition="'$(GitShortHash)' != ''">$(GitShortHash)</SourceRevisionId>
+      <SourceRevisionId Condition="'$(SourceRevisionId)' == ''">unknown</SourceRevisionId>
+      <InformationalVersion>$(Version)+$(SourceRevisionId)</InformationalVersion>
+    </PropertyGroup>
+  </Target>
 
   <ItemGroup>
     <Resource Include="Assets\ollama_gui_manager_icon.ico" />
