@@ -37,7 +37,8 @@ public sealed class PlainLanguageErrorService
         try
         {
             var prompt = $"""
-                Explain this Ollama/AMD Vulkan Windows error in one short actionable sentence for a laptop user.
+                Explain this Windows Ollama toolkit error in one short actionable sentence for a laptop user.
+                Do not mention Vulkan or GPU unless the error text explicitly does.
                 Error: {rawError}
                 Explanation:
                 """;

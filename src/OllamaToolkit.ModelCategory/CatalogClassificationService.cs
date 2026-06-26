@@ -97,11 +97,16 @@ public sealed class CatalogClassificationService
 
                 var results = await ClassifyBatchAsync(batch, summarizer, cancellationToken)
                     .ConfigureAwait(false);
-                foreach (var (name, category) in results)
+                foreach (var entry in batch)
                 {
-                    var entry = batch.First(b => b.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+                    if (!results.TryGetValue(entry.Name, out var category))
+                    {
+                        category = CategoryNormalizer.HeuristicCategory(
+                            entry.Name, entry.Description, entry.Tags);
+                    }
+
                     ApplyCategory(categoryDoc, entry, category, summarizer, heuristic: false);
-                    MergeCatalogEntry(catalog, name, category);
+                    MergeCatalogEntry(catalog, entry.Name, category);
                     classified++;
                 }
             }
@@ -160,9 +165,15 @@ public sealed class CatalogClassificationService
                 continue;
             }
 
-            var name = parts[0].Trim();
+            var name = parts[0].Trim().TrimStart('-', '*', ' ', '\t');
             var category = CategoryNormalizer.Normalize(parts[1]);
-            map[name] = category;
+            var entry = ResolveBatchEntry(name, batch);
+            if (entry is null)
+            {
+                continue;
+            }
+
+            map[entry.Name] = category;
         }
 
         foreach (var entry in batch)
@@ -175,6 +186,36 @@ public sealed class CatalogClassificationService
         }
 
         return map;
+    }
+
+    private static LibraryCatalogEntry? ResolveBatchEntry(
+        string aiName,
+        IReadOnlyList<LibraryCatalogEntry> batch)
+    {
+        if (string.IsNullOrWhiteSpace(aiName))
+        {
+            return null;
+        }
+
+        var normalized = aiName.Trim();
+        foreach (var entry in batch)
+        {
+            if (entry.Name.Equals(normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                return entry;
+            }
+        }
+
+        foreach (var entry in batch)
+        {
+            if (normalized.StartsWith(entry.Name, StringComparison.OrdinalIgnoreCase)
+                || entry.Name.StartsWith(normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                return entry;
+            }
+        }
+
+        return null;
     }
 
     private static void ApplyCategory(

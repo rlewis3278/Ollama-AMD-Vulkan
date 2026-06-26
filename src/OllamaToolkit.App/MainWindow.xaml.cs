@@ -916,11 +916,15 @@ public partial class MainWindow : Window
         }
     }
 
+    private static bool ShouldShowRawErrorMessage(string message) =>
+        message.Contains("different thread owns it", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("Sequence contains no matching element", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("file does not exist", StringComparison.OrdinalIgnoreCase)
+        || message.Contains("pull model manifest", StringComparison.OrdinalIgnoreCase);
+
     private async Task<string> ExplainErrorAsync(string message, CancellationToken cancellationToken = default)
     {
-        if (message.Contains("different thread owns it", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("file does not exist", StringComparison.OrdinalIgnoreCase)
-            || message.Contains("pull model manifest", StringComparison.OrdinalIgnoreCase))
+        if (ShouldShowRawErrorMessage(message))
         {
             return message;
         }
@@ -3561,7 +3565,7 @@ public partial class MainWindow : Window
 
                 var progress = new Progress<string>(msg =>
                 {
-                    _ = UiDispatcher.InvokeAsync(() =>
+                    UiDispatcher.InvokeFireAndForget(() =>
                     {
                         if (fromAiSettings)
                         {

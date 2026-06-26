@@ -19,4 +19,11 @@ public static class UiDispatcher
 
     public static void Invoke(Action action) =>
         Dispatcher.Invoke(action);
+
+    public static void InvokeFireAndForget(Action action)
+    {
+        _ = Dispatcher.InvokeAsync(action).Task.ContinueWith(
+            static t => _ = t.Exception,
+            TaskContinuationOptions.OnlyOnFaulted);
+    }
 }
