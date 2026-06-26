@@ -3253,6 +3253,7 @@ public partial class MainWindow : Window
                     .ConfigureAwait(false);
 
                 _svc.CatalogStore.ClearCache();
+                await ApplyCatalogFileSizesToRowsAsync(ct).ConfigureAwait(false);
 
                 await UiDispatcher.InvokeAsync(async () =>
                 {

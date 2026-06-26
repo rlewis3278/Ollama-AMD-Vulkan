@@ -6,35 +6,34 @@ namespace OllamaToolkit.ModelCatalog;
 
 public static partial class OllamaLibraryTagsParser
 {
+    private const int TagRowScanLength = 2800;
+
     public static IReadOnlyList<LibraryTagInfo> ParseTagsHtml(string html, string libraryName)
     {
         var results = new List<LibraryTagInfo>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (Match match in HiddenCommandInput().Matches(html))
+        foreach (Match match in TagRowHiddenInput().Matches(html))
         {
-            var pullTag = match.Groups[1].Value.Trim();
-            if (string.IsNullOrWhiteSpace(pullTag)
-                || !pullTag.StartsWith($"{libraryName}:", StringComparison.OrdinalIgnoreCase)
-                || !seen.Add(pullTag))
+            if (!TryCreateTagInfo(match, libraryName, seen, out var tag))
             {
                 continue;
             }
 
-            var window = html.Substring(
-                match.Index,
-                Math.Min(1200, html.Length - match.Index));
-            var sizeLabel = TryParseNearbySizeLabel(window);
-            var isCloud = pullTag.EndsWith(":cloud", StringComparison.OrdinalIgnoreCase)
-                || (sizeLabel is null && window.Contains("cloud", StringComparison.OrdinalIgnoreCase));
+            results.Add(tag);
+        }
 
-            results.Add(new LibraryTagInfo
+        if (results.Count == 0)
+        {
+            foreach (Match match in HiddenCommandInput().Matches(html))
             {
-                PullTag = pullTag,
-                FileSizeLabel = sizeLabel,
-                FileSizeBytes = TryParseSizeBytes(sizeLabel),
-                IsCloud = isCloud
-            });
+                if (!TryCreateTagInfoFromHiddenInput(html, match, libraryName, seen, out var tag))
+                {
+                    continue;
+                }
+
+                results.Add(tag);
+            }
         }
 
         if (results.Count == 0)
@@ -50,13 +49,80 @@ public static partial class OllamaLibraryTagsParser
                 results.Add(new LibraryTagInfo
                 {
                     PullTag = pullTag,
-                    IsCloud = pullTag.EndsWith(":cloud", StringComparison.OrdinalIgnoreCase)
+                    IsCloud = IsCloudPullTag(pullTag)
                 });
             }
         }
 
         return results;
     }
+
+    private static bool TryCreateTagInfo(
+        Match match,
+        string libraryName,
+        HashSet<string> seen,
+        out LibraryTagInfo tag)
+    {
+        tag = null!;
+        var pullTag = match.Groups[1].Value.Trim();
+        if (string.IsNullOrWhiteSpace(pullTag)
+            || !pullTag.StartsWith($"{libraryName}:", StringComparison.OrdinalIgnoreCase)
+            || !seen.Add(pullTag))
+        {
+            return false;
+        }
+
+        string? sizeLabel = null;
+        if (match.Groups[2].Success && match.Groups[3].Success)
+        {
+            sizeLabel = $"{match.Groups[2].Value.Trim()}{match.Groups[3].Value.ToUpperInvariant()}";
+        }
+
+        tag = new LibraryTagInfo
+        {
+            PullTag = pullTag,
+            FileSizeLabel = sizeLabel,
+            FileSizeBytes = TryParseSizeBytes(sizeLabel),
+            IsCloud = IsCloudPullTag(pullTag, sizeLabel)
+        };
+        return true;
+    }
+
+    private static bool TryCreateTagInfoFromHiddenInput(
+        string html,
+        Match match,
+        string libraryName,
+        HashSet<string> seen,
+        out LibraryTagInfo tag)
+    {
+        tag = null!;
+        var pullTag = match.Groups[1].Value.Trim();
+        if (string.IsNullOrWhiteSpace(pullTag)
+            || !pullTag.StartsWith($"{libraryName}:", StringComparison.OrdinalIgnoreCase)
+            || !seen.Add(pullTag))
+        {
+            return false;
+        }
+
+        var start = match.Index + match.Length;
+        var length = Math.Min(TagRowScanLength, html.Length - start);
+        var window = length > 0 ? html[start..(start + length)] : string.Empty;
+        var sizeLabel = TryParseNearbySizeLabel(window);
+
+        tag = new LibraryTagInfo
+        {
+            PullTag = pullTag,
+            FileSizeLabel = sizeLabel,
+            FileSizeBytes = TryParseSizeBytes(sizeLabel),
+            IsCloud = IsCloudPullTag(pullTag, sizeLabel)
+        };
+        return true;
+    }
+
+    private static bool IsCloudPullTag(string pullTag, string? sizeLabel = null) =>
+        pullTag.EndsWith(":cloud", StringComparison.OrdinalIgnoreCase)
+        || pullTag.Contains("-cloud", StringComparison.OrdinalIgnoreCase)
+        || (sizeLabel is null && pullTag.Contains("cloud", StringComparison.OrdinalIgnoreCase));
 
     public static string TryParseParamsFromDescription(string? description)
     {
@@ -123,6 +189,11 @@ public static partial class OllamaLibraryTagsParser
 
         return null;
     }
+
+    [GeneratedRegex(
+        @"<input class=""command hidden"" value=""([^""]+)""[^>]*/>[\s\S]{0,2800}?<p class=""col-span-2[^""]*"">\s*(\d+(?:\.\d+)?)\s*(GB|MB|KB)\s*</p>",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex TagRowHiddenInput();
 
     [GeneratedRegex(@"<input class=""command hidden"" value=""([^""]+)""", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex HiddenCommandInput();

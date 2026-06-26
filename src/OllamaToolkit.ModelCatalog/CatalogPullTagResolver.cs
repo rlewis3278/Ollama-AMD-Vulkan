@@ -46,13 +46,20 @@ public static partial class CatalogPullTagResolver
             isCloudOnly = chosen.IsCloud;
         }
 
+        var fileSize = BuildFileSizeLabel(localTags);
+        if ((fileSize == "-" || string.IsNullOrWhiteSpace(fileSize))
+            && chosen.FileSizeBytes is > 0)
+        {
+            fileSize = FormatBytes(chosen.FileSizeBytes.Value);
+        }
+
         return new CatalogPullResolution
         {
             PullTag = chosen.PullTag,
             Resolved = true,
             IsCloudOnly = isCloudOnly,
             ParameterSize = BuildParameterSizeLabel(tags),
-            FileSize = BuildFileSizeLabel(localTags)
+            FileSize = fileSize
         };
     }
 
@@ -96,9 +103,15 @@ public static partial class CatalogPullTagResolver
                 continue;
             }
 
-            if (ParamSuffixToken().IsMatch(suffix))
+            var normalized = suffix;
+            if (normalized.EndsWith("-cloud", StringComparison.OrdinalIgnoreCase))
             {
-                suffixes.Add(suffix.ToUpperInvariant());
+                normalized = normalized[..^6];
+            }
+
+            if (ParamSuffixToken().IsMatch(normalized))
+            {
+                suffixes.Add(normalized.ToUpperInvariant());
             }
         }
 
