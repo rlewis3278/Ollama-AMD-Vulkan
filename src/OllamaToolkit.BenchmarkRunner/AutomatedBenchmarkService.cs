@@ -112,76 +112,60 @@ public sealed class AutomatedBenchmarkService
                 AiSummarizerModel = aiSummarizerModel
             };
 
-            BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
-            {
-                ModeFraction = 0,
-                ModeStatusDetail = "Applying mode…",
-                LogLine = BenchmarkProgressFormatter.ModeApplying(modeIndex, modes.Count, mode)
-            });
-
             var modeResult = new BenchmarkReportModeResult { Mode = mode.ToString() };
             var started = DateTime.UtcNow;
             string? modeEnvSummary = null;
+            var lastFraction = 0.0;
 
             try
             {
-                using var animator = new BenchmarkProgressAnimator(progress, modeTemplate);
-                animator.Report(0, "Applying mode…");
-
-                if (_lastBenchmarkMode != mode)
-                {
-                    animator.RunToward(0.18, "Applying mode & restarting Ollama…");
-                    try
-                    {
-                        await _modelSessions.StopModelAsync(modelName, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                        // Model may not be loaded yet.
-                    }
-
-                    await _modeService.ApplyModeWithRestartAsync(mode, saveBackup: false, cancellationToken)
-                        .ConfigureAwait(false);
-                    _apiClient.InvalidateCaches();
-                    _lastBenchmarkMode = mode;
-
-                    modeEnvSummary = _modeService.GetManagedEnvSummary();
-                    animator.RunToward(0.25, "Mode applied — loading model…");
-                    BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
-                    {
-                        ModeFraction = animator.CurrentFraction,
-                        ModeStatusDetail = "Mode applied — loading model…",
-                        LogLine = BenchmarkProgressFormatter.ModeAppliedWithRestart(mode, modeEnvSummary)
-                    });
-
-                    animator.RunToward(0.34, "Warming model…");
-                    await _modelSessions.SwitchToModelAsync(modelName, warmLoad: true, cancellationToken)
-                        .ConfigureAwait(false);
-                    animator.RunToward(0.40, "Model ready");
-                }
-                else
-                {
-                    animator.RunToward(0.40, "Preparing benchmark…");
-                }
-
-                modePhase = BenchmarkProgressPhase.ModeBenchmarking;
-                var benchDetail = isEmbed ? "Embedding…" : "Starting benchmark…";
-                animator.RunToward(0.40, benchDetail);
-                BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
-                {
-                    ModeFraction = animator.CurrentFraction,
-                    ModeStatusDetail = benchDetail,
-                    LogLine = isEmbed
-                        ? BenchmarkProgressFormatter.ModeEmbedBenchmarking(modeIndex, modes.Count, mode)
-                        : BenchmarkProgressFormatter.ModeBenchmarking(modeIndex, modes.Count, mode)
-                });
-
                 if (isEmbed)
                 {
-                    animator.RunToward(0.92, "Running embed benchmark…");
+                    ReportEmbedMilestone(
+                        progress, log, modeTemplate, ref modePhase,
+                        EmbedModeMilestone.ModeStarted,
+                        BenchmarkProgressFormatter.ModeApplying(modeIndex, modes.Count, mode));
+
+                    if (_lastBenchmarkMode != mode)
+                    {
+                        ReportEmbedMilestone(progress, log, modeTemplate, ref modePhase, EmbedModeMilestone.ApplyingMode);
+                        await _modeService.ApplyModeWithRestartAsync(mode, saveBackup: false, cancellationToken)
+                            .ConfigureAwait(false);
+                        _apiClient.InvalidateCaches();
+                        _lastBenchmarkMode = mode;
+                        modeEnvSummary = _modeService.GetManagedEnvSummary();
+
+                        ReportEmbedMilestone(
+                            progress, log, modeTemplate, ref modePhase,
+                            EmbedModeMilestone.ModeApplied,
+                            BenchmarkProgressFormatter.ModeAppliedWithRestart(mode, modeEnvSummary));
+
+                        ReportEmbedMilestone(progress, log, modeTemplate, ref modePhase, EmbedModeMilestone.WarmingModel);
+                        await _modelSessions.SwitchToModelAsync(modelName, warmLoad: true, cancellationToken)
+                            .ConfigureAwait(false);
+                        ReportEmbedMilestone(progress, log, modeTemplate, ref modePhase, EmbedModeMilestone.ModelReady);
+                    }
+                    else
+                    {
+                        ReportEmbedMilestone(progress, log, modeTemplate, ref modePhase, EmbedModeMilestone.ModelReady);
+                    }
+
+                    modePhase = BenchmarkProgressPhase.ModeBenchmarking;
+                    ReportEmbedMilestone(
+                        progress, log, modeTemplate, ref modePhase,
+                        EmbedModeMilestone.EmbedWarmup,
+                        BenchmarkProgressFormatter.ModeEmbedBenchmarking(modeIndex, modes.Count, mode));
+
+                    var embedStage = new Progress<string>(stage =>
+                    {
+                        if (stage == "measure")
+                        {
+                            ReportEmbedMilestone(progress, log, modeTemplate, ref modePhase, EmbedModeMilestone.EmbedMeasure);
+                        }
+                    });
+
                     var bench = await _apiClient.BenchmarkEmbedAsync(
-                        modelName, DefaultEmbedInput, warmup: true, cancellationToken)
+                        modelName, DefaultEmbedInput, warmup: true, embedStage, cancellationToken)
                         .ConfigureAwait(false);
 
                     modeResult.Status = "Success";
@@ -193,27 +177,85 @@ public sealed class AutomatedBenchmarkService
                     modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
 
                     modePhase = BenchmarkProgressPhase.ModeCompleted;
-                    animator.RunToward(1.0, $"{bench.LatencyMs:F1} ms");
-                    BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
-                    {
-                        ModeFraction = 1.0,
-                        ModeStatusDetail = $"{bench.LatencyMs:F1} ms",
-                        EmbedLatencyMs = bench.LatencyMs,
-                        DurationSec = modeResult.DurationSec,
-                        LogLine = BenchmarkProgressFormatter.ModeEmbedCompleted(
-                            modeIndex, modes.Count, mode, bench.LatencyMs, modeResult.DurationSec)
-                    });
+                    lastFraction = 1.0;
+                    ReportEmbedMilestone(
+                        progress, log, modeTemplate, ref modePhase,
+                        EmbedModeMilestone.Complete,
+                        BenchmarkProgressFormatter.ModeEmbedCompleted(
+                            modeIndex, modes.Count, mode, bench.LatencyMs, modeResult.DurationSec),
+                        $"{bench.LatencyMs:F1} ms",
+                        bench.LatencyMs);
                 }
                 else
                 {
-                    animator.SetIdleAdvance(0.04, "Benchmarking…");
+                    ReportGenerateMilestone(
+                        progress, log, modeTemplate, ref modePhase,
+                        GenerateModeMilestone.ModeStarted,
+                        BenchmarkProgressFormatter.ModeApplying(modeIndex, modes.Count, mode));
+
+                    if (_lastBenchmarkMode != mode)
+                    {
+                        ReportGenerateMilestone(progress, log, modeTemplate, ref modePhase, GenerateModeMilestone.StoppingModel);
+                        try
+                        {
+                            await _modelSessions.StopModelAsync(modelName, cancellationToken)
+                                .ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            // Model may not be loaded yet.
+                        }
+
+                        ReportGenerateMilestone(progress, log, modeTemplate, ref modePhase, GenerateModeMilestone.ApplyingMode);
+                        await _modeService.ApplyModeWithRestartAsync(mode, saveBackup: false, cancellationToken)
+                            .ConfigureAwait(false);
+                        _apiClient.InvalidateCaches();
+                        _lastBenchmarkMode = mode;
+                        modeEnvSummary = _modeService.GetManagedEnvSummary();
+
+                        ReportGenerateMilestone(
+                            progress, log, modeTemplate, ref modePhase,
+                            GenerateModeMilestone.ModeApplied,
+                            BenchmarkProgressFormatter.ModeAppliedWithRestart(mode, modeEnvSummary));
+
+                        ReportGenerateMilestone(progress, log, modeTemplate, ref modePhase, GenerateModeMilestone.WarmingModel);
+                        await _modelSessions.SwitchToModelAsync(modelName, warmLoad: true, cancellationToken)
+                            .ConfigureAwait(false);
+                        ReportGenerateMilestone(progress, log, modeTemplate, ref modePhase, GenerateModeMilestone.ModelReady);
+                    }
+                    else
+                    {
+                        ReportGenerateMilestone(progress, log, modeTemplate, ref modePhase, GenerateModeMilestone.ModelReady);
+                    }
+
+                    modePhase = BenchmarkProgressPhase.ModeBenchmarking;
+                    ReportGenerateMilestone(
+                        progress, log, modeTemplate, ref modePhase,
+                        GenerateModeMilestone.WarmupStarted,
+                        BenchmarkProgressFormatter.ModeBenchmarking(modeIndex, modes.Count, mode));
+
+                    var warmupComplete = false;
                     var tokenProgress = new Progress<int>(count =>
                     {
-                        var target = numPredict > 0 ? numPredict : 32;
-                        var fraction = 0.40 + 0.52 * Math.Clamp(count / (double)target, 0, 1);
-                        animator.RunToward(
-                            fraction,
-                            $"Benchmarking… {Math.Min(count, target)}/{target} tokens");
+                        if (!warmupComplete && count > 0)
+                        {
+                            warmupComplete = true;
+                            lastFraction = BenchmarkModeMilestones.GenerateFraction(GenerateModeMilestone.WarmupComplete);
+                            ReportGenerateMilestone(progress, log, modeTemplate, ref modePhase, GenerateModeMilestone.WarmupComplete);
+                            return;
+                        }
+
+                        if (!warmupComplete)
+                        {
+                            return;
+                        }
+
+                        var fraction = BenchmarkModeMilestones.TokenFraction(count, numPredict);
+                        var status = BenchmarkModeMilestones.TokenStatus(count, numPredict);
+                        lastFraction = fraction;
+                        ReportGenerateProgress(
+                            progress, log, modeTemplate, ref modePhase,
+                            fraction, "Generating", status);
                     });
 
                     var bench = await _apiClient.BenchmarkGenerateAsync(
@@ -236,16 +278,14 @@ public sealed class AutomatedBenchmarkService
                     modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
 
                     modePhase = BenchmarkProgressPhase.ModeCompleted;
-                    animator.RunToward(1.0, $"{bench.GenerationTps:F1} tok/s");
-                    BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
-                    {
-                        ModeFraction = 1.0,
-                        ModeStatusDetail = $"{bench.GenerationTps:F1} tok/s",
-                        GenerationTps = bench.GenerationTps,
-                        DurationSec = modeResult.DurationSec,
-                        LogLine = BenchmarkProgressFormatter.ModeCompleted(
-                            modeIndex, modes.Count, mode, bench.GenerationTps, modeResult.DurationSec)
-                    });
+                    lastFraction = 1.0;
+                    ReportGenerateMilestone(
+                        progress, log, modeTemplate, ref modePhase,
+                        GenerateModeMilestone.Complete,
+                        BenchmarkProgressFormatter.ModeCompleted(
+                            modeIndex, modes.Count, mode, bench.GenerationTps, modeResult.DurationSec),
+                        $"{bench.GenerationTps:F1} tok/s",
+                        bench.GenerationTps);
                 }
             }
             catch (Exception ex)
@@ -260,7 +300,9 @@ public sealed class AutomatedBenchmarkService
                 modePhase = BenchmarkProgressPhase.ModeFailed;
                 BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
                 {
-                    ModeFraction = 1.0,
+                    Phase = modePhase,
+                    ModeFraction = lastFraction,
+                    ModeMilestone = "Failed",
                     ModeStatusDetail = "Failed",
                     DurationSec = modeResult.DurationSec,
                     Error = ex.Message,
@@ -335,6 +377,86 @@ public sealed class AutomatedBenchmarkService
         });
 
         return report;
+    }
+
+    private static void ReportGenerateMilestone(
+        IProgress<BenchmarkProgressUpdate>? progress,
+        IProgress<string>? log,
+        Func<BenchmarkProgressUpdate> template,
+        ref BenchmarkProgressPhase phase,
+        GenerateModeMilestone milestone,
+        string? logLine = null,
+        string? statusDetail = null,
+        double? generationTps = null,
+        double? embedLatencyMs = null)
+    {
+        phase = milestone is GenerateModeMilestone.Complete
+            ? BenchmarkProgressPhase.ModeCompleted
+            : milestone >= GenerateModeMilestone.WarmupStarted
+                ? BenchmarkProgressPhase.ModeBenchmarking
+                : BenchmarkProgressPhase.ModeApplying;
+
+        var fraction = BenchmarkModeMilestones.GenerateFraction(milestone);
+        var status = statusDetail ?? BenchmarkModeMilestones.GenerateStatus(milestone);
+        BenchmarkProgress.ReportAndLog(progress, log, template() with
+        {
+            Phase = phase,
+            ModeFraction = fraction,
+            ModeMilestone = milestone.ToString(),
+            ModeStatusDetail = status,
+            GenerationTps = generationTps,
+            EmbedLatencyMs = embedLatencyMs,
+            LogLine = logLine
+        });
+    }
+
+    private static void ReportGenerateProgress(
+        IProgress<BenchmarkProgressUpdate>? progress,
+        IProgress<string>? log,
+        Func<BenchmarkProgressUpdate> template,
+        ref BenchmarkProgressPhase phase,
+        double fraction,
+        string milestone,
+        string statusDetail)
+    {
+        phase = BenchmarkProgressPhase.ModeBenchmarking;
+        BenchmarkProgress.ReportAndLog(progress, log, template() with
+        {
+            Phase = phase,
+            ModeFraction = fraction,
+            ModeMilestone = milestone,
+            ModeStatusDetail = statusDetail
+        });
+    }
+
+    private static void ReportEmbedMilestone(
+        IProgress<BenchmarkProgressUpdate>? progress,
+        IProgress<string>? log,
+        Func<BenchmarkProgressUpdate> template,
+        ref BenchmarkProgressPhase phase,
+        EmbedModeMilestone milestone,
+        string? logLine = null,
+        string? statusDetail = null,
+        double? embedLatencyMs = null)
+    {
+        phase = milestone switch
+        {
+            EmbedModeMilestone.Complete => BenchmarkProgressPhase.ModeCompleted,
+            EmbedModeMilestone.EmbedWarmup or EmbedModeMilestone.EmbedMeasure => BenchmarkProgressPhase.ModeBenchmarking,
+            _ => BenchmarkProgressPhase.ModeApplying
+        };
+
+        var fraction = BenchmarkModeMilestones.EmbedFraction(milestone);
+        var status = statusDetail ?? BenchmarkModeMilestones.EmbedStatus(milestone);
+        BenchmarkProgress.ReportAndLog(progress, log, template() with
+        {
+            Phase = phase,
+            ModeFraction = fraction,
+            ModeMilestone = milestone.ToString(),
+            ModeStatusDetail = status,
+            EmbedLatencyMs = embedLatencyMs,
+            LogLine = logLine
+        });
     }
 
     private static string BuildModeNotes(string metrics, string? envSummary) =>

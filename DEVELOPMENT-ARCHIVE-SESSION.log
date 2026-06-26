@@ -3285,3 +3285,53 @@ foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included
 [2026-06-25 19:11:15] [BUILD] Release build 0 errors; published OllamaToolkit.App
 [2026-06-25 19:11:16] [SYNC] Processed updates.jsonl lines 13468..13469
 [2026-06-25 19:11:16] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 19:31:18] [FILE] BenchmarkModeMilestones authoritative fractions; remove animator simulation
+[2026-06-25 19:31:18] [TOOL] Read - Read
+[2026-06-25 19:31:18] [TOOL] Read - Read
+[2026-06-25 19:31:18] [TOOL] Read - Read
+[2026-06-25 19:31:18] [TOOL] Read - Read
+[2026-06-25 19:31:18] [TOOL] Grep - Grep
+[2026-06-25 19:31:18] [TOOL] Read - Read
+[2026-06-25 19:31:18] [TOOL] Grep - Grep
+[2026-06-25 19:31:18] [TOOL] Read - Read
+[2026-06-25 19:31:18] [TOOL] Read - Read
+[2026-06-25 19:31:18] [TOOL] Read - Read
+[2026-06-25 19:31:18] [TOOL] Read - Read
+[2026-06-25 19:31:18] [TOOL] Read - Read
+[2026-06-25 19:31:18] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 19:31:18] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 19:31:18] [TOOL] Read - Read
+[2026-06-25 19:31:18] [TOOL] Grep - Grep
+[2026-06-25 19:31:18] [TOOL] Write - Write
+[2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:31:18] [TOOL] Read - Read
+[2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:31:18] [TOOL] Write - Write
+[2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:31:18] [TOOL] Read - Read
+[2026-06-25 19:31:18] [TOOL] Grep - Grep
+[2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:31:18] [TOOL] Grep - Grep
+[2026-06-25 19:31:18] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release 2>&1
+[2026-06-25 19:31:18] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 --self-contained false -o publish/OllamaToolkit.App; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|BenchmarkModeMilestones authoritative fractions; remove animator simulation"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|AutomatedBenchmarkService milestone reports at await boundaries; token mapping"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|SmoothProgressPresenter SetAuthoritative; MainWindow milestone bar snap"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build 0 errors; published OllamaToolkit.App"; git add -A; git commit -m "feat: milestone-based actual progress bars per compute mode`n`n- BenchmarkModeMilestones defines fixed fractions for apply/warm/benchmark/complete`n- Remove BenchmarkProgressAnimator simulation; report only at real await boundaries`n- Overall bar = sum of 5 mode fractions; per-mode bars snap to milestones`n- SetAuthoritative UI updates; embed stage progress callbacks"
+[2026-06-25 19:31:18] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 19:31:18] [SYNC] Processed updates.jsonl lines 13470..13657
+[2026-06-25 19:31:18] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 19:31:18] [FILE] AutomatedBenchmarkService milestone reports at await boundaries; token mapping
+[2026-06-25 19:31:19] [SYNC] Processed updates.jsonl lines 13658..13661
+[2026-06-25 19:31:19] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 19:31:19] [FILE] SmoothProgressPresenter SetAuthoritative; MainWindow milestone bar snap
+[2026-06-25 19:31:20] [SYNC] Processed updates.jsonl lines 13662..13663
+[2026-06-25 19:31:20] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 19:31:20] [BUILD] Release build 0 errors; published OllamaToolkit.App
+[2026-06-25 19:31:20] [SYNC] Processed updates.jsonl lines 13664..13665
+[2026-06-25 19:31:20] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

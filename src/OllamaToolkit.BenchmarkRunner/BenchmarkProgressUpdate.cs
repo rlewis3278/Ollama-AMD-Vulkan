@@ -39,6 +39,9 @@ public sealed record BenchmarkProgressUpdate
 
     public string? ModeStatusDetail { get; init; }
 
+    /// <summary>Milestone name for UI labels (e.g. ApplyingMode, Generating).</summary>
+    public string? ModeMilestone { get; init; }
+
     public double EffectiveModeFraction =>
         ModeFraction >= 0
             ? Math.Clamp(ModeFraction, 0, 1)

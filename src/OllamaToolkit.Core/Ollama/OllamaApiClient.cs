@@ -160,13 +160,16 @@ public sealed class OllamaApiClient : IDisposable
         string model,
         string input,
         bool warmup = true,
+        IProgress<string>? stageProgress = null,
         CancellationToken cancellationToken = default)
     {
         if (warmup)
         {
+            stageProgress?.Report("warmup");
             await EmbedRawAsync(model, "warmup", cancellationToken).ConfigureAwait(false);
         }
 
+        stageProgress?.Report("measure");
         var raw = await EmbedRawAsync(model, input, cancellationToken).ConfigureAwait(false);
         var totalSeconds = raw.TotalDurationNs / 1_000_000_000.0;
         var latencyMs = raw.TotalDurationNs / 1_000_000.0;

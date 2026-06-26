@@ -1587,6 +1587,7 @@ public partial class MainWindow : Window
 
         _testProgressAnimator.ResetModeBars();
         _testProgressAnimator.SetOverallBar(TestOverallProgress);
+        _testProgressAnimator.SetAuthoritativeBenchmark(true);
         foreach (var (bar, status) in _testModeProgress.Values)
         {
             bar.IsIndeterminate = false;
@@ -1633,7 +1634,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        _testProgressAnimator.SetCeiling(TestOverallProgress, update.OverallPercent);
+        _testProgressAnimator.SetAuthoritative(TestOverallProgress, update.OverallPercent);
         var isEmbed = update.BenchmarkKind.Equals(BenchmarkKinds.Embed, StringComparison.OrdinalIgnoreCase);
 
         if (!string.IsNullOrWhiteSpace(update.Model))
@@ -1672,7 +1673,7 @@ public partial class MainWindow : Window
             case BenchmarkProgressPhase.ModeApplying:
             case BenchmarkProgressPhase.ModeBenchmarking:
                 _testProgressAnimator.SetActiveModeBar(row.Bar);
-                _testProgressAnimator.SetCeiling(row.Bar, modeBarValue);
+                _testProgressAnimator.SetAuthoritative(row.Bar, modeBarValue);
                 row.Status.Text = statusDetail ?? update.Phase switch
                 {
                     BenchmarkProgressPhase.ModeApplying => "Applying mode…",
@@ -1681,7 +1682,7 @@ public partial class MainWindow : Window
                 row.Status.Foreground = (Brush)FindResource("Brush.Warning");
                 break;
             case BenchmarkProgressPhase.ModeCompleted:
-                _testProgressAnimator.SetCeiling(row.Bar, 100);
+                _testProgressAnimator.SetAuthoritative(row.Bar, 100);
                 _testProgressAnimator.FreezeBar(row.Bar, 100);
                 _testProgressAnimator.SetActiveModeBar(null);
                 row.Status.Text = statusDetail ?? (isEmbed
@@ -1690,15 +1691,15 @@ public partial class MainWindow : Window
                 row.Status.Foreground = (Brush)FindResource("Brush.Active");
                 break;
             case BenchmarkProgressPhase.ModeFailed:
-                _testProgressAnimator.SetCeiling(row.Bar, 100);
-                _testProgressAnimator.FreezeBar(row.Bar, 100);
+                _testProgressAnimator.SetAuthoritative(row.Bar, modeBarValue);
+                _testProgressAnimator.FreezeBar(row.Bar, modeBarValue);
                 _testProgressAnimator.SetActiveModeBar(null);
                 row.Bar.Foreground = (Brush)FindResource("Brush.Accent");
                 row.Status.Text = statusDetail ?? "Failed";
                 row.Status.Foreground = (Brush)FindResource("Brush.Accent");
                 break;
             default:
-                _testProgressAnimator.SetCeiling(row.Bar, modeBarValue);
+                _testProgressAnimator.SetAuthoritative(row.Bar, modeBarValue);
                 break;
         }
 
@@ -1805,7 +1806,7 @@ public partial class MainWindow : Window
                         await RefreshCatalogUiAsync().ConfigureAwait(true);
                         if (!cancelled)
                         {
-                            _testProgressAnimator.SetCeiling(TestOverallProgress, 100);
+                            _testProgressAnimator.SetAuthoritative(TestOverallProgress, 100);
                         }
 
                         TestStatusLabel.Text = cancelled

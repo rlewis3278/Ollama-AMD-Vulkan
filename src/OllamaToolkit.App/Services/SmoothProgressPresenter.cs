@@ -21,6 +21,7 @@ public sealed class SmoothProgressPresenter : IDisposable
     private ProgressBar? _activeModeBar;
     private bool _active;
     private bool _halted;
+    private bool _authoritativeBenchmark;
 
     public SmoothProgressPresenter(Dispatcher? dispatcher = null)
     {
@@ -120,8 +121,38 @@ public sealed class SmoothProgressPresenter : IDisposable
         }
 
         _halted = false;
+        _authoritativeBenchmark = false;
         _frozenBars.Clear();
         _activeModeBar = null;
+    }
+
+    public void SetAuthoritativeBenchmark(bool enabled)
+    {
+        if (!_dispatcher.CheckAccess())
+        {
+            _dispatcher.BeginInvoke(() => SetAuthoritativeBenchmark(enabled));
+            return;
+        }
+
+        _authoritativeBenchmark = enabled;
+    }
+
+    public void SetAuthoritative(ProgressBar bar, double percent)
+    {
+        if (!_dispatcher.CheckAccess())
+        {
+            _dispatcher.BeginInvoke(() => SetAuthoritative(bar, percent));
+            return;
+        }
+
+        if (_halted)
+        {
+            return;
+        }
+
+        percent = Math.Clamp(percent, 0, 100);
+        bar.Value = percent;
+        _ceilings[bar] = percent;
     }
 
     public void SetCeiling(ProgressBar bar, double targetPercent)
@@ -230,6 +261,11 @@ public sealed class SmoothProgressPresenter : IDisposable
                 var delta = ceiling - current;
                 var step = Math.Min(MaxStepPerFrame, Math.Max(MinStepPerFrame, delta * 0.04));
                 bar.Value = Math.Min(ceiling, current + step);
+                continue;
+            }
+
+            if (_authoritativeBenchmark)
+            {
                 continue;
             }
 
