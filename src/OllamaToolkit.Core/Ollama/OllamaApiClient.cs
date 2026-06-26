@@ -203,14 +203,111 @@ public sealed class OllamaApiClient : IDisposable
         int numPredict = 32,
         int numCtx = 8192,
         bool warmup = true,
+        IProgress<int>? tokenProgress = null,
         CancellationToken cancellationToken = default)
     {
         if (warmup)
         {
+            tokenProgress?.Report(0);
             await GenerateRawAsync(model, "ok", 8, numCtx, cancellationToken).ConfigureAwait(false);
+            tokenProgress?.Report(Math.Max(1, (int)(numPredict * 0.1)));
         }
 
-        var raw = await GenerateRawAsync(model, prompt, numPredict, numCtx, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await BenchmarkGenerateStreamingAsync(
+                model, prompt, numPredict, numCtx, tokenProgress, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            var raw = await GenerateRawAsync(model, prompt, numPredict, numCtx, cancellationToken)
+                .ConfigureAwait(false);
+            tokenProgress?.Report(raw.EvalCount);
+            return ToBenchmarkGenerateResult(raw);
+        }
+    }
+
+    public async Task<BenchmarkGenerateResult> BenchmarkGenerateStreamingAsync(
+        string model,
+        string prompt,
+        int numPredict,
+        int numCtx,
+        IProgress<int>? tokenProgress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var body = new
+        {
+            model,
+            prompt,
+            stream = true,
+            options = new { num_predict = numPredict, num_ctx = numCtx, temperature = 0.2 }
+        };
+
+        var json = JsonSerializer.Serialize(body, JsonFileHelper.Options);
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{_host}/api/generate") { Content = content };
+        using var response = await _httpClient.SendAsync(
+            request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var reader = new StreamReader(stream);
+
+        var responseText = new StringBuilder();
+        GenerateRawResponse? final = null;
+        var lastReported = -1;
+
+        while (!reader.EndOfStream)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            GenerateStreamChunk? chunk;
+            try
+            {
+                chunk = JsonSerializer.Deserialize<GenerateStreamChunk>(line, JsonFileHelper.Options);
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(chunk?.Response))
+            {
+                responseText.Append(chunk.Response);
+            }
+
+            if (chunk?.EvalCount is > 0 && chunk.EvalCount != lastReported)
+            {
+                lastReported = chunk.EvalCount;
+                tokenProgress?.Report(chunk.EvalCount);
+            }
+
+            if (chunk?.Done == true)
+            {
+                final = new GenerateRawResponse
+                {
+                    Response = responseText.ToString(),
+                    EvalCount = chunk.EvalCount,
+                    EvalDurationNs = chunk.EvalDurationNs,
+                    PromptEvalCount = chunk.PromptEvalCount,
+                    PromptEvalDurationNs = chunk.PromptEvalDurationNs
+                };
+                break;
+            }
+        }
+
+        final ??= new GenerateRawResponse { Response = responseText.ToString() };
+        tokenProgress?.Report(final.EvalCount > 0 ? final.EvalCount : numPredict);
+        return ToBenchmarkGenerateResult(final);
+    }
+
+    private static BenchmarkGenerateResult ToBenchmarkGenerateResult(GenerateRawResponse raw)
+    {
         var evalSeconds = raw.EvalDurationNs / 1_000_000_000.0;
         var promptSeconds = raw.PromptEvalDurationNs / 1_000_000_000.0;
         var generationTps = evalSeconds > 0 ? raw.EvalCount / evalSeconds : 0;
@@ -404,6 +501,27 @@ public sealed class OllamaApiClient : IDisposable
     {
         [JsonPropertyName("response")]
         public string Response { get; set; } = string.Empty;
+
+        [JsonPropertyName("eval_count")]
+        public int EvalCount { get; set; }
+
+        [JsonPropertyName("eval_duration")]
+        public long EvalDurationNs { get; set; }
+
+        [JsonPropertyName("prompt_eval_count")]
+        public int PromptEvalCount { get; set; }
+
+        [JsonPropertyName("prompt_eval_duration")]
+        public long PromptEvalDurationNs { get; set; }
+    }
+
+    private sealed class GenerateStreamChunk
+    {
+        [JsonPropertyName("response")]
+        public string? Response { get; set; }
+
+        [JsonPropertyName("done")]
+        public bool Done { get; set; }
 
         [JsonPropertyName("eval_count")]
         public int EvalCount { get; set; }

@@ -269,13 +269,10 @@
                         <StackPanel x:Name="TestModeProgressPanel" />
                     </StackPanel>
                     <TextBlock x:Name="TestStatusLabel" Grid.Row="3" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" TextWrapping="Wrap" />
-                    <ScrollViewer x:Name="TestLogScroll" Grid.Row="4"
-                                  VerticalScrollBarVisibility="Auto"
-                                  HorizontalScrollBarVisibility="Disabled"
-                                  Background="{StaticResource Brush.LogBg}">
-                        <TextBlock x:Name="TestLogText" Margin="12" TextWrapping="Wrap"
-                                   Foreground="{StaticResource Brush.Text}" FontFamily="Consolas" FontSize="14" />
-                    </ScrollViewer>
+                    <TextBox x:Name="TestLogText" Grid.Row="4" IsReadOnly="True" AcceptsReturn="True"
+                             TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                             Background="{StaticResource Brush.LogBg}" Foreground="{StaticResource Brush.Text}"
+                             FontFamily="Consolas" FontSize="14" BorderThickness="0" Padding="12" />
                 </Grid>
             </TabItem>
             <TabItem x:Name="TestResultsTab" Header="Test Results">

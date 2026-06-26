@@ -48,6 +48,8 @@ public partial class MainWindow : Window
     private readonly StringBuilder _testLogBuilder = new();
     private bool _testLogStickToBottom = true;
     private bool _testLogAutoScrolling;
+    private const int ActivityTimerIntervalMs = 4000;
+    private const int ActivityTimerActiveTestMs = 1000;
     private readonly Dictionary<string, (ProgressBar Bar, TextBlock Status)> _testModeProgress = new(StringComparer.OrdinalIgnoreCase);
     private List<string> _nlRankedCatalog = new();
     private bool _suppressSummarizerComboSave;
@@ -102,15 +104,14 @@ public partial class MainWindow : Window
             await SuggestBenchmarkSettingsAsync().ConfigureAwait(true);
         };
         _chatUpdater = new ThrottledUpdater(TimeSpan.FromMilliseconds(33), Dispatcher);
-        TestLogScroll.ScrollChanged += (_, _) =>
+        TestLogText.SelectionChanged += (_, _) =>
         {
-            if (_testLogAutoScrolling)
+            if (_testLogAutoScrolling || _testOperations > 0)
             {
                 return;
             }
 
-            var maxOffset = Math.Max(0, TestLogScroll.ExtentHeight - TestLogScroll.ViewportHeight);
-            _testLogStickToBottom = TestLogScroll.VerticalOffset >= maxOffset - 2;
+            _testLogStickToBottom = TestLogText.CaretIndex >= Math.Max(0, TestLogText.Text.Length - 2);
         };
         DataGridColumnHelper.AttachAutoFit(ModelsGrid, FitGridColumns);
         DataGridColumnHelper.AttachAutoFit(CatalogGrid, FitGridColumns);
@@ -193,6 +194,7 @@ public partial class MainWindow : Window
         }
 
         _testOperations++;
+        _testLogStickToBottom = true;
         UpdateStopTestButtonUi();
 
         if (TaskButton(sender) is not { } button)
@@ -262,6 +264,10 @@ public partial class MainWindow : Window
 
     private void UpdateStopTestButtonUi()
     {
+        _activityTimer.Interval = _testOperations > 0
+            ? TimeSpan.FromMilliseconds(ActivityTimerActiveTestMs)
+            : TimeSpan.FromMilliseconds(ActivityTimerIntervalMs);
+
         if (_testOperations > 0)
         {
             StopTestBtn.Background = (Brush)FindResource("Brush.Accent");
@@ -379,48 +385,19 @@ public partial class MainWindow : Window
                 _testLogBuilder.AppendLine(line);
             }
 
+            _testLogAutoScrolling = true;
             TestLogText.Text = _testLogBuilder.ToString();
 
-            if (_testLogStickToBottom)
+            if (_testOperations > 0 || _testLogStickToBottom)
             {
-                ScrollTestLogToEnd();
+                LogScrollHelper.ScrollTextBoxToEndDeferred(TestLogText, Dispatcher);
             }
+
+            _testLogAutoScrolling = false;
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"AppendTestLog failed: {ex.Message}");
-        }
-    }
-
-    private void ScrollTestLogToEnd()
-    {
-        void Scroll()
-        {
-            TestLogScroll.UpdateLayout();
-            var maxOffset = Math.Max(0, TestLogScroll.ExtentHeight - TestLogScroll.ViewportHeight);
-            TestLogScroll.ScrollToVerticalOffset(maxOffset);
-        }
-
-        _testLogAutoScrolling = true;
-        try
-        {
-            Scroll();
-
-            EventHandler? onLayout = null;
-            onLayout = (_, _) =>
-            {
-                TestLogScroll.LayoutUpdated -= onLayout!;
-                Scroll();
-                _testLogAutoScrolling = false;
-            };
-            TestLogScroll.LayoutUpdated += onLayout;
-
-            Dispatcher.BeginInvoke(() => _testLogAutoScrolling = false, DispatcherPriority.ApplicationIdle);
-        }
-        catch (Exception ex)
-        {
-            _testLogAutoScrolling = false;
-            Debug.WriteLine($"ScrollTestLogToEnd failed: {ex.Message}");
         }
     }
 
@@ -789,9 +766,17 @@ public partial class MainWindow : Window
         CompareCatalogBtn.IsEnabled = enabled;
     }
 
-    private void RefreshActivityLog() => AiActivityLog.Text = _svc.ActivityLog.ReadTail();
+    private void RefreshActivityLog()
+    {
+        AiActivityLog.Text = _svc.ActivityLog.ReadTail();
+        LogScrollHelper.ScrollTextBoxToEndDeferred(AiActivityLog, Dispatcher);
+    }
 
-    private void RefreshDiagnosticsLog() => DiagnosticsLog.Text = _svc.Diagnostics.ReadTail();
+    private void RefreshDiagnosticsLog()
+    {
+        DiagnosticsLog.Text = _svc.Diagnostics.ReadTail();
+        LogScrollHelper.ScrollTextBoxToEndDeferred(DiagnosticsLog, Dispatcher);
+    }
 
     private void CopyDiagnostics_Click(object sender, RoutedEventArgs e)
     {
@@ -1398,7 +1383,7 @@ public partial class MainWindow : Window
         var bar = new ProgressBar
         {
             Style = (Style)FindResource("ToolkitProgressBar"),
-            Height = 8,
+            Height = 10,
             Minimum = 0,
             Maximum = 100,
             Value = 0,
@@ -1497,30 +1482,36 @@ public partial class MainWindow : Window
             return;
         }
 
+        row.Bar.IsIndeterminate = false;
         row.Bar.Foreground = (Brush)FindResource("Brush.Accent");
+        var modeBarValue = update.CurrentModePercent;
+        var statusDetail = string.IsNullOrWhiteSpace(update.ModeStatusDetail)
+            ? null
+            : update.ModeStatusDetail;
+
         switch (update.Phase)
         {
             case BenchmarkProgressPhase.ModeApplying:
-                row.Bar.Value = update.CurrentModePercent;
-                row.Status.Text = "Applying mode…";
+                row.Bar.Value = modeBarValue;
+                row.Status.Text = statusDetail ?? "Applying mode…";
                 row.Status.Foreground = (Brush)FindResource("Brush.Warning");
                 break;
             case BenchmarkProgressPhase.ModeBenchmarking:
-                row.Bar.Value = update.CurrentModePercent;
-                row.Status.Text = isEmbed ? "Embedding…" : "Benchmarking…";
+                row.Bar.Value = modeBarValue;
+                row.Status.Text = statusDetail ?? (isEmbed ? "Embedding…" : "Benchmarking…");
                 row.Status.Foreground = (Brush)FindResource("Brush.Warning");
                 break;
             case BenchmarkProgressPhase.ModeCompleted:
                 row.Bar.Value = 100;
-                row.Status.Text = isEmbed
+                row.Status.Text = statusDetail ?? (isEmbed
                     ? $"{update.EmbedLatencyMs:F1} ms"
-                    : $"{update.GenerationTps:F1} tok/s";
+                    : $"{update.GenerationTps:F1} tok/s");
                 row.Status.Foreground = (Brush)FindResource("Brush.Active");
                 break;
             case BenchmarkProgressPhase.ModeFailed:
                 row.Bar.Value = 100;
                 row.Bar.Foreground = (Brush)FindResource("Brush.Accent");
-                row.Status.Text = "Failed";
+                row.Status.Text = statusDetail ?? "Failed";
                 row.Status.Foreground = (Brush)FindResource("Brush.Accent");
                 break;
         }

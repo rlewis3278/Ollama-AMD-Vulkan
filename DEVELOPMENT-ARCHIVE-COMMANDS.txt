@@ -359,3 +359,12 @@ git -C "C:\Users\lewis\Ollama-AMD-Vulkan" rm --cached "_test-queue.csx" 2>$null;
 - RetestQueueBuildResult reports rawTagCount, apiReachable, tagsError for diagnostics
 - Published updated build to publish/OllamaToolkit.App" 2>&1
 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "USER|Request: responsive test progress bars + auto-scroll Testing Suite log and AI Activity log"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "REASONING|Plan: stream token progress from Ollama generate; fraction-based bars; TextBox scroll-to-end for test log; scroll AI Activity on refresh"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "GIT|checkpoint before test UI responsiveness work (working tree clean at 1be2e54)"; .\scripts\Update-DevelopmentArchive.ps1 2>&1 | Select-Object -Last 5
+git -C "C:\Users\lewis\Ollama-AMD-Vulkan" add DEVELOPMENT-ARCHIVE-SESSION.log DEVELOPMENT-ARCHIVE.md DEVELOPMENT-ARCHIVE-COMMANDS.txt; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" commit -m "docs: log test UI responsiveness plan and checkpoint"
+dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" -c Release 2>&1 | Select-Object -Last 25
+dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App" 2>&1 | Select-Object -Last 5
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|BenchmarkProgressUpdate fraction-based; BenchmarkProgressAnimator; streaming generate token progress"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|LogScrollHelper; Test log TextBox auto-scroll; AI Activity + Diagnostics scroll on refresh"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build 0 errors; published OllamaToolkit.App"; git add -A; git commit -m "feat: responsive test progress bars and auto-scroll test/activity logs
+
+- Stream Ollama generate tokens for live per-mode progress (fraction-based bars)
+- BenchmarkProgressAnimator creeps progress during mode apply and embed waits
+- Test log: read-only TextBox with ScrollToEnd on every append during tests
+- AI Activity and Diagnostics logs scroll to bottom on refresh (1s timer during tests)"

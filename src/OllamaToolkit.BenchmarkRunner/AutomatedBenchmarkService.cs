@@ -96,7 +96,7 @@ public sealed class AutomatedBenchmarkService
             var mode = modes[modeIndex];
             cancellationToken.ThrowIfCancellationRequested();
 
-            BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+            var modeTemplate = () => new BenchmarkProgressUpdate
             {
                 Phase = BenchmarkProgressPhase.ModeApplying,
                 BenchmarkKind = benchmarkKind,
@@ -108,6 +108,13 @@ public sealed class AutomatedBenchmarkService
                 ModeCount = modes.Count,
                 NumCtx = numCtx,
                 NumPredict = numPredict,
+                AiSummarizerModel = aiSummarizerModel
+            };
+
+            BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
+            {
+                ModeFraction = 0.05,
+                ModeStatusDetail = "Applying mode…",
                 LogLine = BenchmarkProgressFormatter.ModeApplying(modeIndex, modes.Count, mode)
             });
 
@@ -117,8 +124,10 @@ public sealed class AutomatedBenchmarkService
 
             try
             {
+                using var animator = new BenchmarkProgressAnimator(progress, modeTemplate);
                 if (_lastBenchmarkMode != mode)
                 {
+                    animator.StartCreep(0.05, 0.18, "Applying mode & restarting Ollama…");
                     try
                     {
                         await _modelSessions.StopModelAsync(modelName, cancellationToken)
@@ -133,33 +142,30 @@ public sealed class AutomatedBenchmarkService
                         .ConfigureAwait(false);
                     _apiClient.InvalidateCaches();
                     _lastBenchmarkMode = mode;
+                    animator.StopCreep();
+                    animator.Report(0.20, "Mode applied — loading model…");
 
                     modeEnvSummary = _modeService.GetManagedEnvSummary();
-                    BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+                    BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
                     {
                         Phase = BenchmarkProgressPhase.ModeApplying,
-                        BenchmarkKind = benchmarkKind,
-                        Model = modelName,
-                        Mode = mode.ToString(),
+                        ModeFraction = 0.20,
+                        ModeStatusDetail = "Mode applied — loading model…",
                         LogLine = BenchmarkProgressFormatter.ModeAppliedWithRestart(mode, modeEnvSummary)
                     });
 
+                    animator.StartCreep(0.22, 0.32, "Warming model…");
                     await _modelSessions.SwitchToModelAsync(modelName, warmLoad: true, cancellationToken)
                         .ConfigureAwait(false);
+                    animator.StopCreep();
+                    animator.Report(0.35, "Model ready");
                 }
 
-                BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+                BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
                 {
                     Phase = BenchmarkProgressPhase.ModeBenchmarking,
-                    BenchmarkKind = benchmarkKind,
-                    Model = modelName,
-                    ModelIndex = modelIndex,
-                    ModelCount = modelCount,
-                    Mode = mode.ToString(),
-                    ModeIndex = modeIndex,
-                    ModeCount = modes.Count,
-                    NumCtx = numCtx,
-                    NumPredict = numPredict,
+                    ModeFraction = 0.38,
+                    ModeStatusDetail = isEmbed ? "Embedding…" : "Starting benchmark…",
                     LogLine = isEmbed
                         ? BenchmarkProgressFormatter.ModeEmbedBenchmarking(modeIndex, modes.Count, mode)
                         : BenchmarkProgressFormatter.ModeBenchmarking(modeIndex, modes.Count, mode)
@@ -167,9 +173,11 @@ public sealed class AutomatedBenchmarkService
 
                 if (isEmbed)
                 {
+                    animator.StartCreep(0.40, 0.92, "Running embed benchmark…");
                     var bench = await _apiClient.BenchmarkEmbedAsync(
                         modelName, DefaultEmbedInput, warmup: true, cancellationToken)
                         .ConfigureAwait(false);
+                    animator.StopCreep();
 
                     modeResult.Status = "Success";
                     modeResult.EmbedLatencyMs = bench.LatencyMs;
@@ -179,16 +187,11 @@ public sealed class AutomatedBenchmarkService
                         modeEnvSummary);
                     modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
 
-                    BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+                    BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
                     {
                         Phase = BenchmarkProgressPhase.ModeCompleted,
-                        BenchmarkKind = benchmarkKind,
-                        Model = modelName,
-                        ModelIndex = modelIndex,
-                        ModelCount = modelCount,
-                        Mode = mode.ToString(),
-                        ModeIndex = modeIndex,
-                        ModeCount = modes.Count,
+                        ModeFraction = 1.0,
+                        ModeStatusDetail = $"{bench.LatencyMs:F1} ms",
                         EmbedLatencyMs = bench.LatencyMs,
                         DurationSec = modeResult.DurationSec,
                         LogLine = BenchmarkProgressFormatter.ModeEmbedCompleted(
@@ -197,8 +200,23 @@ public sealed class AutomatedBenchmarkService
                 }
                 else
                 {
+                    var tokenProgress = new Progress<int>(count =>
+                    {
+                        var target = numPredict > 0 ? numPredict : 32;
+                        var fraction = 0.40 + 0.55 * Math.Clamp(count / (double)target, 0, 1);
+                        animator.Report(
+                            fraction,
+                            $"Benchmarking… {Math.Min(count, target)}/{target} tokens");
+                    });
+
                     var bench = await _apiClient.BenchmarkGenerateAsync(
-                        modelName, DefaultPrompt, numPredict, numCtx, warmup: true, cancellationToken)
+                        modelName,
+                        DefaultPrompt,
+                        numPredict,
+                        numCtx,
+                        warmup: true,
+                        tokenProgress,
+                        cancellationToken)
                         .ConfigureAwait(false);
 
                     modeResult.Status = "Success";
@@ -210,18 +228,11 @@ public sealed class AutomatedBenchmarkService
                         modeEnvSummary);
                     modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
 
-                    BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+                    BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
                     {
                         Phase = BenchmarkProgressPhase.ModeCompleted,
-                        BenchmarkKind = benchmarkKind,
-                        Model = modelName,
-                        ModelIndex = modelIndex,
-                        ModelCount = modelCount,
-                        Mode = mode.ToString(),
-                        ModeIndex = modeIndex,
-                        ModeCount = modes.Count,
-                        NumCtx = numCtx,
-                        NumPredict = numPredict,
+                        ModeFraction = 1.0,
+                        ModeStatusDetail = $"{bench.GenerationTps:F1} tok/s",
                         GenerationTps = bench.GenerationTps,
                         DurationSec = modeResult.DurationSec,
                         LogLine = BenchmarkProgressFormatter.ModeCompleted(
@@ -238,18 +249,11 @@ public sealed class AutomatedBenchmarkService
                     : $"Benchmark failed for mode {mode}.";
                 modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
 
-                BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+                BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
                 {
                     Phase = BenchmarkProgressPhase.ModeFailed,
-                    BenchmarkKind = benchmarkKind,
-                    Model = modelName,
-                    ModelIndex = modelIndex,
-                    ModelCount = modelCount,
-                    Mode = mode.ToString(),
-                    ModeIndex = modeIndex,
-                    ModeCount = modes.Count,
-                    NumCtx = numCtx,
-                    NumPredict = numPredict,
+                    ModeFraction = 1.0,
+                    ModeStatusDetail = "Failed",
                     DurationSec = modeResult.DurationSec,
                     Error = ex.Message,
                     LogLine = BenchmarkProgressFormatter.ModeFailed(modeIndex, modes.Count, mode, ex.Message)

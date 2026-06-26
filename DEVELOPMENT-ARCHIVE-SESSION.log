@@ -3029,3 +3029,53 @@ foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included
 [2026-06-25 18:00:11] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
 [2026-06-25 18:00:14] [SYNC] Processed updates.jsonl lines 12554..12556
 [2026-06-25 18:00:14] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:02:41] [FILE] BenchmarkProgressUpdate fraction-based; BenchmarkProgressAnimator; streaming generate token progress
+[2026-06-25 18:02:42] [SHELL] git -C "C:\Users\lewis\Ollama-AMD-Vulkan" add DEVELOPMENT-ARCHIVE-SESSION.log DEVELOPMENT-ARCHIVE.md DEVELOPMENT-ARCHIVE-COMMANDS.txt; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" commit -m "docs: log test UI responsiveness plan and checkpoint"
+[2026-06-25 18:02:42] [TOOL] Read - Read
+[2026-06-25 18:02:42] [TOOL] Read - Read
+[2026-06-25 18:02:42] [TOOL] Read - Read
+[2026-06-25 18:02:42] [TOOL] Write - Write
+[2026-06-25 18:02:42] [TOOL] Write - Write
+[2026-06-25 18:02:42] [TOOL] Write - Write
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] Read - Read
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] Read - Read
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] Read - Read
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:02:42] [TOOL] Grep - Grep
+[2026-06-25 18:02:42] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" -c Release 2>&1 | Select-Object -Last 25
+[2026-06-25 18:02:42] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App" 2>&1 | Select-Object -Last 5
+[2026-06-25 18:02:42] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|BenchmarkProgressUpdate fraction-based; BenchmarkProgressAnimator; streaming generate token progress"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|LogScrollHelper; Test log TextBox auto-scroll; AI Activity + Diagnostics scroll on refresh"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build 0 errors; published OllamaToolkit.App"; git add -A; git commit -m "feat: responsive test progress bars and auto-scroll test/activity logs
+
+- Stream Ollama generate tokens for live per-mode progress (fraction-based bars)
+- BenchmarkProgressAnimator creeps progress during mode apply and embed waits
+- Test log: read-only TextBox with ScrollToEnd on every append during tests
+- AI Activity and Diagnostics logs scroll to bottom on refresh (1s timer during tests)"
+[2026-06-25 18:02:42] [SYNC] Processed updates.jsonl lines 12557..12691
+[2026-06-25 18:02:42] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:02:42] [FILE] LogScrollHelper; Test log TextBox auto-scroll; AI Activity + Diagnostics scroll on refresh
+[2026-06-25 18:02:43] [SYNC] Processed updates.jsonl lines 12692..12697
+[2026-06-25 18:02:43] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:02:43] [BUILD] Release build 0 errors; published OllamaToolkit.App
+[2026-06-25 18:02:43] [SYNC] Processed updates.jsonl lines 12698..12699
+[2026-06-25 18:02:43] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

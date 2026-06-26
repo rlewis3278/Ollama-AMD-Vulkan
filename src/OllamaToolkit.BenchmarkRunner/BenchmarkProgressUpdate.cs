@@ -12,7 +12,7 @@ public enum BenchmarkProgressPhase
     QueueCompleted
 }
 
-public sealed class BenchmarkProgressUpdate
+public sealed record BenchmarkProgressUpdate
 {
     public string BenchmarkKind { get; init; } = "Generate";
     public BenchmarkProgressPhase Phase { get; init; }
@@ -34,13 +34,21 @@ public sealed class BenchmarkProgressUpdate
     public string? LogLine { get; init; }
     public string? AiSummarizerModel { get; init; }
 
-    public double CurrentModePercent => Phase switch
-    {
-        BenchmarkProgressPhase.ModeApplying => 25,
-        BenchmarkProgressPhase.ModeBenchmarking => 65,
-        BenchmarkProgressPhase.ModeCompleted or BenchmarkProgressPhase.ModeFailed => 100,
-        _ => 0
-    };
+    /// <summary>0.0–1.0 progress within the current mode. Negative = derive from <see cref="Phase"/>.</summary>
+    public double ModeFraction { get; init; } = -1;
+
+    public string? ModeStatusDetail { get; init; }
+
+    public double EffectiveModeFraction =>
+        ModeFraction >= 0
+            ? Math.Clamp(ModeFraction, 0, 1)
+            : Phase switch
+            {
+                BenchmarkProgressPhase.ModeApplying => 0.15,
+                BenchmarkProgressPhase.ModeBenchmarking => 0.65,
+                BenchmarkProgressPhase.ModeCompleted or BenchmarkProgressPhase.ModeFailed => 1.0,
+                _ => 0
+            };
 
     public double OverallPercent
     {
@@ -51,15 +59,7 @@ public sealed class BenchmarkProgressUpdate
                 return 0;
             }
 
-            var modeWeight = Phase switch
-            {
-                BenchmarkProgressPhase.ModeApplying => 0.2,
-                BenchmarkProgressPhase.ModeBenchmarking => 0.6,
-                BenchmarkProgressPhase.ModeCompleted or BenchmarkProgressPhase.ModeFailed => 1.0,
-                _ => 0.0
-            };
-
-            var completed = ModelIndex * ModeCount + ModeIndex + modeWeight;
+            var completed = ModelIndex * ModeCount + ModeIndex + EffectiveModeFraction;
             return Math.Clamp(completed / (ModelCount * ModeCount) * 100.0, 0, 100);
         }
     }
@@ -73,10 +73,14 @@ public sealed class BenchmarkProgressUpdate
                 return 0;
             }
 
-            var modeWeight = Phase is BenchmarkProgressPhase.ModeCompleted or BenchmarkProgressPhase.ModeFailed
-                ? 1.0
-                : Phase == BenchmarkProgressPhase.ModeBenchmarking ? 0.65 : 0.25;
-            return Math.Clamp((ModeIndex + modeWeight) / ModeCount * 100.0, 0, 100);
+            return Math.Clamp((ModeIndex + EffectiveModeFraction) / ModeCount * 100.0, 0, 100);
         }
     }
+
+    public double CurrentModePercent => EffectiveModeFraction * 100.0;
+
+    public bool UseIndeterminate =>
+        Phase is BenchmarkProgressPhase.ModeApplying or BenchmarkProgressPhase.ModeBenchmarking
+        && ModeFraction < 0
+        && string.IsNullOrWhiteSpace(ModeStatusDetail);
 }
