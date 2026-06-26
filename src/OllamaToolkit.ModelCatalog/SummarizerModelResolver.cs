@@ -32,8 +32,21 @@ public sealed class SummarizerModelResolver
             return null;
         }
 
-        var localNames = tags.Select(t => t.Name).ToList();
         var settings = await _settings.LoadAsync(cancellationToken).ConfigureAwait(false);
+        return ResolveFromTags(tags, settings, excludeModelName);
+    }
+
+    public static string? ResolveFromTags(
+        IReadOnlyList<OllamaModelTag> tags,
+        AiSettingsDocument settings,
+        string? excludeModelName = null)
+    {
+        if (tags.Count == 0)
+        {
+            return null;
+        }
+
+        var localNames = tags.Select(t => t.Name).ToList();
 
         if (!string.IsNullOrWhiteSpace(settings.PreferredSummarizerModel)
             && localNames.Contains(settings.PreferredSummarizerModel, StringComparer.OrdinalIgnoreCase)
@@ -63,18 +76,22 @@ public sealed class SummarizerModelResolver
         return smallest?.Name;
     }
 
-    public async Task<SummarizerModelChoices> GetSummarizerChoicesAsync(
-        CancellationToken cancellationToken = default)
+    public static SummarizerModelChoices BuildChoicesFromTags(
+        IReadOnlyList<OllamaModelTag> tags,
+        string? ensureModel = null)
     {
-        var tags = await _apiClient
-            .GetTagsAsync(timeoutSec: 30, forceRefresh: true, cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
         var installed = tags
             .Select(t => t.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var choices = new List<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(ensureModel) && seen.Add(ensureModel))
+        {
+            choices.Add(ensureModel);
+        }
+
         foreach (var preferred in DefaultPreferenceOrder)
         {
             if (seen.Add(preferred))
@@ -93,8 +110,49 @@ public sealed class SummarizerModelResolver
 
         return new SummarizerModelChoices(choices, installed);
     }
+
+    public static SummarizerModelChoices BuildDefaultChoices(string? preferredModel = null) =>
+        BuildChoicesFromTags(Array.Empty<OllamaModelTag>(), preferredModel);
+
+    public async Task<SummarizerModelChoices> GetSummarizerChoicesAsync(
+        bool forceRefresh = false,
+        CancellationToken cancellationToken = default)
+    {
+        var settings = await _settings.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var tags = await _apiClient
+            .GetTagsAsync(
+                timeoutSec: forceRefresh ? 30 : 10,
+                forceRefresh: forceRefresh,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        return BuildChoicesFromTags(tags, settings.PreferredSummarizerModel);
+    }
+
+    public async Task<SummarizerUiState> FetchUiStateAsync(
+        bool forceRefresh = false,
+        CancellationToken cancellationToken = default)
+    {
+        var settings = await _settings.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var tags = await _apiClient
+            .GetTagsAsync(
+                timeoutSec: forceRefresh ? 30 : 10,
+                forceRefresh: forceRefresh,
+                cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        var choices = BuildChoicesFromTags(tags, settings.PreferredSummarizerModel);
+        var activeSummarizer = ResolveFromTags(tags, settings);
+        return new SummarizerUiState(tags.Count > 0, activeSummarizer, choices, settings);
+    }
 }
 
 public sealed record SummarizerModelChoices(
     IReadOnlyList<string> Models,
     IReadOnlySet<string> InstalledNames);
+
+public sealed record SummarizerUiState(
+    bool HasInstalledTags,
+    string? ActiveSummarizer,
+    SummarizerModelChoices Choices,
+    AiSettingsDocument Settings);

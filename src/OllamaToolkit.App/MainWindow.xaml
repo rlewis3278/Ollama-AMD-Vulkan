@@ -350,7 +350,6 @@
                             <TextBlock Text="Summarizer model:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" />
                             <ComboBox x:Name="SummarizerCombo" Width="240" Margin="8,0,0,0" SelectionChanged="SummarizerCombo_SelectionChanged" />
                             <Button x:Name="RefreshSummarizerListBtn" Content="Refresh List" Style="{StaticResource ToolkitButton}" Click="RefreshSummarizerList_Click" />
-                            <Button x:Name="DownloadSummarizerBtn" Content="Download Selected" Style="{StaticResource ToolkitButton}" Click="DownloadSummarizer_Click" />
                             <Button x:Name="TestSummarizerBtn" Content="Test Summarizer" Style="{StaticResource ToolkitButton}" Click="TestSummarizer_Click" />
                         </StackPanel>
                         <TextBlock x:Name="AiSettingsActionStatus" TextWrapping="Wrap" Foreground="{StaticResource Brush.Warning}" Margin="0,0,0,8" />

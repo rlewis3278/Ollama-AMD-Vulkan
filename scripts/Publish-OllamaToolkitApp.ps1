@@ -28,9 +28,9 @@ $dllPath = Join-Path $publishDir 'OllamaToolkit.App.dll'
 $requiredMarkers = @(
     'Program AI Inactive',
     'Ollama AI Inactive',
-    '1. Description summarization',
-    'Developed by Lewisound',
-    'Ollama AMD Vulkan Manager'
+    'Refresh List',
+    'Test Summarizer',
+    'Generate Recommendations'
 )
 
 function Test-DllContainsMarker {
@@ -81,10 +81,11 @@ foreach ($marker in $requiredMarkers) {
 }
 
 if ($missing.Count -gt 0) {
-    Write-Error @(
-        'Published DLL is missing required marker strings:',
+    $message = @(
+        'Published DLL is missing required marker strings:'
         ($missing | ForEach-Object { "  - $_" })
     ) -join "`n"
+    Write-Error $message
     exit 1
 }
 

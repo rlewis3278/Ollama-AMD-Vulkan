@@ -60,6 +60,9 @@ public partial class MainWindow : Window
     private double _testSpinUpProgress;
     private List<string> _nlRankedCatalog = new();
     private bool _suppressSummarizerComboSave;
+    private bool _summarizerDropdownOpen;
+    private readonly SemaphoreSlim _aiSettingsRefreshGate = new(1, 1);
+    private int _aiSettingsRefreshGeneration;
     private CatalogDescriptionDisplayMode _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
     private readonly FlashButtonRegistry _flashButtons;
     private readonly AiProcessingFlashPresenter _aiProcessingFlash;
@@ -144,6 +147,8 @@ public partial class MainWindow : Window
         DataGridColumnHelper.AttachAutoFit(ModelsGrid, FitGridColumns);
         DataGridColumnHelper.AttachAutoFit(CatalogGrid, FitGridColumns);
         DataGridColumnHelper.AttachAutoFit(TestResultsGrid, FitGridColumns);
+        SummarizerCombo.DropDownOpened += (_, _) => _summarizerDropdownOpen = true;
+        SummarizerCombo.DropDownClosed += (_, _) => _summarizerDropdownOpen = false;
         Loaded += OnLoadedAsync;
         Closed += (_, _) =>
         {
@@ -179,6 +184,7 @@ public partial class MainWindow : Window
             InitModeCards();
             InitAiFeatureToggles();
             InitCategoryFilter();
+            BindSummarizerComboImmediate();
 
             var loadTask = RefreshAllAsync();
             var loadTimeout = Task.Delay(TimeSpan.FromSeconds(90));
@@ -218,6 +224,17 @@ public partial class MainWindow : Window
         }
 
         return _flashButtons.TryBegin(button);
+    }
+
+    private bool TryBeginTaskFlashWithFeedback(object sender, Action<string> setStatus)
+    {
+        if (BeginTaskFlash(sender))
+        {
+            return true;
+        }
+
+        setStatus("Wait for the current operation to finish.");
+        return false;
     }
 
     private void EndTaskFlashSuccess(
@@ -778,6 +795,14 @@ public partial class MainWindow : Window
     }
 
     private async Task RefreshModelsUiAsync()
+    {
+        await UiDispatcher.InvokeAsync(async () =>
+        {
+            await RefreshModelsUiCoreAsync().ConfigureAwait(true);
+        }).ConfigureAwait(false);
+    }
+
+    private async Task RefreshModelsUiCoreAsync()
     {
         var selectedModel = ModelsGrid.SelectedItem is ModelLaunchRowViewModel selected
             ? selected.Model
@@ -3157,7 +3182,6 @@ public partial class MainWindow : Window
     private void SetAiSettingsButtonsEnabled(bool enabled)
     {
         RefreshSummarizerListBtn.IsEnabled = enabled;
-        DownloadSummarizerBtn.IsEnabled = enabled;
         TestSummarizerBtn.IsEnabled = enabled;
         CategorizeAllBtn.IsEnabled = enabled;
         RecategorizeAllBtn.IsEnabled = enabled;
@@ -3170,6 +3194,20 @@ public partial class MainWindow : Window
         AiDownloadRecommendedBtn.IsEnabled = enabled;
         AiOpenInCatalogBtn.IsEnabled = enabled;
         CancelAiRecommendationsBtn.IsEnabled = enabled;
+        SummarizerCombo.IsEnabled = enabled;
+    }
+
+    private void SetSummarizerRefreshControlsEnabled(bool enabled)
+    {
+        RefreshSummarizerListBtn.IsEnabled = enabled;
+        SummarizerCombo.IsEnabled = enabled;
+    }
+
+    private void SetAiGenerateBusy(bool busy)
+    {
+        GenerateAiRecommendationsBtn.IsEnabled = !busy;
+        RefreshSummarizerListBtn.IsEnabled = !busy;
+        SummarizerCombo.IsEnabled = !busy;
     }
 
     private async Task LoadCatalogTabAsync()
@@ -4436,45 +4474,156 @@ public partial class MainWindow : Window
         return cached?.NumParallelByMode;
     }
 
-    private async Task RefreshAiSettingsUiAsync()
-    {
-        var ready = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
-        var settings = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
-        var summarizer = await _svc.Summarizer.ResolveAsync().ConfigureAwait(true);
-        var choices = await _svc.Summarizer.GetSummarizerChoicesAsync().ConfigureAwait(true);
+    private sealed record AiSettingsRefreshState(
+        bool OllamaReady,
+        SummarizerUiState SummarizerState,
+        int Classified,
+        int Total,
+        AiLlmRecommendationsDocument? Recommendations);
 
-        var installedCount = choices.Models.Count(m => choices.InstalledNames.Contains(m));
-        AiSettingsStatus.Text = ready
-            ? summarizer is not null
-                ? $"AI Active — summarizer: {summarizer} ({installedCount} installed choice(s))"
-                : choices.Models.Count > 0
-                    ? $"AI Inactive — pick a summarizer ({installedCount}/{choices.Models.Count} installed)"
-                    : "AI Inactive — no summarizer models available"
-            : "AI Inactive — Ollama API not reachable";
+    private void BindSummarizerComboImmediate()
+    {
+        var settings = _svc.AiSettings.LoadAsync().GetAwaiter().GetResult();
+        var choices = SummarizerModelResolver.BuildDefaultChoices(settings.PreferredSummarizerModel);
+        ApplySummarizerComboBinding(choices, settings.PreferredSummarizerModel);
+        AiSettingsStatus.Text = "Loading summarizer list...";
+    }
+
+    private void ApplySummarizerComboBinding(SummarizerModelChoices choices, string? preferredModel)
+    {
+        var selected = ResolveSummarizerComboSelection(choices, preferredModel);
+        var models = choices.Models.ToList();
+        if (selected is not null
+            && !models.Any(m => m.Equals(selected, StringComparison.OrdinalIgnoreCase)))
+        {
+            models.Insert(0, selected);
+        }
 
         _suppressSummarizerComboSave = true;
         try
         {
-            SummarizerCombo.ItemsSource = null;
-            SummarizerCombo.ItemsSource = choices.Models;
-            string? selected = null;
-            if (!string.IsNullOrWhiteSpace(settings.PreferredSummarizerModel))
+            if (!SummarizerComboListsEqual(SummarizerCombo.ItemsSource as IList<string>, models))
             {
-                selected = choices.Models.FirstOrDefault(m =>
-                    m.Equals(settings.PreferredSummarizerModel, StringComparison.OrdinalIgnoreCase));
+                SummarizerCombo.ItemsSource = models;
             }
 
-            selected ??= choices.Models.FirstOrDefault(m => choices.InstalledNames.Contains(m));
-            selected ??= choices.Models.FirstOrDefault();
-            SummarizerCombo.SelectedItem = selected;
+            if (selected is not null && !Equals(SummarizerCombo.SelectedItem, selected))
+            {
+                SummarizerCombo.SelectedItem = selected;
+            }
         }
         finally
         {
             _suppressSummarizerComboSave = false;
         }
+    }
 
-        await RefreshCategoryStatusAsync().ConfigureAwait(true);
-        await BindAiRecommendationsFromCacheAsync().ConfigureAwait(true);
+    private static string? ResolveSummarizerComboSelection(
+        SummarizerModelChoices choices,
+        string? preferredModel)
+    {
+        if (!string.IsNullOrWhiteSpace(preferredModel))
+        {
+            var saved = choices.Models.FirstOrDefault(m =>
+                m.Equals(preferredModel, StringComparison.OrdinalIgnoreCase));
+            if (saved is not null)
+            {
+                return saved;
+            }
+
+            return preferredModel;
+        }
+
+        return choices.Models.FirstOrDefault(m => choices.InstalledNames.Contains(m))
+               ?? choices.Models.FirstOrDefault();
+    }
+
+    private static bool SummarizerComboListsEqual(IList<string>? current, IReadOnlyList<string> next)
+    {
+        if (current is null)
+        {
+            return false;
+        }
+
+        if (current.Count != next.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < current.Count; i++)
+        {
+            if (!string.Equals(current[i], next[i], StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private async Task RefreshAiSettingsUiAsync(
+        bool forceRefresh = false,
+        CancellationToken cancellationToken = default)
+    {
+        await _aiSettingsRefreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var generation = Interlocked.Increment(ref _aiSettingsRefreshGeneration);
+        try
+        {
+            var state = await FetchAiSettingsStateAsync(forceRefresh, cancellationToken).ConfigureAwait(false);
+            if (generation != _aiSettingsRefreshGeneration)
+            {
+                return;
+            }
+
+            await ApplyAiSettingsStateToUiAsync(state).ConfigureAwait(false);
+        }
+        finally
+        {
+            _aiSettingsRefreshGate.Release();
+        }
+    }
+
+    private async Task<AiSettingsRefreshState> FetchAiSettingsStateAsync(
+        bool forceRefresh,
+        CancellationToken cancellationToken)
+    {
+        var ready = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(false);
+        var summarizerState = await _svc.Summarizer.FetchUiStateAsync(forceRefresh, cancellationToken)
+            .ConfigureAwait(false);
+        var entries = await _svc.CatalogStore.GetEntriesAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        var (classified, total) = await _svc.CategoryStore.GetStatusAsync(entries.Count, cancellationToken)
+            .ConfigureAwait(false);
+        var recommendations = await _svc.AiLlmRecommendations.LoadAsync(cancellationToken).ConfigureAwait(false);
+        return new AiSettingsRefreshState(ready, summarizerState, classified, total, recommendations);
+    }
+
+    private async Task ApplyAiSettingsStateToUiAsync(AiSettingsRefreshState state)
+    {
+        await UiDispatcher.InvokeAsync(() =>
+        {
+            var summarizerState = state.SummarizerState;
+            var choices = summarizerState.Choices;
+            var settings = summarizerState.Settings;
+            var summarizer = summarizerState.ActiveSummarizer;
+            var installedCount = choices.Models.Count(m => choices.InstalledNames.Contains(m));
+            var preferredInstalled = !string.IsNullOrWhiteSpace(settings.PreferredSummarizerModel)
+                                     && choices.InstalledNames.Contains(settings.PreferredSummarizerModel);
+
+            AiSettingsStatus.Text = state.OllamaReady || summarizerState.HasInstalledTags
+                ? summarizer is not null
+                    ? $"AI Active — summarizer: {summarizer} ({installedCount} installed choice(s))"
+                    : !string.IsNullOrWhiteSpace(settings.PreferredSummarizerModel) && !preferredInstalled
+                        ? $"AI Inactive — preferred summarizer {settings.PreferredSummarizerModel} not installed (pull from Model Library)"
+                        : choices.Models.Count > 0
+                            ? $"AI Inactive — pick a summarizer ({installedCount}/{choices.Models.Count} installed)"
+                            : "AI Inactive — no summarizer models available"
+                : "AI Inactive — Ollama API not reachable";
+
+            ApplySummarizerComboBinding(choices, settings.PreferredSummarizerModel);
+            CategoryStatusLabel.Text = $"Catalog categorization: {state.Classified}/{state.Total} classified";
+            BindAiRecommendationsDocument(state.Recommendations);
+        }).ConfigureAwait(false);
     }
 
     private async Task RefreshCategoryStatusAsync()
@@ -4499,16 +4648,29 @@ public partial class MainWindow : Window
         {
             InstalledRecommendedGrid.ItemsSource = null;
             UninstalledRecommendedGrid.ItemsSource = null;
-            AiRecommendationsStatusLabel.Text = "No recommendation lists generated yet.";
+            AiRecommendationsStatusLabel.Text =
+                "No recommendation lists generated yet. Click Generate Recommendations first.";
             return;
         }
 
-        InstalledRecommendedGrid.ItemsSource = doc.Installed
+        var installedRows = doc.Installed
             .Select(e => AiRecommendedLlmRowViewModel.FromEntry(e, installed: true))
             .ToList();
-        UninstalledRecommendedGrid.ItemsSource = doc.Uninstalled
+        var uninstalledRows = doc.Uninstalled
             .Select(e => AiRecommendedLlmRowViewModel.FromEntry(e, installed: false))
             .ToList();
+        InstalledRecommendedGrid.ItemsSource = installedRows;
+        UninstalledRecommendedGrid.ItemsSource = uninstalledRows;
+        if (installedRows.Count > 0)
+        {
+            InstalledRecommendedGrid.SelectedIndex = 0;
+        }
+
+        if (uninstalledRows.Count > 0 && InstalledRecommendedGrid.SelectedIndex < 0)
+        {
+            UninstalledRecommendedGrid.SelectedIndex = 0;
+        }
+
         AiRecommendationsStatusLabel.Text =
             $"Last updated {doc.GeneratedAt} — {doc.Installed.Count} installed, {doc.Uninstalled.Count} uninstalled"
             + (string.IsNullOrWhiteSpace(doc.SummaryModel) ? string.Empty : $" (via {doc.SummaryModel})");
@@ -4516,14 +4678,14 @@ public partial class MainWindow : Window
 
     private async void GenerateAiRecommendations_Click(object sender, RoutedEventArgs e)
     {
-        if (!BeginTaskFlash(sender))
+        if (!TryBeginTaskFlashWithFeedback(sender, SetAiRecommendationsActionStatus))
         {
             return;
         }
 
         _generateRecommendationsFlashSender = sender;
         SetAiRecommendationsActionStatus("Starting recommendation pipeline...");
-        SetAiSettingsButtonsEnabled(false);
+        SetAiGenerateBusy(true);
         _aiRecommendationsCts?.Cancel();
         _aiRecommendationsCts?.Dispose();
         _aiRecommendationsCts = new CancellationTokenSource();
@@ -4580,7 +4742,7 @@ public partial class MainWindow : Window
                 var intent = await UiDispatcher.InvokeAsync(() => AiRecommendationsIntentBox.Text?.Trim())
                     .ConfigureAwait(false);
                 var summaries = await _svc.Profiles.GetAllSummariesAsync(ct).ConfigureAwait(false);
-                var categories = await GetCategoryMapAsync().ConfigureAwait(true);
+                var categories = await GetCategoryMapAsync().ConfigureAwait(false);
                 var tags = await _svc.ApiClient.GetTagsAsync(cancellationToken: ct).ConfigureAwait(false);
                 var installedNames = tags.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -4626,7 +4788,7 @@ public partial class MainWindow : Window
                 ExitAiActivity();
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    SetAiSettingsButtonsEnabled(true);
+                    SetAiGenerateBusy(false);
                     _generateRecommendationsFlashSender = null;
                 }).ConfigureAwait(false);
             }
@@ -4640,6 +4802,11 @@ public partial class MainWindow : Window
             if (cancelled)
             {
                 SetAiRecommendationsActionStatus("Recommendation generation cancelled.");
+            }
+
+            if (failed)
+            {
+                SetAiGenerateBusy(false);
             }
 
             if (_generateRecommendationsFlashSender is not null)
@@ -4672,7 +4839,7 @@ public partial class MainWindow : Window
             return false;
         }
 
-        var ollamaReady = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
+        var ollamaReady = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(false);
         var summarizer = await _svc.Summarizer.ResolveAsync(cancellationToken: cancellationToken)
             .ConfigureAwait(false);
         if (!ollamaReady || string.IsNullOrWhiteSpace(summarizer))
@@ -4794,7 +4961,7 @@ public partial class MainWindow : Window
         }
 
         SetAiRecommendationsActionStatus("Cancelling...");
-        SetAiSettingsButtonsEnabled(true);
+        SetAiGenerateBusy(false);
         UpdateFooterComputeModeLabel();
     }
 
@@ -4806,7 +4973,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!BeginTaskFlash(sender))
+        if (!TryBeginTaskFlashWithFeedback(sender, SetAiRecommendationsActionStatus))
         {
             return;
         }
@@ -4831,33 +4998,43 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (!BeginTaskFlash(sender))
+        if (!TryBeginTaskFlashWithFeedback(sender, SetAiRecommendationsActionStatus))
         {
             return;
         }
 
         SetAiSettingsButtonsEnabled(false);
-        try
+        var pullTag = row.PullTag;
+        await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
-            await _svc.ModelSessions.UninstallModelAsync(row.PullTag, CancellationToken.None).ConfigureAwait(false);
-            _svc.ApiClient.InvalidateCaches();
-            _svc.Profiles.ClearCache();
-            _svc.AiLlmRecommendations.ClearCache();
-            await RefreshModelsUiAsync().ConfigureAwait(true);
-            await RefreshAiSettingsUiAsync().ConfigureAwait(true);
-            SetAiRecommendationsActionStatus($"Uninstalled {row.PullTag}.");
-            EndTaskFlashSuccess(sender, "Removed");
-        }
-        catch (Exception ex)
-        {
-            var msg = await ExplainErrorAsync(ex.Message, CancellationToken.None).ConfigureAwait(false);
-            SetAiRecommendationsActionStatus(msg);
-            EndTaskFlashIdle(sender);
-        }
-        finally
-        {
-            SetAiSettingsButtonsEnabled(true);
-        }
+            try
+            {
+                await _svc.ModelSessions.UninstallModelAsync(pullTag, ct).ConfigureAwait(false);
+                _svc.ApiClient.InvalidateCaches();
+                _svc.Profiles.ClearCache();
+                _svc.AiLlmRecommendations.ClearCache();
+                await RefreshModelsUiAsync().ConfigureAwait(false);
+                await RefreshAiSettingsUiAsync(cancellationToken: ct).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    SetAiRecommendationsActionStatus($"Uninstalled {pullTag}.");
+                    EndTaskFlashSuccess(sender, "Removed");
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    SetAiRecommendationsActionStatus(msg);
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                await UiDispatcher.InvokeAsync(() => SetAiSettingsButtonsEnabled(true)).ConfigureAwait(false);
+            }
+        }).ConfigureAwait(true);
     }
 
     private async void AiLaunchRecommended_Click(object sender, RoutedEventArgs e)
@@ -5033,101 +5210,59 @@ public partial class MainWindow : Window
 
     private async void SummarizerCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_suppressSummarizerComboSave || SummarizerCombo.SelectedItem is not string model)
+        if (_suppressSummarizerComboSave
+            || !_summarizerDropdownOpen
+            || SummarizerCombo.SelectedItem is not string model)
         {
             return;
         }
 
-        var settings = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
+        var settings = await _svc.AiSettings.LoadAsync().ConfigureAwait(false);
         settings.PreferredSummarizerModel = model;
-        await _svc.AiSettings.SaveAsync(settings).ConfigureAwait(true);
-        await UpdateAiStatusAsync().ConfigureAwait(true);
+        await _svc.AiSettings.SaveAsync(settings).ConfigureAwait(false);
+        await UpdateAiStatusAsync().ConfigureAwait(false);
     }
 
     private async void RefreshSummarizerList_Click(object sender, RoutedEventArgs e)
     {
-        var flash = BeginTaskFlash(sender);
+        if (!TryBeginTaskFlashWithFeedback(sender, SetAiSettingsActionStatus))
+        {
+            return;
+        }
 
         SetAiSettingsActionStatus("Refreshing summarizer list...");
-        SetAiSettingsButtonsEnabled(false);
-        try
-        {
-            _svc.ApiClient.InvalidateCaches();
-            await RefreshAiSettingsUiAsync().ConfigureAwait(true);
-            var count = SummarizerCombo.Items.Count;
-            SetAiSettingsActionStatus(count == 0
-                ? "Summarizer list empty — start Ollama, then refresh again."
-                : $"Summarizer list refreshed — {count} choice(s).");
-            if (flash)
-            {
-                EndTaskFlashSuccess(sender, "Refreshed");
-            }
-        }
-        catch (Exception ex)
-        {
-            SetAiSettingsActionStatus($"Refresh failed: {ex.Message}");
-            _svc.ActivityLog.Write("Error", ex.Message);
-            _svc.Diagnostics.Write("AI", $"Summarizer list refresh failed: {ex.Message}");
-            if (flash)
-            {
-                EndTaskFlashIdle(sender);
-            }
-        }
-        finally
-        {
-            SetAiSettingsButtonsEnabled(true);
-        }
-    }
-
-    private async void DownloadSummarizer_Click(object sender, RoutedEventArgs e)
-    {
-        var model = SummarizerCombo.SelectedItem as string
-            ?? SummarizerModelResolver.DefaultPreferenceOrder.FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(model))
-        {
-            SetAiSettingsActionStatus("Select a summarizer model to download, or use Refresh List after installing one.");
-            return;
-        }
-
-        if (!BeginTaskFlash(sender))
-        {
-            return;
-        }
-
-        SetAiSettingsActionStatus($"Downloading {model}...");
-        SetAiSettingsButtonsEnabled(false);
+        SetSummarizerRefreshControlsEnabled(false);
+        var started = DateTime.UtcNow;
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
             try
             {
-                var progress = new Progress<ModelPullProgress>(p =>
+                _svc.ApiClient.InvalidateCaches();
+                await RefreshAiSettingsUiAsync(forceRefresh: true, ct).ConfigureAwait(false);
+                var elapsed = (int)(DateTime.UtcNow - started).TotalSeconds;
+                await UiDispatcher.InvokeAsync(() =>
                 {
-                    _svc.ActivityLog.Write("Download", p.Status);
-                    UiDispatcher.InvokeAsync(() =>
-                        SetAiSettingsActionStatus($"Downloading {model}: {p.Status}"));
-                });
-                await _svc.ApiClient.PullAsync(model, progress, ct).ConfigureAwait(false);
-                _svc.ActivityLog.Write("Task", $"Downloaded summarizer {model}.");
-                await UiDispatcher.InvokeAsync(async () =>
-                {
-                    SetAiSettingsActionStatus($"Downloaded {model}.");
-                    await RefreshAiSettingsUiAsync().ConfigureAwait(true);
-                    EndTaskFlashSuccess(sender, "Downloaded", 10);
+                    var count = SummarizerCombo.Items.Count;
+                    SetAiSettingsActionStatus(count == 0
+                        ? $"Summarizer list empty after {elapsed}s — start Ollama, then refresh again."
+                        : $"Summarizer list refreshed — {count} choice(s) ({elapsed}s).");
+                    EndTaskFlashSuccess(sender, "Refreshed");
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
-                _svc.ActivityLog.Write("Error", msg);
+                _svc.ActivityLog.Write("Error", ex.Message);
+                _svc.Diagnostics.Write("AI", $"Summarizer list refresh failed: {ex.Message}");
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    SetAiSettingsActionStatus(msg);
+                    SetAiSettingsActionStatus($"Refresh failed: {ex.Message}");
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
             }
             finally
             {
-                await UiDispatcher.InvokeAsync(() => SetAiSettingsButtonsEnabled(true)).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() => SetSummarizerRefreshControlsEnabled(true))
+                    .ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }
