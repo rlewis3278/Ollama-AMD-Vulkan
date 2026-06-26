@@ -300,6 +300,31 @@ public partial class MainWindow : Window
         _testProgressAnimator.Halt();
     }
 
+    private void ApplyTestStoppedProgressUi()
+    {
+        StopTestSpinUpCreep();
+        _progressSession++;
+        _acceptProgressUpdates = false;
+
+        var warningBrush = (Brush)FindResource("Brush.Warning");
+        TestOverallProgress.IsIndeterminate = false;
+        _testProgressAnimator.SetImmediate(TestOverallProgress, 100);
+        TestOverallProgress.Foreground = warningBrush;
+        TestOverallLabel.Text = "Overall: Stopped";
+
+        foreach (var (_, row) in _testModeProgress)
+        {
+            row.Bar.IsIndeterminate = false;
+            _testProgressAnimator.SetImmediate(row.Bar, 100);
+            row.Bar.Foreground = warningBrush;
+            row.Status.Text = "Test Stopped";
+            row.Status.Foreground = warningBrush;
+        }
+
+        TestStatusLabel.Text = "Test Stopped";
+        _testProgressAnimator.Halt();
+    }
+
     private void UpdateStopTestButtonUi()
     {
         _activityTimer.Interval = _testOperations > 0
@@ -345,7 +370,7 @@ public partial class MainWindow : Window
         _benchmarkCts?.Cancel();
         _undownloadCts?.Cancel();
 
-        UiDispatcher.Invoke(HaltTestProgressAnimation);
+        UiDispatcher.Invoke(ApplyTestStoppedProgressUi);
 
         if (_activeTestWork is not null)
         {
@@ -363,11 +388,7 @@ public partial class MainWindow : Window
         _svc.ApiClient.InvalidateCaches();
         _svc.Diagnostics.Write("Testing", "Stop Test clicked — cancelling benchmark queue");
 
-        await UiDispatcher.InvokeAsync(() =>
-        {
-            ResetTestOperationState();
-            TestStatusLabel.Text = "Benchmark queue stopped.";
-        }).ConfigureAwait(true);
+        await UiDispatcher.InvokeAsync(ResetTestOperationState).ConfigureAwait(true);
     }
 
     private void SetCatalogTestingHighlight(string modelOrLibrary, bool on)
@@ -1278,10 +1299,9 @@ public partial class MainWindow : Window
             {
                 if (_acceptProgressUpdates)
                 {
-                    HaltTestProgressAnimation();
+                    ApplyTestStoppedProgressUi();
                 }
 
-                TestStatusLabel.Text = "Benchmark queue stopped.";
                 FinishTestOperation(flashSender, success: false, cancelled: true);
             }).ConfigureAwait(true);
         }
@@ -1433,6 +1453,7 @@ public partial class MainWindow : Window
         TestProgressPanel.Visibility = Visibility.Visible;
         TestOverallLabel.Text = "Overall: Initializing tests…";
         TestOverallProgress.IsIndeterminate = false;
+        TestOverallProgress.ClearValue(Control.ForegroundProperty);
         _testProgressAnimator.SetImmediate(TestOverallProgress, 0);
 
         BuildTestModeProgressRows(Array.Empty<string>());
@@ -1577,6 +1598,7 @@ public partial class MainWindow : Window
         StopTestSpinUpCreep();
         TestProgressPanel.Visibility = Visibility.Visible;
         TestOverallProgress.IsIndeterminate = false;
+        TestOverallProgress.ClearValue(Control.ForegroundProperty);
         _testProgressAnimator.SetImmediate(TestOverallProgress, 0);
         var aiLine = string.IsNullOrWhiteSpace(aiSummarizer)
             ? "AI insights LLM: (none)"
@@ -1810,7 +1832,7 @@ public partial class MainWindow : Window
                         }
 
                         TestStatusLabel.Text = cancelled
-                            ? "Benchmark queue stopped."
+                            ? "Test Stopped"
                             : "Benchmark queue complete.";
                         FinishTestOperation(flashSender, success: !cancelled, cancelled);
                     }).ConfigureAwait(false);

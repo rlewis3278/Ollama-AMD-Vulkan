@@ -3335,3 +3335,69 @@ foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included
 [2026-06-25 19:31:20] [BUILD] Release build 0 errors; published OllamaToolkit.App
 [2026-06-25 19:31:20] [SYNC] Processed updates.jsonl lines 13664..13665
 [2026-06-25 19:31:20] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 20:32:08] [FILE] ApplyTestStoppedProgressUi: all visible bars to 100%, warning styling, Overall: Stopped / Test Stopped labels
+[2026-06-25 20:32:09] [TOOL] Grep - Grep
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Grep - Grep
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Glob - Glob
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Grep - Grep
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Grep - Grep
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Grep - Grep
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Glob - Glob
+[2026-06-25 20:32:09] [TOOL] Glob - Glob
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] AskQuestion - AskQuestion
+[2026-06-25 20:32:09] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 20:32:09] [TOOL] AskQuestion - AskQuestion
+[2026-06-25 20:32:09] [TOOL] AskQuestion - AskQuestion
+[2026-06-25 20:32:09] [TOOL] Glob - Glob
+[2026-06-25 20:32:09] [TOOL] Glob - Glob
+[2026-06-25 20:32:09] [TOOL] Grep - Grep
+[2026-06-25 20:32:09] [TOOL] Grep - Grep
+[2026-06-25 20:32:09] [TOOL] Glob - Glob
+[2026-06-25 20:32:09] [TOOL] Grep - Grep
+[2026-06-25 20:32:09] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Grep - Grep
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Grep - Grep
+[2026-06-25 20:32:09] [TOOL] Grep - Grep
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 20:32:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 20:32:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 20:32:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 20:32:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Glob - Glob
+[2026-06-25 20:32:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 20:32:09] [TOOL] StrReplace - StrReplace
+[2026-06-25 20:32:09] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Grep - Grep
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [TOOL] Glob - Glob
+[2026-06-25 20:32:09] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git status --short && git branch --show-current
+[2026-06-25 20:32:09] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git status --short && git branch --show-current
+[2026-06-25 20:32:09] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-25 20:32:09] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git status --short; git branch --show-current
+[2026-06-25 20:32:09] [TOOL] Read - Read
+[2026-06-25 20:32:09] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|ApplyTestStoppedProgressUi: all visible bars to 100%, warning styling, Overall: Stopped / Test Stopped labels"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build + publish win-x64 succeeded (0 errors)"
+[2026-06-25 20:32:09] [SYNC] Processed updates.jsonl lines 13666..13927
+[2026-06-25 20:32:09] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 20:32:09] [BUILD] Release build + publish win-x64 succeeded (0 errors)
+[2026-06-25 20:32:10] [SYNC] Processed updates.jsonl lines 13928..13931
+[2026-06-25 20:32:10] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
