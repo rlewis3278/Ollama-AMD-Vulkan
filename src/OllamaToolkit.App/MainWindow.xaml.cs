@@ -496,10 +496,14 @@ public partial class MainWindow : Window
         var settings = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
         AiFeaturesPanel.Children.Clear();
         var checkBoxStyle = (Style)FindResource("ToolkitAiFeatureCheckBox");
+        var muted = (Brush)FindResource("Brush.Muted");
 
         var master = new CheckBox
         {
-            Content = "Enable toolkit AI (master)",
+            Content = BuildFeatureContent(
+                "Enable toolkit AI (master)",
+                "Master switch for all Program AI features below. When off, features fall back to non-AI behavior instantly.",
+                muted),
             IsChecked = settings.ToolkitAiEnabled,
             Style = checkBoxStyle,
             Margin = new Thickness(0, 0, 0, 12)
@@ -508,11 +512,11 @@ public partial class MainWindow : Window
         master.Unchecked += async (_, _) => await SaveMasterAiAsync(false).ConfigureAwait(true);
         AiFeaturesPanel.Children.Add(master);
 
-        foreach (var (key, label) in GetFeatureLabels())
+        foreach (var (key, label, description) in GetFeatureDefinitions())
         {
             var cb = new CheckBox
             {
-                Content = label,
+                Content = BuildFeatureContent(label, description, muted),
                 Tag = key,
                 IsChecked = settings.FeatureFlags.GetValueOrDefault(key, true),
                 Style = checkBoxStyle
@@ -523,19 +527,52 @@ public partial class MainWindow : Window
         }
     }
 
-    private static IEnumerable<(string Key, string Label)> GetFeatureLabels() =>
+    private static StackPanel BuildFeatureContent(string label, string description, Brush mutedForeground) =>
+        new()
+        {
+            Children =
+            {
+                new TextBlock
+                {
+                    Text = label,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = (Brush)Application.Current.FindResource("Brush.Text")
+                },
+                new TextBlock
+                {
+                    Text = description,
+                    Foreground = mutedForeground,
+                    FontSize = 13,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 2, 0, 0)
+                }
+            }
+        };
+
+    private static IEnumerable<(string Key, string Label, string Description)> GetFeatureDefinitions() =>
     [
-        ("DescriptionSummarization", "1. Description summarization"),
-        ("CatalogCategorization", "2. Catalog categorization"),
-        ("BenchmarkInterpreter", "3. Benchmark result interpreter"),
-        ("FailureDiagnosis", "4. Failure diagnosis"),
-        ("NaturalLanguageSearch", "5. Natural-language model search"),
-        ("ModelPickerAdvisor", "6. Model picker advisor"),
-        ("OptimalBenchmarkSettings", "7. Optimal benchmark settings"),
-        ("TestQueuePrioritization", "8. Test untested prioritization"),
-        ("ModelComparison", "9. Model comparison blurb"),
-        ("PlainLanguageErrors", "10. Plain-language errors"),
-        ("LogAnomalyDetection", "11. Log anomaly detection")
+        ("DescriptionSummarization", "1. Description summarization",
+            "Condenses long model pages from ollama.com into short catalog descriptions during Refresh Descriptions."),
+        ("CatalogCategorization", "2. Catalog categorization",
+            "Assigns usage categories (chat, code, embedding, etc.) to library models via Categorize All / Recategorize All."),
+        ("BenchmarkInterpreter", "3. Benchmark result interpreter",
+            "Writes a plain-language summary of each model's best mode and throughput in Test Results."),
+        ("FailureDiagnosis", "4. Failure diagnosis",
+            "Explains why specific compute modes failed after a benchmark run."),
+        ("NaturalLanguageSearch", "5. Natural-language model search",
+            "Ranks catalog models by intent when you type a natural-language query in the Model Library search box."),
+        ("ModelPickerAdvisor", "6. Model picker advisor",
+            "Recommends installed models for a task via Ask AI on Models & Launch."),
+        ("OptimalBenchmarkSettings", "7. Optimal benchmark settings",
+            "Suggests num_ctx, num_predict, and per-mode OLLAMA_NUM_PARALLEL before each test run."),
+        ("TestQueuePrioritization", "8. Test untested prioritization",
+            "Orders the Test Local Untested queue by model size and profile state using AI."),
+        ("ModelComparison", "9. Model comparison blurb",
+            "Generates comparison text for Compare with AI (installed or catalog models)."),
+        ("PlainLanguageErrors", "10. Plain-language errors",
+            "Rewrites technical error messages into readable explanations across the app."),
+        ("LogAnomalyDetection", "11. Log anomaly detection",
+            "Scans the AI activity log on startup and via Scan Logs for recurring error patterns.")
     ];
 
     private async Task SaveMasterAiAsync(bool enabled)
@@ -554,7 +591,7 @@ public partial class MainWindow : Window
         var s = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
         s.FeatureFlags[key] = enabled;
         await _svc.AiSettings.SaveAsync(s).ConfigureAwait(true);
-        var label = GetFeatureLabels().FirstOrDefault(f => f.Key == key).Label ?? key;
+        var label = GetFeatureDefinitions().FirstOrDefault(f => f.Key == key).Label ?? key;
         AiFeatureToggleStatus.Text = enabled
             ? $"{label} enabled — saved instantly."
             : $"{label} disabled — saved instantly.";
@@ -725,28 +762,9 @@ public partial class MainWindow : Window
 
     private async Task UpdateAiStatusAsync()
     {
-        var ready = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
-        var settings = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
-        string content;
-        if (!settings.ToolkitAiEnabled)
-        {
-            content = "AI Disabled";
-        }
-        else if (!ready)
-        {
-            content = "AI Inactive";
-        }
-        else if (!string.IsNullOrWhiteSpace(settings.PreferredSummarizerModel))
-        {
-            content = "AI Active";
-        }
-        else
-        {
-            content = "AI Inactive";
-        }
-
-        _aiProcessingFlash.SetIdlePresentation(
-            content,
+        _aiProcessingFlash.SetPresentation(
+            "Program AI Inactive",
+            "Program AI Active",
             (Brush)FindResource("Brush.Button"),
             (Brush)FindResource("Brush.PanelBorder"),
             (Brush)FindResource("Brush.Text"));
@@ -755,15 +773,15 @@ public partial class MainWindow : Window
         await UpdateOllamaAiStatusAsync().ConfigureAwait(true);
     }
 
-    private async Task UpdateOllamaAiStatusAsync()
+    private Task UpdateOllamaAiStatusAsync()
     {
-        var ready = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
-        var content = ready ? "Ollama AI Inactive" : "Ollama API Offline";
-        _ollamaAiFlash.SetIdlePresentation(
-            content,
+        _ollamaAiFlash.SetPresentation(
+            "Ollama AI Inactive",
+            "Ollama Active",
             (Brush)FindResource("Brush.Button"),
             (Brush)FindResource("Brush.PanelBorder"),
             (Brush)FindResource("Brush.Text"));
+        return Task.CompletedTask;
     }
 
     private void WireAiActivityPresenters()

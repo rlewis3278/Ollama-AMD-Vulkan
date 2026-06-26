@@ -356,6 +356,8 @@
             <TabItem Header="AI Features">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12">
                     <StackPanel>
+                        <TextBlock Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,4" TextWrapping="Wrap"
+                                   Text="Each toggle saves instantly to ai-settings.json." />
                         <TextBlock x:Name="AiFeatureToggleStatus" Foreground="{StaticResource Brush.Muted}"
                                    Margin="0,0,0,8" TextWrapping="Wrap" />
                         <StackPanel x:Name="AiFeaturesPanel" />
@@ -417,7 +419,7 @@
                     <Button x:Name="OllamaAiStatusButton" Style="{StaticResource ToolkitButton}"
                             Content="Ollama AI Inactive" IsHitTestVisible="False" />
                     <Button x:Name="AiStatusButton" Style="{StaticResource ToolkitButton}"
-                            Content="AI Inactive" Click="AiStatusButton_Click" />
+                            Content="Program AI Inactive" Click="AiStatusButton_Click" />
                 </StackPanel>
             </Grid>
         </Border>

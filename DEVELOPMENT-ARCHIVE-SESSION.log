@@ -3668,3 +3668,37 @@ foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included
 [2026-06-25 22:29:06] [BUILD] Release build 0 errors; published OllamaToolkit.App
 [2026-06-25 22:29:07] [SYNC] Processed updates.jsonl lines 15292..15293
 [2026-06-25 22:29:07] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 22:38:07] [FILE] Dual idle/active labels on Program AI and Ollama AI status buttons
+[2026-06-25 22:38:07] [TOOL] Grep - Grep
+[2026-06-25 22:38:07] [TOOL] Read - Read
+[2026-06-25 22:38:07] [TOOL] Read - Read
+[2026-06-25 22:38:07] [TOOL] Read - Read
+[2026-06-25 22:38:07] [TOOL] Grep - Grep
+[2026-06-25 22:38:07] [TOOL] Read - Read
+[2026-06-25 22:38:07] [TOOL] Read - Read
+[2026-06-25 22:38:07] [TOOL] Read - Read
+[2026-06-25 22:38:07] [TOOL] Read - Read
+[2026-06-25 22:38:07] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 22:38:07] [TOOL] Read - Read
+[2026-06-25 22:38:07] [TOOL] Read - Read
+[2026-06-25 22:38:07] [TOOL] Write - Write
+[2026-06-25 22:38:07] [TOOL] Write - Write
+[2026-06-25 22:38:07] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:38:07] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:38:07] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:38:07] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:38:07] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:38:07] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:38:07] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:38:07] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:38:07] [TOOL] Grep - Grep
+[2026-06-25 22:38:07] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-25 22:38:07] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 --self-contained false -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"; Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|Dual idle/active labels on Program AI and Ollama AI status buttons"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|AI Features page feature descriptions beside each toggle"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build 0 errors; published OllamaToolkit.App"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: dual status button labels and AI Features descriptions`n`n- Program AI Inactive/Active and Ollama AI Inactive/Ollama Active labels`n- Active label shown while yellow/black flash is running`n- AI Features rows include detailed muted descriptions per toggle"
+[2026-06-25 22:38:08] [SYNC] Processed updates.jsonl lines 15294..15482
+[2026-06-25 22:38:08] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 22:38:08] [FILE] AI Features page feature descriptions beside each toggle
+[2026-06-25 22:38:08] [SYNC] Processed updates.jsonl lines 15483..15487
+[2026-06-25 22:38:08] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 22:38:08] [BUILD] Release build 0 errors; published OllamaToolkit.App
+[2026-06-25 22:38:09] [SYNC] Processed updates.jsonl lines 15488..15489
+[2026-06-25 22:38:09] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

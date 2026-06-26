@@ -16,6 +16,7 @@ public sealed class AiProcessingFlashPresenter
     private bool _flashPhase;
     private bool _flashing;
     private string _idleContent = string.Empty;
+    private string _activeContent = string.Empty;
     private Brush _idleBg = Brushes.Transparent;
     private Brush _idleBorder = Brushes.Transparent;
     private Brush _idleForeground = Brushes.White;
@@ -39,9 +40,15 @@ public sealed class AiProcessingFlashPresenter
         };
     }
 
-    public void SetIdlePresentation(string content, Brush background, Brush border, Brush foreground)
+    public void SetPresentation(
+        string idleContent,
+        string activeContent,
+        Brush background,
+        Brush border,
+        Brush foreground)
     {
-        _idleContent = content;
+        _idleContent = idleContent;
+        _activeContent = string.IsNullOrWhiteSpace(activeContent) ? idleContent : activeContent;
         _idleBg = background;
         _idleBorder = border;
         _idleForeground = foreground;
@@ -51,6 +58,9 @@ public sealed class AiProcessingFlashPresenter
             ApplyIdle();
         }
     }
+
+    public void SetIdlePresentation(string content, Brush background, Brush border, Brush foreground) =>
+        SetPresentation(content, content, background, border, foreground);
 
     public void SetActive(bool active)
     {
@@ -90,7 +100,7 @@ public sealed class AiProcessingFlashPresenter
 
     private void ApplyFlash(bool flashOn)
     {
-        _button.Content = _idleContent;
+        _button.Content = _activeContent;
         _button.Background = flashOn ? _pendingYellow : _pendingBlack;
         _button.BorderBrush = flashOn ? _pendingYellow : _pendingBlack;
         _button.Foreground = flashOn ? Brushes.Black : Brushes.White;
