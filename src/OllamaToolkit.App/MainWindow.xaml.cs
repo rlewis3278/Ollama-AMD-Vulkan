@@ -687,6 +687,8 @@ public partial class MainWindow : Window
             snapshot,
             _svc.ModeDefinitions.DeviceMap,
             _svc.ModeDefinitions);
+
+        UpdateFooterComputeModeLabel();
     }
 
     private async Task<Dictionary<string, string>> GetCategoryMapAsync()
@@ -790,6 +792,15 @@ public partial class MainWindow : Window
 
     private void UpdateFooterVersionLabel() =>
         AppVersionFooterText.Text = AppBuildInfo.GetShortFooterLabel();
+
+    private void UpdateFooterComputeModeLabel()
+    {
+        var detected = _svc.ModeService.DetectCurrentMode();
+        var modeLabel = _svc.ModeDefinitions.TryParse(detected, out var mode)
+            ? _svc.ModeDefinitions.Get(mode).ShortLabel
+            : detected;
+        ComputeModeFooterText.Text = $"Mode: {modeLabel}";
+    }
 
     private async Task UpdateAiStatusAsync()
     {
@@ -3818,6 +3829,7 @@ public partial class MainWindow : Window
                 $"{model.Model} | {model.BestMode} ({model.BestMetricDisplay}) | parallel={parallel} | Ollama restarted, model loaded";
             ChatHistory.Text = string.Empty;
             _chatMessages.Clear();
+            UpdateFooterComputeModeLabel();
         }).ConfigureAwait(false);
     }
 

@@ -423,6 +423,10 @@
                     <TextBlock x:Name="AppVersionFooterText"
                                VerticalAlignment="Center" Margin="0,0,12,0"
                                Foreground="{StaticResource Brush.Muted}" FontSize="13" />
+                    <TextBlock x:Name="ComputeModeFooterText"
+                               VerticalAlignment="Center" Margin="0,0,12,0"
+                               Foreground="{StaticResource Brush.Muted}" FontSize="13"
+                               Text="Mode: …" />
                     <Button x:Name="OllamaAiStatusButton" Style="{StaticResource ToolkitButton}"
                             Content="Ollama AI Inactive" IsHitTestVisible="False" />
                     <Button x:Name="AiStatusButton" Style="{StaticResource ToolkitButton}"
