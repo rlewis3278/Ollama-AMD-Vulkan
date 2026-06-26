@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <Resource Include="Assets\ollama_gui_manager_icon.ico" />
+    <Resource Include="Assets\startup_splash_logo.png" />
   </ItemGroup>
 
   <ItemGroup>

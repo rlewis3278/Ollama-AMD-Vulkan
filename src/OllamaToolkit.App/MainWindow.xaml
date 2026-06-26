@@ -455,11 +455,12 @@
                                HorizontalAlignment="Center"
                                TextAlignment="Center"
                                TextWrapping="Wrap" />
-                    <Image Source="/OllamaToolkit.App;component/Assets/ollama_gui_manager_icon.ico"
-                           MaxWidth="280" MaxHeight="280"
+                    <Image Source="/OllamaToolkit.App;component/Assets/startup_splash_logo.png"
+                           MaxWidth="320" MaxHeight="320"
                            Stretch="Uniform"
                            Margin="0,20,0,16"
-                           HorizontalAlignment="Center" />
+                           HorizontalAlignment="Center"
+                           RenderOptions.BitmapScalingMode="HighQuality" />
                     <TextBlock Text="Developed by Lewisound"
                                FontSize="16"
                                Foreground="{StaticResource Brush.Text}"
