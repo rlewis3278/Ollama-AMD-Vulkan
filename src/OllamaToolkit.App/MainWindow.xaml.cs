@@ -1016,10 +1016,13 @@ public partial class MainWindow : Window
         return true;
     }
 
-    private void EndCatalogToolbarOperationScope(int generation)
+    private async Task EndCatalogToolbarOperationScopeAsync(int generation)
     {
-        _catalogOps.End(generation);
-        EndCatalogToolbarOperation();
+        await UiDispatcher.InvokeAsync(() =>
+        {
+            _catalogOps.End(generation);
+            EndCatalogToolbarOperation();
+        }).ConfigureAwait(false);
     }
 
     private async Task RefreshCategoryFilterComboAsync(CancellationToken cancellationToken = default)
@@ -2804,7 +2807,7 @@ public partial class MainWindow : Window
                     .ConfigureAwait(false);
 
                 var progress = new Progress<string>(msg =>
-                    UiDispatcher.Invoke(() => CatalogStatusLabel.Text = msg));
+                    _ = UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
                 var itemProgress = new Progress<DescriptionRefreshItemProgress>(p =>
                 {
                     if (ct.IsCancellationRequested)
@@ -2812,7 +2815,7 @@ public partial class MainWindow : Window
                         return;
                     }
 
-                    UiDispatcher.Invoke(() => HandleDescriptionRefreshProgress(p));
+                    _ = UiDispatcher.InvokeAsync(() => HandleDescriptionRefreshProgress(p));
                 });
 
                 var count = await _svc.Descriptions.RefreshAllListDescriptionsAsync(
@@ -2825,7 +2828,7 @@ public partial class MainWindow : Window
                 _svc.ActivityLog.Write("AI", $"Refreshed {count} catalog description(s) from web + AI.");
 
                 var sizeProgress = new Progress<string>(msg =>
-                    UiDispatcher.Invoke(() => CatalogStatusLabel.Text = msg));
+                    _ = UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
 
                 await _svc.CatalogStore.EnrichFileSizesAsync(sizeProgress, cancellationToken: ct)
                     .ConfigureAwait(false);
@@ -2874,7 +2877,7 @@ public partial class MainWindow : Window
             finally
             {
                 ExitAiActivity();
-                EndCatalogToolbarOperationScope(generation);
+                await EndCatalogToolbarOperationScopeAsync(generation).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }
@@ -3226,7 +3229,7 @@ public partial class MainWindow : Window
                 await BindFullCatalogGridAsync("Refreshing catalog", cancellationToken: ct).ConfigureAwait(false);
 
                 var progress = new Progress<string>(msg =>
-                    UiDispatcher.Invoke(() => CatalogStatusLabel.Text = msg));
+                    _ = UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
 
                 var installed = await _svc.Registry.GetInstalledModelNamesAsync(ct).ConfigureAwait(false);
                 await _svc.CatalogStore.ProcessCatalogEntriesUiPassAsync(
@@ -3234,13 +3237,13 @@ public partial class MainWindow : Window
                     progress,
                     (item, _) =>
                     {
-                        UiDispatcher.Invoke(() => HandleCatalogRefreshProgress(item));
+                        UiDispatcher.InvokeAsync(() => HandleCatalogRefreshProgress(item));
                         return Task.CompletedTask;
                     },
                     ct).ConfigureAwait(false);
 
                 var sizeProgress = new Progress<string>(msg =>
-                    UiDispatcher.Invoke(() => CatalogStatusLabel.Text = msg));
+                    _ = UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
 
                 await _svc.CatalogStore.EnrichFileSizesAsync(sizeProgress, cancellationToken: ct)
                     .ConfigureAwait(false);
@@ -3283,7 +3286,7 @@ public partial class MainWindow : Window
             }
             finally
             {
-                EndCatalogToolbarOperationScope(generation);
+                await EndCatalogToolbarOperationScopeAsync(generation).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }
@@ -3373,16 +3376,17 @@ public partial class MainWindow : Window
             }
             finally
             {
-                EndCatalogToolbarOperationScope(generation);
+                await EndCatalogToolbarOperationScopeAsync(generation).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }
 
     private async void CategorizeAll_Click(object sender, RoutedEventArgs e) =>
         await RunClassificationAsync(
-            recategorize: false,
+            recategorize: true,
             fromAiSettings: MainTabs.SelectedItem == AiSettingsTab,
-            sender).ConfigureAwait(true);
+            sender: sender,
+            resetCategoriesFirst: true).ConfigureAwait(true);
 
     private async void RecategorizeAll_Click(object sender, RoutedEventArgs e)
     {
@@ -3395,13 +3399,15 @@ public partial class MainWindow : Window
         await RunClassificationAsync(
             recategorize: true,
             fromAiSettings: MainTabs.SelectedItem == AiSettingsTab,
-            sender).ConfigureAwait(true);
+            sender: sender,
+            resetCategoriesFirst: true).ConfigureAwait(true);
     }
 
     private async Task RunClassificationAsync(
         bool recategorize,
         bool fromAiSettings,
-        object? sender = null)
+        object? sender = null,
+        bool resetCategoriesFirst = false)
     {
         if (sender is not null && !BeginTaskFlash(sender))
         {
@@ -3509,8 +3515,31 @@ public partial class MainWindow : Window
             using var linked = _catalogOps.CreateLinkedTokenSource(workCt)!;
             var ct = linked.Token;
             EnterAiActivity();
+            int? classifiedCount = null;
             try
             {
+                if (resetCategoriesFirst)
+                {
+                    await UiDispatcher.InvokeAsync(() =>
+                    {
+                        if (fromAiSettings)
+                        {
+                            SetAiSettingsActionStatus("Clearing existing categories...");
+                        }
+                        else
+                        {
+                            CatalogStatusLabel.Text = "Clearing existing categories...";
+                        }
+                    }).ConfigureAwait(false);
+
+                    await _svc.Classification.ResetAllCategoriesAsync(ct).ConfigureAwait(false);
+                    await UiDispatcher.InvokeAsync(async () =>
+                    {
+                        await RefreshCategoryFilterComboAsync().ConfigureAwait(true);
+                        await RefreshCatalogUiAsync(force: true).ConfigureAwait(true);
+                    }).ConfigureAwait(false);
+                }
+
                 if (!string.IsNullOrWhiteSpace(summarizer))
                 {
                     var modeMsg = $"Applying summarizer best mode for {summarizer}...";
@@ -3532,7 +3561,7 @@ public partial class MainWindow : Window
 
                 var progress = new Progress<string>(msg =>
                 {
-                    UiDispatcher.Invoke(() =>
+                    _ = UiDispatcher.InvokeAsync(() =>
                     {
                         if (fromAiSettings)
                         {
@@ -3548,31 +3577,7 @@ public partial class MainWindow : Window
                     .ConfigureAwait(false);
                 _svc.ActivityLog.Write("AI", $"Classified {count} catalog model(s).");
                 _svc.Diagnostics.Write("Catalog", $"Categorize complete ({count} model(s)).");
-                await UiDispatcher.InvokeAsync(async () =>
-                {
-                    _svc.CategoryStore.ClearCache();
-                    _svc.CatalogStore.ClearCache();
-
-                    var doneMessage = count == 0
-                        ? "All catalog models are already AI-categorized."
-                        : $"Done — AI classified {count} catalog model(s).";
-                    if (fromAiSettings)
-                    {
-                        SetAiSettingsActionStatus(doneMessage);
-                    }
-                    else
-                    {
-                        CatalogStatusLabel.Text = doneMessage;
-                    }
-
-                    await RefreshCategoryFilterComboAsync().ConfigureAwait(true);
-                    await RefreshCatalogUiAsync(force: true).ConfigureAwait(true);
-                    await RefreshCategoryStatusAsync().ConfigureAwait(true);
-                    if (sender is not null)
-                    {
-                        EndTaskFlashSuccess(sender, "Categorized", 10);
-                    }
-                }).ConfigureAwait(false);
+                classifiedCount = count;
             }
             catch (OperationCanceledException)
             {
@@ -3619,12 +3624,41 @@ public partial class MainWindow : Window
             finally
             {
                 ExitAiActivity();
-                EndCatalogToolbarOperationScope(generation);
+                await EndCatalogToolbarOperationScopeAsync(generation).ConfigureAwait(false);
 
                 if (fromAiSettings)
                 {
                     await UiDispatcher.InvokeAsync(() => SetAiSettingsButtonsEnabled(true)).ConfigureAwait(false);
                 }
+            }
+
+            if (classifiedCount is int classifiedTotal)
+            {
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    _svc.CategoryStore.ClearCache();
+                    _svc.CatalogStore.ClearCache();
+
+                    var doneMessage = classifiedTotal == 0
+                        ? "No models in catalog to classify."
+                        : $"Done — AI classified {classifiedTotal} catalog model(s).";
+                    if (fromAiSettings)
+                    {
+                        SetAiSettingsActionStatus(doneMessage);
+                    }
+                    else
+                    {
+                        CatalogStatusLabel.Text = doneMessage;
+                    }
+
+                    await RefreshCategoryFilterComboAsync().ConfigureAwait(true);
+                    await RefreshCatalogUiAsync(force: true).ConfigureAwait(true);
+                    await RefreshCategoryStatusAsync().ConfigureAwait(true);
+                    if (sender is not null)
+                    {
+                        EndTaskFlashSuccess(sender, "Categorized", 10);
+                    }
+                }).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }

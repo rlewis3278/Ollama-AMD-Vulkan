@@ -30,6 +30,21 @@ public sealed class CatalogClassificationService
         _summarizer = summarizer ?? new SummarizerModelResolver(_settings, _apiClient);
     }
 
+    public async Task ResetAllCategoriesAsync(CancellationToken cancellationToken = default)
+    {
+        await _categoryStore.ResetStoreAsync(cancellationToken).ConfigureAwait(false);
+        var catalog = await _catalogStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        foreach (var item in catalog.Items)
+        {
+            item.Category = string.Empty;
+            item.SortOrder = 0;
+        }
+
+        await _catalogStore.SaveAsync(catalog, cancellationToken).ConfigureAwait(false);
+        _categoryStore.ClearCache();
+        _catalogStore.ClearCache();
+    }
+
     public async Task<int> ClassifyAllAsync(
         bool recategorize = false,
         IProgress<string>? progress = null,

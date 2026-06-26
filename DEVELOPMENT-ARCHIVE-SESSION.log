@@ -4570,3 +4570,198 @@ EOF
 [2026-06-26 01:47:26] [SYNC] Processed updates.jsonl lines 15490..18792
 [2026-06-26 01:47:26] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
 [2026-06-26 01:47:34] [BUILD] Published d311e5f; pushed csharp-wpf-greenfield to git
+[2026-06-26 03:03:08] [GIT] fix model library download tag resolver, stop download, test/download mutex
+[2026-06-26 03:03:09] [SHELL_FAIL] exit=1 powershell -ExecutionPolicy Bypass -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "BUILD|Published d311e5f and pushed to git"
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [SHELL] Add-Content -LiteralPath "C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log" -Value "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [BUILD] Published d311e5f; pushed csharp-wpf-greenfield to git" -Encoding UTF8
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] CreatePlan - CreatePlan
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Glob - Glob
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] WebFetch - WebFetch
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] WebFetch - WebFetch
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] WebFetch - WebFetch
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] WebFetch - WebFetch
+[2026-06-26 03:03:09] [TOOL] WebFetch - WebFetch
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [SHELL] powershell -NoProfile -Command "(Get-Content 'C:\Users\lewis\.ollama-amd-vulkan\library-catalog-store.json' -Raw | ConvertFrom-Json).items | Where-Object { $_.parameterSize -eq '-' -or $_.fileSize -eq '-' } | Measure-Object | Select-Object -ExpandProperty Count"
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Read - Read
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:09] [TOOL] Grep - Grep
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Grep - Grep
+[2026-06-26 03:03:10] [TOOL] Write - Write
+[2026-06-26 03:03:10] [TOOL] TodoWrite - TodoWrite
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Grep - Grep
+[2026-06-26 03:03:10] [SHELL] curl -s "https://ollama.com/library/glm-5/tags" | Select-String -Pattern "library/glm-5|GB|MB|cloud|latest" | Select-Object -First 30
+[2026-06-26 03:03:10] [TOOL] Glob - Glob
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [SHELL_FAIL] exit=1 curl -s "https://ollama.com/library/glm-5/tags" | Select-String -Pattern "library/glm-5|GB|MB|cloud|latest" | Select-Object -First 30
+[2026-06-26 03:03:10] [SHELL] curl.exe -s "https://ollama.com/library/glm-5/tags" 2>&1 | findstr /i "library glm cloud GB MB href"
+[2026-06-26 03:03:10] [SHELL] curl.exe -s "https://ollama.com/library/llama3.2/tags" 2>&1 | findstr /i "library llama latest GB MB href" | more +1 | findstr /n "." | findstr "^[1-9]: ^1[0-9]: ^2[0-9]:"
+[2026-06-26 03:03:10] [SHELL_FAIL] exit=1 curl.exe -s "https://ollama.com/library/llama3.2/tags" 2>&1 | findstr /i "library llama latest GB MB href" | more +1 | findstr /n "." | findstr "^[1-9]: ^1[0-9]: ^2[0-9]:"
+[2026-06-26 03:03:10] [SHELL] curl.exe -s "https://ollama.com/library/llama3.2/tags" -o "C:\Users\lewis\Ollama-AMD-Vulkan\tmp-llama-tags.html"; Select-String -Path "C:\Users\lewis\Ollama-AMD-Vulkan\tmp-llama-tags.html" -Pattern "library/llama3|command hidden|GB|MB" | Select-Object -First 25
+[2026-06-26 03:03:10] [TOOL] Grep - Grep
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Write - Write
+[2026-06-26 03:03:10] [TOOL] Write - Write
+[2026-06-26 03:03:10] [TOOL] Write - Write
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] Grep - Grep
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Grep - Grep
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Grep - Grep
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:03:10] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-26 03:03:10] [TOOL] Glob - Glob
+[2026-06-26 03:03:10] [SHELL] curl.exe -s "https://ollama.com/library/glm-5/tags" -o "C:\Users\lewis\Ollama-AMD-Vulkan\tmp-glm5-tags.html"; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.Cli\OllamaToolkit.Cli.csproj" -c Release --no-build 2>&1 | Select-Object -First 3
+[2026-06-26 03:03:10] [SHELL_FAIL] exit=1 curl.exe -s "https://ollama.com/library/glm-5/tags" -o "C:\Users\lewis\Ollama-AMD-Vulkan\tmp-glm5-tags.html"; dotnet run --project "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.Cli\OllamaToolkit.Cli.csproj" -c Release --no-build 2>&1 | Select-Object -First 3
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [TOOL] Glob - Glob
+[2026-06-26 03:03:10] [TOOL] Read - Read
+[2026-06-26 03:03:10] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Publish-OllamaToolkitApp.ps1 2>&1
+[2026-06-26 03:03:10] [TOOL] Delete - Delete
+[2026-06-26 03:03:10] [TOOL] Delete - Delete
+[2026-06-26 03:03:10] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Publish-OllamaToolkitApp.ps1 2>&1
+[2026-06-26 03:03:10] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git status --short
+[2026-06-26 03:03:10] [TOOL] TodoWrite - TodoWrite
+[2026-06-26 03:03:10] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; if (Test-Path .\scripts\Update-DevelopmentArchive.ps1) { .\scripts\Update-DevelopmentArchive.ps1 -Entry "GIT|fix model library download tag resolver, stop download, test/download mutex" }; git commit -m "fix: model library downloads use resolved pull tags, stop button, test mutex"
+[2026-06-26 03:03:10] [SYNC] Processed updates.jsonl lines 18793..19650
+[2026-06-26 03:03:10] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-26 03:04:57] [GIT] fix categorize all reset categories, UI threading, toolbar scope async
+[2026-06-26 03:04:58] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git push 2>&1
+[2026-06-26 03:04:58] [TOOL] TodoWrite - TodoWrite
+[2026-06-26 03:04:58] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git push 2>&1
+[2026-06-26 03:04:58] [TOOL] Grep - Grep
+[2026-06-26 03:04:58] [TOOL] Read - Read
+[2026-06-26 03:04:58] [TOOL] Read - Read
+[2026-06-26 03:04:58] [TOOL] Read - Read
+[2026-06-26 03:04:58] [TOOL] Read - Read
+[2026-06-26 03:04:58] [TOOL] Grep - Grep
+[2026-06-26 03:04:58] [TOOL] Read - Read
+[2026-06-26 03:04:58] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:04:58] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:04:58] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:04:58] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:04:58] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:04:58] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:04:58] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:04:58] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:04:58] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:04:58] [TOOL] Grep - Grep
+[2026-06-26 03:04:58] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-26 03:04:58] [SHELL_FAIL] exit=1 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-26 03:04:58] [TOOL] Read - Read
+[2026-06-26 03:04:58] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:04:58] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:04:58] [TOOL] StrReplace - StrReplace
+[2026-06-26 03:04:58] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
+[2026-06-26 03:04:58] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1
+[2026-06-26 03:04:58] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; if (Test-Path .\scripts\Update-DevelopmentArchive.ps1) { .\scripts\Update-DevelopmentArchive.ps1 -Entry "GIT|fix categorize all reset categories, UI threading, toolbar scope async" }; git add -A; git commit -m "fix: categorize all clears categories first and marshals catalog UI to dispatcher"; git push 2>&1
+[2026-06-26 03:04:58] [SYNC] Processed updates.jsonl lines 19651..19795
+[2026-06-26 03:04:58] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
