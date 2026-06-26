@@ -379,3 +379,7 @@ Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolki
 cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git status --short && git branch --show-current
 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git status --short; git branch --show-current
 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|ApplyTestStoppedProgressUi: all visible bars to 100%, warning styling, Overall: Stopped / Test Stopped labels"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build + publish win-x64 succeeded (0 errors)"
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git status --short; git commit -m "feat: Testing Suite system monitor with APU and GPU metrics"
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --oneline -8
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git revert 43bd1f9 --no-edit
+Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "GIT|Reverted system monitor commit 43bd1f9 (19dd24c)"

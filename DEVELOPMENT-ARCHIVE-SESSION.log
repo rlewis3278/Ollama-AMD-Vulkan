@@ -3401,3 +3401,13 @@ foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included
 [2026-06-25 20:32:09] [BUILD] Release build + publish win-x64 succeeded (0 errors)
 [2026-06-25 20:32:10] [SYNC] Processed updates.jsonl lines 13928..13931
 [2026-06-25 20:32:10] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 21:31:38] [GIT] Reverted system monitor commit 43bd1f9 (19dd24c)
+[2026-06-25 21:31:38] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git status --short; git commit -m "feat: Testing Suite system monitor with APU and GPU metrics"
+[2026-06-25 21:31:38] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 21:31:38] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --oneline -8
+[2026-06-25 21:31:38] [TOOL] AskQuestion - AskQuestion
+[2026-06-25 21:31:38] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git revert 43bd1f9 --no-edit
+[2026-06-25 21:31:38] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App" 2>&1
+[2026-06-25 21:31:38] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "GIT|Reverted system monitor commit 43bd1f9 (19dd24c)"
+[2026-06-25 21:31:39] [SYNC] Processed updates.jsonl lines 14288..14344
+[2026-06-25 21:31:39] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
