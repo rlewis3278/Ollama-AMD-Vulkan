@@ -15,6 +15,9 @@ public sealed class OllamaApiClient : IDisposable
     private DateTime _tagsCheckedAt = DateTime.MinValue;
     private IReadOnlyList<OllamaModelTag>? _tagsCache;
 
+    public InferenceActivityCallbacks? BenchmarkInferenceActivity { get; set; }
+    public InferenceActivityCallbacks? ChatInferenceActivity { get; set; }
+
     public OllamaApiClient(string? host = null, HttpClient? httpClient = null)
     {
         _host = (host ?? ConfigPaths.DefaultOllamaHost).TrimEnd('/');
@@ -163,6 +166,7 @@ public sealed class OllamaApiClient : IDisposable
         IProgress<string>? stageProgress = null,
         CancellationToken cancellationToken = default)
     {
+        using var activity = BenchmarkInferenceActivity?.Begin();
         if (warmup)
         {
             stageProgress?.Report("warmup");
@@ -209,6 +213,7 @@ public sealed class OllamaApiClient : IDisposable
         IProgress<int>? tokenProgress = null,
         CancellationToken cancellationToken = default)
     {
+        using var activity = BenchmarkInferenceActivity?.Begin();
         if (warmup)
         {
             tokenProgress?.Report(0);
@@ -370,6 +375,18 @@ public sealed class OllamaApiClient : IDisposable
     }
 
     public async IAsyncEnumerable<string> ChatStreamAsync(
+        string model,
+        IReadOnlyList<ChatMessage> messages,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        using var activity = ChatInferenceActivity?.Begin();
+        await foreach (var chunk in ChatStreamCoreAsync(model, messages, cancellationToken).ConfigureAwait(false))
+        {
+            yield return chunk;
+        }
+    }
+
+    private async IAsyncEnumerable<string> ChatStreamCoreAsync(
         string model,
         IReadOnlyList<ChatMessage> messages,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)

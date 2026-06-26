@@ -446,4 +446,53 @@
         <Setter Property="BorderBrush" Value="{StaticResource Brush.PanelBorder}" />
         <Setter Property="BorderThickness" Value="1" />
     </Style>
+
+    <ControlTemplate x:Key="ToolkitAiFeatureCheckBoxTemplate" TargetType="CheckBox">
+        <Grid Background="Transparent" MinHeight="32">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border x:Name="Box"
+                    Grid.Column="0"
+                    Width="22" Height="22"
+                    Margin="0,0,10,0"
+                    VerticalAlignment="Center"
+                    Background="{StaticResource Brush.Panel}"
+                    BorderBrush="{StaticResource Brush.PanelBorder}"
+                    BorderThickness="2"
+                    CornerRadius="2" />
+            <Path x:Name="CheckMark"
+                  Grid.Column="0"
+                  Width="14" Height="11"
+                  Margin="4,0,16,0"
+                  VerticalAlignment="Center"
+                  Stretch="Uniform"
+                  Stroke="#FF2222"
+                  StrokeThickness="3"
+                  Data="M 1 5 L 5 9 L 13 1"
+                  Visibility="Collapsed" />
+            <ContentPresenter Grid.Column="1"
+                              VerticalAlignment="Center"
+                              RecognizesAccessKey="True" />
+        </Grid>
+        <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                <Setter TargetName="Box" Property="BorderBrush" Value="#FF2222" />
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Brush.Warning}" />
+            </Trigger>
+        </ControlTemplate.Triggers>
+    </ControlTemplate>
+
+    <Style x:Key="ToolkitAiFeatureCheckBox" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="Padding" Value="4,6" />
+        <Setter Property="Margin" Value="0,4,0,4" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template" Value="{StaticResource ToolkitAiFeatureCheckBoxTemplate}" />
+    </Style>
 </ResourceDictionary>

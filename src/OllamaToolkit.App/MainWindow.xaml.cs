@@ -63,6 +63,7 @@ public partial class MainWindow : Window
     private CatalogDescriptionDisplayMode _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
     private readonly FlashButtonRegistry _flashButtons;
     private readonly AiProcessingFlashPresenter _aiProcessingFlash;
+    private readonly OllamaAiFlashPresenter _ollamaAiFlash;
     private readonly ObservableCollection<CatalogRowViewModel> _catalogRows = new();
     private readonly CatalogRowRefreshAnimator _catalogRowAnimator;
     private Dictionary<string, CatalogRowViewModel> _catalogRowByName = new(StringComparer.OrdinalIgnoreCase);
@@ -75,7 +76,6 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _refreshDescriptionsCts;
     private CancellationTokenSource? _classificationCts;
     private int _catalogToolbarOperations;
-    private int _aiActivityDepth;
     private bool _suppressReportImport;
 
     public MainWindow()
@@ -83,6 +83,8 @@ public partial class MainWindow : Window
         InitializeComponent();
         _flashButtons = new FlashButtonRegistry(this);
         _aiProcessingFlash = new AiProcessingFlashPresenter(AiStatusButton, this);
+        _ollamaAiFlash = new OllamaAiFlashPresenter(OllamaAiStatusButton, this);
+        WireAiActivityPresenters();
         _catalogRowAnimator = new CatalogRowRefreshAnimator(Dispatcher);
         CatalogGrid.ItemsSource = _catalogRows;
         _modeCardPresenter = new ModeCardPresenter(this);
@@ -133,6 +135,7 @@ public partial class MainWindow : Window
             _modeCardPresenter.Stop();
             _flashButtons.StopAll();
             _aiProcessingFlash.Stop();
+            _ollamaAiFlash.Stop();
             _catalogRowAnimator.Stop();
             StopTestSpinUpCreep();
             _testProgressAnimator.Dispose();
@@ -492,12 +495,13 @@ public partial class MainWindow : Window
     {
         var settings = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
         AiFeaturesPanel.Children.Clear();
+        var checkBoxStyle = (Style)FindResource("ToolkitAiFeatureCheckBox");
 
         var master = new CheckBox
         {
             Content = "Enable toolkit AI (master)",
             IsChecked = settings.ToolkitAiEnabled,
-            Foreground = (Brush)FindResource("Brush.Text"),
+            Style = checkBoxStyle,
             Margin = new Thickness(0, 0, 0, 12)
         };
         master.Checked += async (_, _) => await SaveMasterAiAsync(true).ConfigureAwait(true);
@@ -511,8 +515,7 @@ public partial class MainWindow : Window
                 Content = label,
                 Tag = key,
                 IsChecked = settings.FeatureFlags.GetValueOrDefault(key, true),
-                Foreground = (Brush)FindResource("Brush.Text"),
-                Margin = new Thickness(0, 4, 0, 4)
+                Style = checkBoxStyle
             };
             cb.Checked += async (_, _) => await SaveFeatureFlagAsync(key, true).ConfigureAwait(true);
             cb.Unchecked += async (_, _) => await SaveFeatureFlagAsync(key, false).ConfigureAwait(true);
@@ -540,6 +543,10 @@ public partial class MainWindow : Window
         var s = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
         s.ToolkitAiEnabled = enabled;
         await _svc.AiSettings.SaveAsync(s).ConfigureAwait(true);
+        AiFeatureToggleStatus.Text = enabled
+            ? "Toolkit AI enabled — saved instantly."
+            : "Toolkit AI disabled — saved instantly.";
+        await UpdateAiStatusAsync().ConfigureAwait(true);
     }
 
     private async Task SaveFeatureFlagAsync(string key, bool enabled)
@@ -547,6 +554,10 @@ public partial class MainWindow : Window
         var s = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
         s.FeatureFlags[key] = enabled;
         await _svc.AiSettings.SaveAsync(s).ConfigureAwait(true);
+        var label = GetFeatureLabels().FirstOrDefault(f => f.Key == key).Label ?? key;
+        AiFeatureToggleStatus.Text = enabled
+            ? $"{label} enabled — saved instantly."
+            : $"{label} disabled — saved instantly.";
     }
 
     private async Task RefreshAllAsync()
@@ -741,52 +752,68 @@ public partial class MainWindow : Window
             (Brush)FindResource("Brush.Text"));
 
         await UpdateAiButtonStatesAsync().ConfigureAwait(true);
+        await UpdateOllamaAiStatusAsync().ConfigureAwait(true);
     }
 
-    private void EnterAiActivity()
+    private async Task UpdateOllamaAiStatusAsync()
     {
-        void Enter()
-        {
-            if (_aiActivityDepth++ == 0)
-            {
-                _aiProcessingFlash.BeginProcessingFlash();
-            }
-        }
-
-        if (CheckAccess())
-        {
-            Enter();
-        }
-        else
-        {
-            Dispatcher.Invoke(Enter);
-        }
+        var ready = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
+        var content = ready ? "Ollama AI Inactive" : "Ollama API Offline";
+        _ollamaAiFlash.SetIdlePresentation(
+            content,
+            (Brush)FindResource("Brush.Button"),
+            (Brush)FindResource("Brush.PanelBorder"),
+            (Brush)FindResource("Brush.Text"));
     }
+
+    private void WireAiActivityPresenters()
+    {
+        _svc.ActivityHub.ToolkitActivityChanged += active =>
+        {
+            if (CheckAccess())
+            {
+                _aiProcessingFlash.SetActive(active);
+            }
+            else
+            {
+                Dispatcher.Invoke(() => _aiProcessingFlash.SetActive(active));
+            }
+        };
+
+        _svc.ActivityHub.OllamaActivityChanged += active =>
+        {
+            if (CheckAccess())
+            {
+                _ollamaAiFlash.SetActive(active);
+            }
+            else
+            {
+                Dispatcher.Invoke(() => _ollamaAiFlash.SetActive(active));
+            }
+        };
+    }
+
+    private void EnterAiActivity() => _svc.ActivityHub.EnterToolkitAi();
 
     private void ExitAiActivity()
     {
-        void Exit()
+        _svc.ActivityHub.ExitToolkitAi();
+        if (!_svc.ActivityHub.IsToolkitActive)
         {
-            if (_aiActivityDepth <= 0)
-            {
-                return;
-            }
+            _ = UpdateAiStatusAsync();
+        }
+    }
 
-            if (--_aiActivityDepth == 0)
-            {
-                _aiProcessingFlash.EndProcessingFlash();
-                _ = UpdateAiStatusAsync();
-            }
+    private async Task<string> ExplainErrorAsync(string message, CancellationToken cancellationToken = default)
+    {
+        if (!await _svc.AiSettings.IsFeatureEnabledAsync(AiFeatureKeys.PlainLanguageErrors, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return message;
         }
 
-        if (CheckAccess())
-        {
-            Exit();
-        }
-        else
-        {
-            Dispatcher.Invoke(Exit);
-        }
+        using var scope = new ToolkitAiActivityScope(_svc.ActivityHub);
+        return await _svc.PlainErrors.ExplainAsync(message, cancellationToken).ConfigureAwait(false);
     }
 
     private void BeginCatalogToolbarOperation()
@@ -925,7 +952,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
                 _svc.Diagnostics.Write("Modes", $"Apply {mode} failed: {ex.Message}");
                 await UiDispatcher.InvokeAsync(async () =>
@@ -1062,7 +1089,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     ModelRunStatus.Text = msg;
@@ -1271,7 +1298,17 @@ public partial class MainWindow : Window
         await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Prioritizing queue with AI…")).ConfigureAwait(true);
         ct.ThrowIfCancellationRequested();
         var summaries = await _svc.Profiles.GetAllSummariesAsync(ct).ConfigureAwait(true);
-        var queue = await _svc.QueueAdvisor.PrioritizeAsync(names, summaries).ConfigureAwait(true);
+        EnterAiActivity();
+        BenchmarkQueueAdvisorService.PrioritizedQueue queue;
+        try
+        {
+            queue = await _svc.QueueAdvisor.PrioritizeAsync(names, summaries).ConfigureAwait(true);
+        }
+        finally
+        {
+            ExitAiActivity();
+        }
+
         ct.ThrowIfCancellationRequested();
         _svc.Diagnostics.Write("Testing",
             $"AI prioritized queue ({queue.Models.Count} model(s)): {string.Join(" -> ", queue.Models)}");
@@ -2212,8 +2249,16 @@ public partial class MainWindow : Window
                     .FirstOrDefault(s => s.Model.Equals(model, StringComparison.OrdinalIgnoreCase));
                 if (summary is not null)
                 {
-                    await _svc.BenchmarkInsights.InterpretProfileAsync(summary, ct).ConfigureAwait(false);
-                    await _svc.BenchmarkInsights.DiagnoseFailuresAsync(summary, ct).ConfigureAwait(false);
+                    EnterAiActivity();
+                    try
+                    {
+                        await _svc.BenchmarkInsights.InterpretProfileAsync(summary, ct).ConfigureAwait(false);
+                        await _svc.BenchmarkInsights.DiagnoseFailuresAsync(summary, ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        ExitAiActivity();
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -2284,7 +2329,6 @@ public partial class MainWindow : Window
 
         await _svc.WorkQueue.EnqueueAsync(async token =>
         {
-            EnterAiActivity();
             try
             {
                 await foreach (var chunk in _svc.ApiClient.ChatStreamAsync(_runModel!, _chatMessages, ct)
@@ -2316,7 +2360,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     ChatHistory.Text += msg;
@@ -2325,10 +2369,6 @@ public partial class MainWindow : Window
                         EndTaskFlashIdle(flashSender);
                     }
                 }).ConfigureAwait(false);
-            }
-            finally
-            {
-                ExitAiActivity();
             }
         }).ConfigureAwait(true);
     }
@@ -2549,7 +2589,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
                 await UiDispatcher.InvokeAsync(() =>
                 {
@@ -2907,7 +2947,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
                 await UiDispatcher.InvokeAsync(() =>
                 {
@@ -2971,7 +3011,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
                 await UiDispatcher.InvokeAsync(() =>
                 {
@@ -3172,7 +3212,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
                 await UiDispatcher.InvokeAsync(() =>
                 {
@@ -3417,7 +3457,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, token).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, token).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     EndCatalogDownloadRow(row, row.Installed);
@@ -3482,7 +3522,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     CatalogStatusLabel.Text = msg;
@@ -3718,7 +3758,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() => ModelRunStatus.Text = msg).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
@@ -3888,7 +3928,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
                 await UiDispatcher.InvokeAsync(() =>
                 {
@@ -3939,7 +3979,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     SummarizerTestResult.Text = msg;
@@ -3979,7 +4019,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     AnomalySummary.Text = msg;
@@ -4047,7 +4087,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     AiFlyoutBody.Text = msg;
@@ -4144,7 +4184,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                var msg = await _svc.PlainErrors.ExplainAsync(ex.Message, ct).ConfigureAwait(false);
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     AiFlyoutBody.Text = msg;
@@ -4226,7 +4266,16 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var doc = await _svc.LogAnomalies.ScanAsync(ct).ConfigureAwait(false);
+            EnterAiActivity();
+            LogAnomaliesDocument doc;
+            try
+            {
+                doc = await _svc.LogAnomalies.ScanAsync(ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                ExitAiActivity();
+            }
             if (doc.Anomalies.Count > 0)
             {
                 await UiDispatcher.InvokeAsync(() =>

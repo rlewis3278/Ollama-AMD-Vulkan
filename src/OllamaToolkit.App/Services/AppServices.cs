@@ -15,12 +15,23 @@ public sealed class AppServices : IDisposable
 {
     public AppServices()
     {
+        ActivityHub = new AiActivityHub();
         ActivityLog = new ActivityLogService();
         Diagnostics = new ToolkitDiagnosticsService();
         WorkQueue = new BackgroundWorkQueue(ActivityLog, Diagnostics);
         ApiClient = new OllamaApiClient();
+        var ollamaInference = new InferenceActivityCallbacks
+        {
+            OnStart = ActivityHub.EnterOllamaInference,
+            OnEnd = ActivityHub.ExitOllamaInference
+        };
+        ApiClient.BenchmarkInferenceActivity = ollamaInference;
+        ApiClient.ChatInferenceActivity = ollamaInference;
         OllamaCli = new OllamaCliService();
-        ModelSessions = new OllamaModelSessionService(OllamaCli);
+        ModelSessions = new OllamaModelSessionService(OllamaCli)
+        {
+            LoadActivity = ollamaInference
+        };
         ModeDefinitions = new ModeDefinitionService();
         ModeService = new ModeService(ModeDefinitions, new EnvBackupService(), new OllamaProcessService());
         EnvBackup = new EnvBackupService();
@@ -46,6 +57,7 @@ public sealed class AppServices : IDisposable
         ModelComparison = new ModelComparisonService(AiSettings, ApiClient, Summarizer);
     }
 
+    public AiActivityHub ActivityHub { get; }
     public BackgroundWorkQueue WorkQueue { get; }
     public OllamaApiClient ApiClient { get; }
     public OllamaCliService OllamaCli { get; }

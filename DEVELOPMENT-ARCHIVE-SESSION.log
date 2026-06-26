@@ -3553,3 +3553,118 @@ foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included
 [2026-06-25 21:52:53] [BUILD] Release build 0 errors; published OllamaToolkit.App
 [2026-06-25 21:52:53] [SYNC] Processed updates.jsonl lines 14863..14864
 [2026-06-25 21:52:53] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 22:29:04] [FILE] AiActivityHub + dual status buttons (AI Active / Ollama AI Active)
+[2026-06-25 22:29:05] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Glob - Glob
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] AskQuestion - AskQuestion
+[2026-06-25 22:29:05] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Write - Write
+[2026-06-25 22:29:05] [TOOL] Write - Write
+[2026-06-25 22:29:05] [TOOL] Write - Write
+[2026-06-25 22:29:05] [TOOL] Write - Write
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] Grep - Grep
+[2026-06-25 22:29:05] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-25 22:29:05] [SHELL_FAIL] exit=1 dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [TOOL] Read - Read
+[2026-06-25 22:29:05] [TOOL] StrReplace - StrReplace
+[2026-06-25 22:29:05] [SHELL] dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release; dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 --self-contained false -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
+[2026-06-25 22:29:05] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|AiActivityHub + dual status buttons (AI Active / Ollama AI Active)"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|InferenceActivityCallbacks on OllamaApiClient benchmark/chat + model warm-load"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|ToolkitAiFeatureCheckBox â€” larger boxes, bright red checkmark, instant-save feedback"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build 0 errors; published OllamaToolkit.App"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: reliable AI activity indicators and AI Features checkbox UI`n`n- AiActivityHub ref-counts toolkit AI vs Ollama inference separately`n- AI Active flashes yellow/black for all toolkit AI tasks`n- Ollama AI Active button for benchmark/chat/launch inference`n- Fix flash presenter to use ToolkitFlashButtonTemplate`n- Larger AI Features checkboxes with bright red checkmarks; instant-save feedback"
+[2026-06-25 22:29:05] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 22:29:05] [SYNC] Processed updates.jsonl lines 14865..15283
+[2026-06-25 22:29:05] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 22:29:05] [FILE] InferenceActivityCallbacks on OllamaApiClient benchmark/chat + model warm-load
+[2026-06-25 22:29:06] [SYNC] Processed updates.jsonl lines 15284..15289
+[2026-06-25 22:29:06] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 22:29:06] [FILE] ToolkitAiFeatureCheckBox — larger boxes, bright red checkmark, instant-save feedback
+[2026-06-25 22:29:06] [SYNC] Processed updates.jsonl lines 15290..15291
+[2026-06-25 22:29:06] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 22:29:06] [BUILD] Release build 0 errors; published OllamaToolkit.App
+[2026-06-25 22:29:07] [SYNC] Processed updates.jsonl lines 15292..15293
+[2026-06-25 22:29:07] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

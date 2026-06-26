@@ -355,7 +355,11 @@
             </TabItem>
             <TabItem Header="AI Features">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12">
-                    <StackPanel x:Name="AiFeaturesPanel" />
+                    <StackPanel>
+                        <TextBlock x:Name="AiFeatureToggleStatus" Foreground="{StaticResource Brush.Muted}"
+                                   Margin="0,0,0,8" TextWrapping="Wrap" />
+                        <StackPanel x:Name="AiFeaturesPanel" />
+                    </StackPanel>
                 </ScrollViewer>
             </TabItem>
             <TabItem Header="AI Activity">
@@ -409,8 +413,12 @@
                 <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center"
                            Foreground="{StaticResource Brush.Muted}" FontSize="14"
                            Text="Model lists load from Ollama API and cached profiles. Start Ollama if lists are empty." />
-                <Button x:Name="AiStatusButton" HorizontalAlignment="Right" Style="{StaticResource ToolkitButton}"
-                        Content="AI Inactive" Click="AiStatusButton_Click" />
+                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                    <Button x:Name="OllamaAiStatusButton" Style="{StaticResource ToolkitButton}"
+                            Content="Ollama AI Inactive" IsHitTestVisible="False" />
+                    <Button x:Name="AiStatusButton" Style="{StaticResource ToolkitButton}"
+                            Content="AI Inactive" Click="AiStatusButton_Click" />
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>

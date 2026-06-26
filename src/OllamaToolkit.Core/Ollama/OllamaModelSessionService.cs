@@ -8,6 +8,8 @@ public sealed class OllamaModelSessionService
     private readonly OllamaCliService _cli;
     private string? _activeModel;
 
+    public InferenceActivityCallbacks? LoadActivity { get; set; }
+
     public OllamaModelSessionService(OllamaCliService? cli = null)
     {
         _cli = cli ?? new OllamaCliService();
@@ -30,6 +32,7 @@ public sealed class OllamaModelSessionService
 
         if (warmLoad)
         {
+            using var activity = LoadActivity?.Begin();
             var result = await _cli.RunAsync(model, prompt: "ok", cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
             if (!result.Success)

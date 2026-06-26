@@ -8,9 +8,11 @@ namespace OllamaToolkit.App.Services;
 public sealed class AiProcessingFlashPresenter
 {
     private readonly Button _button;
+    private readonly Window _window;
     private readonly Brush _pendingYellow;
     private readonly Brush _pendingBlack;
     private readonly DispatcherTimer _flashTimer;
+    private ControlTemplate? _savedTemplate;
     private bool _flashPhase;
     private bool _flashing;
     private string _idleContent = string.Empty;
@@ -21,6 +23,7 @@ public sealed class AiProcessingFlashPresenter
     public AiProcessingFlashPresenter(Button button, Window window)
     {
         _button = button;
+        _window = window;
         _pendingYellow = GetBrush(window, "Brush.Warning");
         _pendingBlack = GetBrush(window, "Brush.Bg");
         _flashTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
@@ -49,23 +52,37 @@ public sealed class AiProcessingFlashPresenter
         }
     }
 
+    public void SetActive(bool active)
+    {
+        if (active)
+        {
+            BeginProcessingFlash();
+        }
+        else
+        {
+            EndProcessingFlash();
+        }
+    }
+
     public void BeginProcessingFlash()
     {
-        if (_flashing)
-        {
-            return;
-        }
-
         _flashing = true;
         _flashPhase = true;
+        UseFlashTemplate();
         ApplyFlash(true);
-        _flashTimer.Start();
+        if (!_flashTimer.IsEnabled)
+        {
+            _flashTimer.Start();
+        }
+
+        _button.Dispatcher.BeginInvoke(DispatcherPriority.Render, () => ApplyFlash(_flashPhase));
     }
 
     public void EndProcessingFlash()
     {
         _flashTimer.Stop();
         _flashing = false;
+        RestoreDefaultTemplate();
         ApplyIdle();
     }
 
@@ -85,6 +102,25 @@ public sealed class AiProcessingFlashPresenter
         _button.Background = _idleBg;
         _button.BorderBrush = _idleBorder;
         _button.Foreground = _idleForeground;
+    }
+
+    private void UseFlashTemplate()
+    {
+        if (_savedTemplate is null)
+        {
+            _savedTemplate = _button.Template;
+        }
+
+        _button.Template = (ControlTemplate)_window.FindResource("ToolkitFlashButtonTemplate");
+    }
+
+    private void RestoreDefaultTemplate()
+    {
+        if (_savedTemplate is not null)
+        {
+            _button.Template = _savedTemplate;
+            _savedTemplate = null;
+        }
     }
 
     private static Brush GetBrush(Window window, string key) =>
