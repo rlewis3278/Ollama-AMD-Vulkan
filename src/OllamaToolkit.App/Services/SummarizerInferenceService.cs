@@ -47,6 +47,14 @@ public sealed class SummarizerInferenceService
             return;
         }
 
+        var currentMode = _modeService.DetectCurrentMode();
+        if (currentMode.Equals(match.BestMode, StringComparison.OrdinalIgnoreCase))
+        {
+            _diagnostics.Write("AI",
+                $"Summarizer inference: already in best mode {match.BestMode} for {summarizerModel}.");
+            return;
+        }
+
         await _modeService.ApplyModeWithRestartAsync(mode, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
         _diagnostics.Write("AI",

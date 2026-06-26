@@ -37,7 +37,7 @@ public static class AppBuildInfo
     {
         var informational = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-            ?? "1.0.0";
+            ?? "1.1.0";
 
         var plus = informational.IndexOf('+');
         if (plus < 0)

@@ -70,13 +70,10 @@ public partial class MainWindow : Window
     private readonly TestingRowHighlightCoordinator _testingHighlight;
     private Dictionary<string, CatalogRowViewModel> _catalogRowByName = new(StringComparer.OrdinalIgnoreCase);
     private bool _suppressCatalogUiEvents;
-    private bool _catalogRefreshInProgress;
-    private bool _descriptionRefreshInProgress;
     private bool _catalogDownloadInProgress;
     private CancellationTokenSource? _catalogDownloadCts;
-    private CancellationTokenSource? _refreshCatalogCts;
-    private CancellationTokenSource? _refreshDescriptionsCts;
-    private CancellationTokenSource? _classificationCts;
+    private readonly CatalogOperationCoordinator _catalogOps = new();
+    private int _catalogBulkUiCounter;
     private CancellationTokenSource? _aiRecommendationsCts;
     private object? _generateRecommendationsFlashSender;
     private int _catalogToolbarOperations;
@@ -113,7 +110,18 @@ public partial class MainWindow : Window
         _catalogSearchTimer.Tick += async (_, _) =>
         {
             _catalogSearchTimer.Stop();
-            await RefreshCatalogUiAsync().ConfigureAwait(true);
+            try
+            {
+                if (!IsCatalogUiLocked)
+                {
+                    await RefreshCatalogUiAsync().ConfigureAwait(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _svc.Diagnostics.Write("Catalog", $"Search refresh failed: {ex.Message}");
+                CatalogStatusLabel.Text = ex.Message;
+            }
         };
         _testSettingsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _testSettingsTimer.Tick += async (_, _) =>
@@ -890,6 +898,69 @@ public partial class MainWindow : Window
             CatalogStopBtn.BorderBrush = (Brush)FindResource("Brush.PanelBorder");
             CatalogStopBtn.Foreground = (Brush)FindResource("Brush.Text");
         }
+    }
+
+    private bool IsCatalogUiLocked => _catalogOps.IsToolbarBusy || _catalogDownloadInProgress;
+
+    private bool TryBeginCatalogToolbarOperation(
+        CatalogToolbarOperationType type,
+        object sender,
+        out CancellationToken token,
+        out int generation)
+    {
+        if (!_catalogOps.TryBegin(type, sender, out token, out generation))
+        {
+            return false;
+        }
+
+        BeginCatalogToolbarOperation();
+        _svc.Diagnostics.Write("Catalog", $"Started {type}.");
+        return true;
+    }
+
+    private void EndCatalogToolbarOperationScope(int generation)
+    {
+        _catalogOps.End(generation);
+        EndCatalogToolbarOperation();
+    }
+
+    private async Task RefreshCategoryFilterComboAsync(CancellationToken cancellationToken = default)
+    {
+        var categoryDoc = await _svc.CategoryStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var present = categoryDoc.Models.Values
+            .Select(e => e.Category)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Select(CategoryNormalizer.Normalize)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(CategoryNormalizer.GetSortOrder)
+            .ThenBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var items = new List<string> { "All" };
+        items.AddRange(present);
+
+        await UiDispatcher.InvokeAsync(() =>
+        {
+            var previous = CategoryFilterCombo.SelectedItem as string;
+            _suppressCatalogUiEvents = true;
+            try
+            {
+                CategoryFilterCombo.ItemsSource = items;
+                if (!string.IsNullOrWhiteSpace(previous)
+                    && items.Contains(previous, StringComparer.OrdinalIgnoreCase))
+                {
+                    CategoryFilterCombo.SelectedItem = previous;
+                }
+                else
+                {
+                    CategoryFilterCombo.SelectedIndex = 0;
+                }
+            }
+            finally
+            {
+                _suppressCatalogUiEvents = false;
+            }
+        }).ConfigureAwait(false);
     }
 
     private async Task UpdateAiButtonStatesAsync()
@@ -2534,16 +2605,44 @@ public partial class MainWindow : Window
 
     private async void DownloadDescriptionsMode_Click(object sender, RoutedEventArgs e)
     {
-        _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
-        ApplyCatalogDescriptionModeUi();
-        await RefreshCatalogUiAsync().ConfigureAwait(true);
+        if (IsCatalogUiLocked)
+        {
+            CatalogStatusLabel.Text = "Wait for the active catalog operation to finish.";
+            return;
+        }
+
+        try
+        {
+            _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
+            ApplyCatalogDescriptionModeUi();
+            await RefreshCatalogUiAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            _svc.Diagnostics.Write("Catalog", $"Description mode switch failed: {ex.Message}");
+            CatalogStatusLabel.Text = ex.Message;
+        }
     }
 
     private async void AiDescriptionsMode_Click(object sender, RoutedEventArgs e)
     {
-        _catalogDescriptionMode = CatalogDescriptionDisplayMode.Ai;
-        ApplyCatalogDescriptionModeUi();
-        await RefreshCatalogUiAsync().ConfigureAwait(true);
+        if (IsCatalogUiLocked)
+        {
+            CatalogStatusLabel.Text = "Wait for the active catalog operation to finish.";
+            return;
+        }
+
+        try
+        {
+            _catalogDescriptionMode = CatalogDescriptionDisplayMode.Ai;
+            ApplyCatalogDescriptionModeUi();
+            await RefreshCatalogUiAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            _svc.Diagnostics.Write("Catalog", $"Description mode switch failed: {ex.Message}");
+            CatalogStatusLabel.Text = ex.Message;
+        }
     }
 
     private async void RefreshDescriptions_Click(object sender, RoutedEventArgs e)
@@ -2553,19 +2652,22 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!TryBeginCatalogToolbarOperation(
+                CatalogToolbarOperationType.RefreshDescriptions, sender, out var opToken, out var generation))
+        {
+            EndTaskFlashIdle(sender);
+            CatalogStatusLabel.Text = "Another catalog operation is already running.";
+            return;
+        }
+
         _catalogDescriptionMode = CatalogDescriptionDisplayMode.Ai;
         ApplyCatalogDescriptionModeUi();
-
-        _refreshDescriptionsCts?.Cancel();
-        _refreshDescriptionsCts?.Dispose();
-        _refreshDescriptionsCts = new CancellationTokenSource();
-        _descriptionRefreshInProgress = true;
-        BeginCatalogToolbarOperation();
+        _catalogBulkUiCounter = 0;
         CatalogStatusLabel.Text = "Refreshing descriptions from ollama.com...";
 
         await _svc.WorkQueue.EnqueueAsync(async workCt =>
         {
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(workCt, _refreshDescriptionsCts.Token);
+            using var linked = _catalogOps.CreateLinkedTokenSource(workCt)!;
             var ct = linked.Token;
             EnterAiActivity();
             try
@@ -2579,14 +2681,20 @@ public partial class MainWindow : Window
                     .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                await UiDispatcher.InvokeAsync(async () =>
-                    await BindFullCatalogGridAsync("Refreshing descriptions", sortAlphabetically: true)
-                        .ConfigureAwait(true)).ConfigureAwait(false);
+                await BindFullCatalogGridAsync("Refreshing descriptions", sortAlphabetically: true, ct)
+                    .ConfigureAwait(false);
 
                 var progress = new Progress<string>(msg =>
-                    UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
+                    UiDispatcher.Invoke(() => CatalogStatusLabel.Text = msg));
                 var itemProgress = new Progress<DescriptionRefreshItemProgress>(p =>
-                    UiDispatcher.InvokeAsync(() => HandleDescriptionRefreshProgress(p)));
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    UiDispatcher.Invoke(() => HandleDescriptionRefreshProgress(p));
+                });
 
                 var count = await _svc.Descriptions.RefreshAllListDescriptionsAsync(
                     entries,
@@ -2608,7 +2716,6 @@ public partial class MainWindow : Window
 
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    _descriptionRefreshInProgress = false;
                     _catalogRowAnimator.Stop();
                     ScrollCatalogGridToTop();
                     CatalogStatusLabel.Text = $"Descriptions refreshed — {count} AI summary(s) updated.";
@@ -2619,25 +2726,26 @@ public partial class MainWindow : Window
                         FinishDescriptionRefreshHoldover,
                         FlashSuccessStyle.Info);
                 }).ConfigureAwait(false);
+                _svc.Diagnostics.Write("Catalog", $"RefreshDescriptions complete ({count} descriptions).");
             }
             catch (OperationCanceledException)
             {
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    _descriptionRefreshInProgress = false;
                     _catalogRowAnimator.Stop();
                     CatalogRowRefreshAnimator.ResetAll(_catalogRows);
                     CatalogStatusLabel.Text = "Description refresh cancelled.";
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
+                _svc.Diagnostics.Write("Catalog", "RefreshDescriptions cancelled.");
             }
             catch (Exception ex)
             {
                 var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
+                _svc.Diagnostics.Write("Catalog", $"RefreshDescriptions failed: {ex.Message}");
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    _descriptionRefreshInProgress = false;
                     _catalogRowAnimator.Stop();
                     CatalogRowRefreshAnimator.ResetAll(_catalogRows);
                     CatalogStatusLabel.Text = msg;
@@ -2647,7 +2755,7 @@ public partial class MainWindow : Window
             finally
             {
                 ExitAiActivity();
-                EndCatalogToolbarOperation();
+                EndCatalogToolbarOperationScope(generation);
             }
         }).ConfigureAwait(true);
     }
@@ -2685,29 +2793,36 @@ public partial class MainWindow : Window
         ReapplyUndownloadPurpleHighlights();
     }
 
-    private async Task BindFullCatalogGridAsync(string statusPrefix, bool sortAlphabetically = false)
+    private async Task BindFullCatalogGridAsync(
+        string statusPrefix,
+        bool sortAlphabetically = false,
+        CancellationToken cancellationToken = default)
     {
-        _suppressCatalogUiEvents = true;
-        try
+        var rows = (await _svc.Registry.GetCatalogRowsAsync(
+            search: null,
+            categoryFilter: "All",
+            descriptionMode: _catalogDescriptionMode,
+            cancellationToken: cancellationToken).ConfigureAwait(false)).ToList();
+        if (sortAlphabetically)
         {
-            CategoryFilterCombo.SelectedIndex = 0;
-            CatalogSearchBox.Text = string.Empty;
-            var rows = (await _svc.Registry.GetCatalogRowsAsync(
-                search: null,
-                categoryFilter: "All",
-                descriptionMode: _catalogDescriptionMode).ConfigureAwait(true)).ToList();
-            if (sortAlphabetically)
-            {
-                rows = rows.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList();
-            }
+            rows = rows.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        }
 
-            BindCatalogRows(rows);
-            CatalogStatusLabel.Text = $"{statusPrefix} for {rows.Count} model(s)...";
-        }
-        finally
+        await UiDispatcher.InvokeAsync(() =>
         {
-            _suppressCatalogUiEvents = false;
-        }
+            _suppressCatalogUiEvents = true;
+            try
+            {
+                CategoryFilterCombo.SelectedIndex = 0;
+                CatalogSearchBox.Text = string.Empty;
+                BindCatalogRows(rows);
+                CatalogStatusLabel.Text = $"{statusPrefix} for {rows.Count} model(s)...";
+            }
+            finally
+            {
+                _suppressCatalogUiEvents = false;
+            }
+        }).ConfigureAwait(false);
     }
 
     private void ScrollCatalogGridToTop()
@@ -2741,7 +2856,8 @@ public partial class MainWindow : Window
 
     private void HandleCatalogRefreshProgress(CatalogRefreshItemProgress progress)
     {
-        if (!_catalogRowByName.TryGetValue(progress.ModelName, out var row))
+        if (!_catalogOps.IsToolbarBusy
+            || !_catalogRowByName.TryGetValue(progress.ModelName, out var row))
         {
             return;
         }
@@ -2749,8 +2865,12 @@ public partial class MainWindow : Window
         if (progress.Phase == CatalogRefreshPhase.Started)
         {
             _catalogRowAnimator.BeginRow(row);
-            CatalogGrid.SelectedItem = row;
-            CatalogGrid.ScrollIntoView(row);
+            _catalogBulkUiCounter++;
+            if (_catalogBulkUiCounter == 1 || _catalogBulkUiCounter % 25 == 0)
+            {
+                CatalogGrid.SelectedItem = row;
+                CatalogGrid.ScrollIntoView(row);
+            }
         }
         else
         {
@@ -2779,7 +2899,8 @@ public partial class MainWindow : Window
 
     private void HandleDescriptionRefreshProgress(DescriptionRefreshItemProgress progress)
     {
-        if (!_catalogRowByName.TryGetValue(progress.ModelName, out var row))
+        if (!_catalogOps.IsToolbarBusy
+            || !_catalogRowByName.TryGetValue(progress.ModelName, out var row))
         {
             return;
         }
@@ -2787,8 +2908,12 @@ public partial class MainWindow : Window
         if (progress.Phase == DescriptionRefreshPhase.Started)
         {
             _catalogRowAnimator.BeginRow(row);
-            CatalogGrid.SelectedItem = row;
-            CatalogGrid.ScrollIntoView(row);
+            _catalogBulkUiCounter++;
+            if (_catalogBulkUiCounter == 1 || _catalogBulkUiCounter % 25 == 0)
+            {
+                CatalogGrid.SelectedItem = row;
+                CatalogGrid.ScrollIntoView(row);
+            }
         }
         else
         {
@@ -2826,11 +2951,12 @@ public partial class MainWindow : Window
 
     private async Task LoadCatalogTabAsync()
     {
-        if (_catalogRefreshInProgress || _descriptionRefreshInProgress)
+        if (IsCatalogUiLocked)
         {
             return;
         }
 
+        await RefreshCategoryFilterComboAsync().ConfigureAwait(true);
         await RefreshCatalogUiAsync().ConfigureAwait(true);
     }
 
@@ -2838,28 +2964,21 @@ public partial class MainWindow : Window
 
     private async Task CancelActiveCatalogOperationsAsync()
     {
-        _refreshCatalogCts?.Cancel();
-        _refreshDescriptionsCts?.Cancel();
-        _classificationCts?.Cancel();
+        _catalogOps.Cancel();
         _catalogDownloadCts?.Cancel();
         CancelCatalogFileSizeEnrichment();
-        _catalogRefreshInProgress = false;
-        _descriptionRefreshInProgress = false;
-        _catalogDownloadInProgress = false;
-        _catalogToolbarOperations = 0;
-        UpdateCatalogStopButtonUi();
+        _svc.Diagnostics.Write("Catalog", "STOP requested for active catalog operation.");
 
         await UiDispatcher.InvokeAsync(() =>
         {
             _catalogRowAnimator.Stop();
             CatalogRowRefreshAnimator.ResetAll(_catalogRows);
             HideCatalogDownloadProgress();
-            EndTaskFlashIdle(RefreshCatalogBtn);
-            EndTaskFlashIdle(DownloadCatalogModelBtn);
-            EndTaskFlashIdle(RefreshDescriptionsBtn);
-            EndTaskFlashIdle(CatalogCategorizeAllBtn);
-            EndTaskFlashIdle(ClearCatalogBtn);
-        }).ConfigureAwait(true);
+            if (_catalogOps.ActiveFlashSender is { } flashSender)
+            {
+                EndTaskFlashIdle(flashSender);
+            }
+        }).ConfigureAwait(false);
     }
 
     private async void CatalogStop_Click(object sender, RoutedEventArgs e)
@@ -2870,49 +2989,64 @@ public partial class MainWindow : Window
         }
 
         await CancelActiveCatalogOperationsAsync().ConfigureAwait(true);
-        CatalogStatusLabel.Text = "Catalog operation stopped.";
+        CatalogStatusLabel.Text = "Stopping catalog operation...";
     }
 
     private async Task RefreshCatalogUiAsync()
     {
-        if (_catalogRefreshInProgress || _descriptionRefreshInProgress || _catalogDownloadInProgress)
+        if (IsCatalogUiLocked)
         {
             return;
         }
 
-        var search = CatalogSearchBox.Text;
-        var category = CategoryFilterCombo.SelectedItem as string;
-        var rows = (await _svc.Registry.GetCatalogRowsAsync(search, category, _catalogDescriptionMode)
-            .ConfigureAwait(true)).ToList();
-        if (NaturalLanguageSearchService.LooksNaturalLanguage(search) && rows.Count > 1)
+        try
         {
-            var candidates = rows.Select(r => new NlSearchCandidate(r.Name, r.Category, r.ParameterSize, r.DisplayDescription))
-                .ToList();
-            EnterAiActivity();
-            IReadOnlyList<string> ranked;
-            try
+            var search = await UiDispatcher.InvokeAsync(() => CatalogSearchBox.Text).ConfigureAwait(false);
+            var category = await UiDispatcher.InvokeAsync(() => CategoryFilterCombo.SelectedItem as string)
+                .ConfigureAwait(false);
+            var rows = (await _svc.Registry.GetCatalogRowsAsync(search, category, _catalogDescriptionMode)
+                .ConfigureAwait(false)).ToList();
+            if (NaturalLanguageSearchService.LooksNaturalLanguage(search) && rows.Count > 1)
             {
-                ranked = await _svc.NlSearch.RankModelsAsync(search, candidates).ConfigureAwait(true);
-            }
-            finally
-            {
-                ExitAiActivity();
+                var candidates = rows.Select(r => new NlSearchCandidate(r.Name, r.Category, r.ParameterSize, r.DisplayDescription))
+                    .ToList();
+                EnterAiActivity();
+                IReadOnlyList<string> ranked;
+                try
+                {
+                    ranked = await _svc.NlSearch.RankModelsAsync(search, candidates).ConfigureAwait(false);
+                }
+                finally
+                {
+                    ExitAiActivity();
+                }
+
+                if (ranked.Count > 0)
+                {
+                    _nlRankedCatalog = ranked.ToList();
+                    var rankMap = ranked.Select((name, i) => (name, i))
+                        .ToDictionary(x => x.name, x => x.i, StringComparer.OrdinalIgnoreCase);
+                    rows = rows.OrderBy(r => rankMap.TryGetValue(r.Name, out var i) ? i : 999).ThenBy(r => r.Name).ToList();
+                    await UiDispatcher.InvokeAsync(() =>
+                    {
+                        CatalogStatusLabel.Text = $"NL-ranked {ranked.Count} model(s); showing {rows.Count}.";
+                        BindCatalogRows(rows);
+                    }).ConfigureAwait(false);
+                    return;
+                }
             }
 
-            if (ranked.Count > 0)
+            await UiDispatcher.InvokeAsync(() =>
             {
-                _nlRankedCatalog = ranked.ToList();
-                var rankMap = ranked.Select((name, i) => (name, i))
-                    .ToDictionary(x => x.name, x => x.i, StringComparer.OrdinalIgnoreCase);
-                rows = rows.OrderBy(r => rankMap.TryGetValue(r.Name, out var i) ? i : 999).ThenBy(r => r.Name).ToList();
-                CatalogStatusLabel.Text = $"NL-ranked {ranked.Count} model(s); showing {rows.Count}.";
                 BindCatalogRows(rows);
-                return;
-            }
+                CatalogStatusLabel.Text = $"Showing {rows.Count} catalog model(s).";
+            }).ConfigureAwait(false);
         }
-
-        BindCatalogRows(rows);
-        CatalogStatusLabel.Text = $"Showing {rows.Count} catalog model(s).";
+        catch (Exception ex)
+        {
+            _svc.Diagnostics.Write("Catalog", $"RefreshCatalogUi failed: {ex.Message}");
+            await UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = ex.Message).ConfigureAwait(false);
+        }
     }
 
     private void CatalogSearchBox_KeyUp(object sender, KeyEventArgs e)
@@ -2923,12 +3057,20 @@ public partial class MainWindow : Window
 
     private async void CategoryFilterCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_suppressCatalogUiEvents || _catalogRefreshInProgress || _descriptionRefreshInProgress)
+        if (_suppressCatalogUiEvents || IsCatalogUiLocked)
         {
             return;
         }
 
-        await RefreshCatalogUiAsync().ConfigureAwait(true);
+        try
+        {
+            await RefreshCatalogUiAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            _svc.Diagnostics.Write("Catalog", $"Category filter failed: {ex.Message}");
+            CatalogStatusLabel.Text = ex.Message;
+        }
     }
 
     private async void RefreshCatalog_Click(object sender, RoutedEventArgs e)
@@ -2938,23 +3080,26 @@ public partial class MainWindow : Window
             return;
         }
 
-        _refreshCatalogCts?.Cancel();
-        _refreshCatalogCts?.Dispose();
-        _refreshCatalogCts = new CancellationTokenSource();
-        _catalogRefreshInProgress = true;
-        BeginCatalogToolbarOperation();
+        if (!TryBeginCatalogToolbarOperation(
+                CatalogToolbarOperationType.RefreshCatalog, sender, out _, out var generation))
+        {
+            EndTaskFlashIdle(sender);
+            CatalogStatusLabel.Text = "Another catalog operation is already running.";
+            return;
+        }
+
+        _catalogBulkUiCounter = 0;
         CatalogStatusLabel.Text = "Refreshing from ollama.com...";
         await _svc.WorkQueue.EnqueueAsync(async workCt =>
         {
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(workCt, _refreshCatalogCts.Token);
+            using var linked = _catalogOps.CreateLinkedTokenSource(workCt)!;
             var ct = linked.Token;
             try
             {
                 await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
                 _svc.CatalogStore.ClearCache();
 
-                await UiDispatcher.InvokeAsync(async () =>
-                    await BindFullCatalogGridAsync("Refreshing catalog").ConfigureAwait(true)).ConfigureAwait(false);
+                await BindFullCatalogGridAsync("Refreshing catalog", cancellationToken: ct).ConfigureAwait(false);
 
                 var progress = new Progress<string>(msg =>
                     UiDispatcher.Invoke(() => CatalogStatusLabel.Text = msg));
@@ -2963,9 +3108,10 @@ public partial class MainWindow : Window
                 await _svc.CatalogStore.ProcessCatalogEntriesUiPassAsync(
                     installed,
                     progress,
-                    async (item, token) =>
+                    (item, _) =>
                     {
-                        await UiDispatcher.InvokeAsync(() => HandleCatalogRefreshProgress(item)).ConfigureAwait(true);
+                        UiDispatcher.Invoke(() => HandleCatalogRefreshProgress(item));
+                        return Task.CompletedTask;
                     },
                     ct).ConfigureAwait(false);
 
@@ -2979,32 +3125,32 @@ public partial class MainWindow : Window
 
                 await UiDispatcher.InvokeAsync(async () =>
                 {
-                    _catalogRefreshInProgress = false;
                     await RefreshCatalogUiAsync().ConfigureAwait(true);
                     _catalogRowAnimator.Stop();
                     ScrollCatalogGridToTop();
                     CatalogStatusLabel.Text = "Catalog refreshed.";
                     EndTaskFlashSuccess(sender, "Refreshed", 10, FinishCatalogRefreshHoldover);
                 }).ConfigureAwait(false);
+                _svc.Diagnostics.Write("Catalog", "RefreshCatalog complete.");
             }
             catch (OperationCanceledException)
             {
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    _catalogRefreshInProgress = false;
                     _catalogRowAnimator.Stop();
                     CatalogRowRefreshAnimator.ResetAll(_catalogRows);
                     CatalogStatusLabel.Text = "Catalog refresh cancelled.";
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
+                _svc.Diagnostics.Write("Catalog", "RefreshCatalog cancelled.");
             }
             catch (Exception ex)
             {
                 var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
+                _svc.Diagnostics.Write("Catalog", $"RefreshCatalog failed: {ex.Message}");
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    _catalogRefreshInProgress = false;
                     _catalogRowAnimator.Stop();
                     CatalogRowRefreshAnimator.ResetAll(_catalogRows);
                     CatalogStatusLabel.Text = msg;
@@ -3013,7 +3159,7 @@ public partial class MainWindow : Window
             }
             finally
             {
-                EndCatalogToolbarOperation();
+                EndCatalogToolbarOperationScope(generation);
             }
         }).ConfigureAwait(true);
     }
@@ -3040,11 +3186,20 @@ public partial class MainWindow : Window
             return;
         }
 
-        BeginCatalogToolbarOperation();
+        if (!TryBeginCatalogToolbarOperation(
+                CatalogToolbarOperationType.ClearCatalog, sender, out _, out var generation))
+        {
+            EndTaskFlashIdle(sender);
+            CatalogStatusLabel.Text = "Another catalog operation is already running.";
+            return;
+        }
+
         CatalogStatusLabel.Text = "Clearing catalog...";
 
-        await _svc.WorkQueue.EnqueueAsync(async ct =>
+        await _svc.WorkQueue.EnqueueAsync(async workCt =>
         {
+            using var linked = _catalogOps.CreateLinkedTokenSource(workCt)!;
+            var ct = linked.Token;
             try
             {
                 await _svc.CatalogStore.ResetStoreAsync(ct).ConfigureAwait(false);
@@ -3057,15 +3212,28 @@ public partial class MainWindow : Window
                     CatalogRowRefreshAnimator.ResetAll(_catalogRows);
                     _catalogRows.Clear();
                     _catalogRowByName = new Dictionary<string, CatalogRowViewModel>(StringComparer.OrdinalIgnoreCase);
+                    CategoryFilterCombo.ItemsSource = new List<string> { "All" };
+                    CategoryFilterCombo.SelectedIndex = 0;
                     CatalogStatusLabel.Text = "Catalog cleared — use Refresh Catalog to reload.";
                     _svc.ActivityLog.Write("Task", "Catalog metadata cleared.");
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
+                _svc.Diagnostics.Write("Catalog", "ClearCatalog complete.");
+            }
+            catch (OperationCanceledException)
+            {
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    CatalogStatusLabel.Text = "Clear catalog cancelled.";
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+                _svc.Diagnostics.Write("Catalog", "ClearCatalog cancelled.");
             }
             catch (Exception ex)
             {
                 var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
+                _svc.Diagnostics.Write("Catalog", $"ClearCatalog failed: {ex.Message}");
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     CatalogStatusLabel.Text = msg;
@@ -3074,7 +3242,7 @@ public partial class MainWindow : Window
             }
             finally
             {
-                EndCatalogToolbarOperation();
+                EndCatalogToolbarOperationScope(generation);
             }
         }).ConfigureAwait(true);
     }
@@ -3083,8 +3251,7 @@ public partial class MainWindow : Window
         await RunClassificationAsync(
             recategorize: false,
             fromAiSettings: MainTabs.SelectedItem == AiSettingsTab,
-            sender,
-            trackCatalogStop: ReferenceEquals(sender, CatalogCategorizeAllBtn)).ConfigureAwait(true);
+            sender).ConfigureAwait(true);
 
     private async void RecategorizeAll_Click(object sender, RoutedEventArgs e)
     {
@@ -3097,15 +3264,13 @@ public partial class MainWindow : Window
         await RunClassificationAsync(
             recategorize: true,
             fromAiSettings: MainTabs.SelectedItem == AiSettingsTab,
-            sender,
-            trackCatalogStop: false).ConfigureAwait(true);
+            sender).ConfigureAwait(true);
     }
 
     private async Task RunClassificationAsync(
         bool recategorize,
         bool fromAiSettings,
-        object? sender = null,
-        bool trackCatalogStop = false)
+        object? sender = null)
     {
         if (sender is not null && !BeginTaskFlash(sender))
         {
@@ -3186,18 +3351,31 @@ public partial class MainWindow : Window
             CatalogStatusLabel.Text = "Classifying catalog models...";
         }
 
-        if (trackCatalogStop)
+        if (!TryBeginCatalogToolbarOperation(
+                CatalogToolbarOperationType.Categorize, sender!, out _, out var generation))
         {
-            BeginCatalogToolbarOperation();
-        }
+            if (sender is not null)
+            {
+                EndTaskFlashIdle(sender);
+            }
 
-        _classificationCts?.Cancel();
-        _classificationCts?.Dispose();
-        _classificationCts = new CancellationTokenSource();
+            var busyMessage = "Another catalog operation is already running.";
+            if (fromAiSettings)
+            {
+                SetAiSettingsActionStatus(busyMessage);
+                SetAiSettingsButtonsEnabled(true);
+            }
+            else
+            {
+                CatalogStatusLabel.Text = busyMessage;
+            }
+
+            return;
+        }
 
         await _svc.WorkQueue.EnqueueAsync(async workCt =>
         {
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(workCt, _classificationCts.Token);
+            using var linked = _catalogOps.CreateLinkedTokenSource(workCt)!;
             var ct = linked.Token;
             EnterAiActivity();
             try
@@ -3223,7 +3401,7 @@ public partial class MainWindow : Window
 
                 var progress = new Progress<string>(msg =>
                 {
-                    UiDispatcher.InvokeAsync(() =>
+                    UiDispatcher.Invoke(() =>
                     {
                         if (fromAiSettings)
                         {
@@ -3238,6 +3416,7 @@ public partial class MainWindow : Window
                 var count = await _svc.Classification.ClassifyAllAsync(recategorize, progress, ct)
                     .ConfigureAwait(false);
                 _svc.ActivityLog.Write("AI", $"Classified {count} catalog model(s).");
+                _svc.Diagnostics.Write("Catalog", $"Categorize complete ({count} model(s)).");
                 await UiDispatcher.InvokeAsync(async () =>
                 {
                     _svc.CategoryStore.ClearCache();
@@ -3255,6 +3434,7 @@ public partial class MainWindow : Window
                         CatalogStatusLabel.Text = doneMessage;
                     }
 
+                    await RefreshCategoryFilterComboAsync().ConfigureAwait(true);
                     await RefreshCatalogUiAsync().ConfigureAwait(true);
                     await RefreshCategoryStatusAsync().ConfigureAwait(true);
                     if (sender is not null)
@@ -3281,11 +3461,13 @@ public partial class MainWindow : Window
                         EndTaskFlashIdle(sender);
                     }
                 }).ConfigureAwait(false);
+                _svc.Diagnostics.Write("Catalog", "Categorize cancelled.");
             }
             catch (Exception ex)
             {
                 var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 _svc.ActivityLog.Write("Error", msg);
+                _svc.Diagnostics.Write("Catalog", $"Categorize failed: {ex.Message}");
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     if (fromAiSettings)
@@ -3306,10 +3488,7 @@ public partial class MainWindow : Window
             finally
             {
                 ExitAiActivity();
-                if (trackCatalogStop)
-                {
-                    EndCatalogToolbarOperation();
-                }
+                EndCatalogToolbarOperationScope(generation);
 
                 if (fromAiSettings)
                 {
@@ -3321,7 +3500,7 @@ public partial class MainWindow : Window
 
     private void CatalogGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (_catalogRefreshInProgress || _descriptionRefreshInProgress)
+        if (IsCatalogUiLocked)
         {
             return;
         }
@@ -3547,61 +3726,69 @@ public partial class MainWindow : Window
 
     private async void UninstallCatalogModel_Click(object sender, RoutedEventArgs e)
     {
-        if (CatalogGrid.SelectedItem is not CatalogRowViewModel row)
+        try
         {
-            MessageBox.Show("Select an installed catalog model first.", "Uninstall",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        if (!row.Installed && !row.InstalledDisplay.Equals("Yes", StringComparison.OrdinalIgnoreCase))
-        {
-            MessageBox.Show($"{row.Name} is not installed locally.", "Uninstall",
-                MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
-        var model = $"{row.Name}:latest";
-        if (!ToolkitConfirmDialog.ShowAccept(
-                this,
-                $"Remove {model} from this PC? Benchmark data in the toolkit will be kept.",
-                "Uninstall LLM"))
-        {
-            return;
-        }
-
-        if (!BeginTaskFlash(sender))
-        {
-            return;
-        }
-
-        await _svc.WorkQueue.EnqueueAsync(async ct =>
-        {
-            try
+            if (CatalogGrid.SelectedItem is not CatalogRowViewModel row)
             {
-                await _svc.ModelSessions.UninstallModelAsync(model, ct).ConfigureAwait(false);
-                _svc.ApiClient.InvalidateCaches();
-                _svc.Profiles.ClearCache();
-                await UiDispatcher.InvokeAsync(async () =>
-                {
-                    row.Installed = false;
-                    row.InstalledDisplay = "No";
-                    CatalogStatusLabel.Text = $"Uninstalled {model}.";
-                    await RefreshModelsUiAsync().ConfigureAwait(true);
-                    await RefreshCatalogUiAsync().ConfigureAwait(true);
-                    EndTaskFlashSuccess(sender, "Removed", 10);
-                }).ConfigureAwait(false);
+                MessageBox.Show("Select an installed catalog model first.", "Uninstall",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
             }
-            catch (Exception ex)
+
+            if (!row.Installed && !row.InstalledDisplay.Equals("Yes", StringComparison.OrdinalIgnoreCase))
             {
-                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
-                await UiDispatcher.InvokeAsync(() =>
-                {
-                    CatalogStatusLabel.Text = msg;
-                    EndTaskFlashIdle(sender);
-                }).ConfigureAwait(false);
+                MessageBox.Show($"{row.Name} is not installed locally.", "Uninstall",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
             }
-        }).ConfigureAwait(true);
+
+            var model = $"{row.Name}:latest";
+            if (!ToolkitConfirmDialog.ShowAccept(
+                    this,
+                    $"Remove {model} from this PC? Benchmark data in the toolkit will be kept.",
+                    "Uninstall LLM"))
+            {
+                return;
+            }
+
+            if (!BeginTaskFlash(sender))
+            {
+                return;
+            }
+
+            await _svc.WorkQueue.EnqueueAsync(async ct =>
+            {
+                try
+                {
+                    await _svc.ModelSessions.UninstallModelAsync(model, ct).ConfigureAwait(false);
+                    _svc.ApiClient.InvalidateCaches();
+                    _svc.Profiles.ClearCache();
+                    await UiDispatcher.InvokeAsync(async () =>
+                    {
+                        row.Installed = false;
+                        row.InstalledDisplay = "No";
+                        CatalogStatusLabel.Text = $"Uninstalled {model}.";
+                        await RefreshModelsUiAsync().ConfigureAwait(true);
+                        await RefreshCatalogUiAsync().ConfigureAwait(true);
+                        EndTaskFlashSuccess(sender, "Removed", 10);
+                    }).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
+                    await UiDispatcher.InvokeAsync(() =>
+                    {
+                        CatalogStatusLabel.Text = msg;
+                        EndTaskFlashIdle(sender);
+                    }).ConfigureAwait(false);
+                }
+            }).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            _svc.Diagnostics.Write("Catalog", $"Uninstall failed: {ex.Message}");
+            CatalogStatusLabel.Text = ex.Message;
+        }
     }
 
     private async Task<string> FormatInsightColumnAsync(string? insight)
@@ -4223,7 +4410,7 @@ public partial class MainWindow : Window
     private void CancelAiRecommendations_Click(object sender, RoutedEventArgs e)
     {
         _aiRecommendationsCts?.Cancel();
-        _classificationCts?.Cancel();
+        _catalogOps.Cancel();
         if (_generateRecommendationsFlashSender is not null)
         {
             EndTaskFlashIdle(_generateRecommendationsFlashSender);
@@ -4746,33 +4933,42 @@ public partial class MainWindow : Window
 
     private async void CompareCatalog_Click(object sender, RoutedEventArgs e)
     {
-        var selected = CatalogGrid.SelectedItems.Cast<CatalogRowViewModel>().ToList();
-        if (selected.Count < 2)
+        try
         {
-            MessageBox.Show("Select at least two catalog models (Ctrl+click).", "Compare", MessageBoxButton.OK,
-                MessageBoxImage.Information);
-            return;
-        }
+            var selected = CatalogGrid.SelectedItems.Cast<CatalogRowViewModel>().ToList();
+            if (selected.Count < 2)
+            {
+                MessageBox.Show("Select at least two catalog models (Ctrl+click).", "Compare", MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return;
+            }
 
-        if (!BeginTaskFlash(sender))
+            if (!BeginTaskFlash(sender))
+            {
+                return;
+            }
+
+            var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(false);
+            var models = new List<(string Model, string? Category, ModelProfileSummary? Summary)>();
+            foreach (var row in selected)
+            {
+                var summary = summaries.FirstOrDefault(s =>
+                    s.Model.StartsWith($"{row.Name}:", StringComparison.OrdinalIgnoreCase)
+                    || s.Model.Equals(row.Name, StringComparison.OrdinalIgnoreCase));
+                models.Add((
+                    row.Name,
+                    row.Category,
+                    summary ?? new ModelProfileSummary { Model = row.Name, Category = row.Category }));
+            }
+
+            await RunCompareManyAsync(models, sender).ConfigureAwait(true);
+        }
+        catch (Exception ex)
         {
-            return;
+            _svc.Diagnostics.Write("Catalog", $"Compare failed: {ex.Message}");
+            CatalogStatusLabel.Text = ex.Message;
+            EndTaskFlashIdle(sender);
         }
-
-        var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
-        var models = new List<(string Model, string? Category, ModelProfileSummary? Summary)>();
-        foreach (var row in selected)
-        {
-            var summary = summaries.FirstOrDefault(s =>
-                s.Model.StartsWith($"{row.Name}:", StringComparison.OrdinalIgnoreCase)
-                || s.Model.Equals(row.Name, StringComparison.OrdinalIgnoreCase));
-            models.Add((
-                row.Name,
-                row.Category,
-                summary ?? new ModelProfileSummary { Model = row.Name, Category = row.Category }));
-        }
-
-        await RunCompareManyAsync(models, sender).ConfigureAwait(true);
     }
 
     private async Task RunCompareManyAsync(
