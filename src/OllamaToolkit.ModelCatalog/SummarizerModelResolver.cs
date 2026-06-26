@@ -62,4 +62,39 @@ public sealed class SummarizerModelResolver
 
         return smallest?.Name;
     }
+
+    public async Task<SummarizerModelChoices> GetSummarizerChoicesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var tags = await _apiClient
+            .GetTagsAsync(timeoutSec: 30, forceRefresh: true, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        var installed = tags
+            .Select(t => t.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var choices = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var preferred in DefaultPreferenceOrder)
+        {
+            if (seen.Add(preferred))
+            {
+                choices.Add(preferred);
+            }
+        }
+
+        foreach (var name in installed.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
+        {
+            if (seen.Add(name))
+            {
+                choices.Add(name);
+            }
+        }
+
+        return new SummarizerModelChoices(choices, installed);
+    }
 }
+
+public sealed record SummarizerModelChoices(
+    IReadOnlyList<string> Models,
+    IReadOnlySet<string> InstalledNames);

@@ -4441,26 +4441,32 @@ public partial class MainWindow : Window
         var ready = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
         var settings = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
         var summarizer = await _svc.Summarizer.ResolveAsync().ConfigureAwait(true);
+        var choices = await _svc.Summarizer.GetSummarizerChoicesAsync().ConfigureAwait(true);
 
+        var installedCount = choices.Models.Count(m => choices.InstalledNames.Contains(m));
         AiSettingsStatus.Text = ready
-            ? (summarizer is not null ? $"AI Active — summarizer: {summarizer}" : "AI Inactive — no summarizer installed")
+            ? summarizer is not null
+                ? $"AI Active — summarizer: {summarizer} ({installedCount} installed choice(s))"
+                : choices.Models.Count > 0
+                    ? $"AI Inactive — pick a summarizer ({installedCount}/{choices.Models.Count} installed)"
+                    : "AI Inactive — no summarizer models available"
             : "AI Inactive — Ollama API not reachable";
 
-        var tags = await _svc.ApiClient.GetTagsAsync(forceRefresh: true).ConfigureAwait(true);
-        var installed = tags.Select(t => t.Name).ToList();
         _suppressSummarizerComboSave = true;
         try
         {
-            SummarizerCombo.ItemsSource = installed;
-            if (!string.IsNullOrWhiteSpace(settings.PreferredSummarizerModel)
-                && installed.Contains(settings.PreferredSummarizerModel, StringComparer.OrdinalIgnoreCase))
+            SummarizerCombo.ItemsSource = null;
+            SummarizerCombo.ItemsSource = choices.Models;
+            string? selected = null;
+            if (!string.IsNullOrWhiteSpace(settings.PreferredSummarizerModel))
             {
-                SummarizerCombo.SelectedItem = settings.PreferredSummarizerModel;
+                selected = choices.Models.FirstOrDefault(m =>
+                    m.Equals(settings.PreferredSummarizerModel, StringComparison.OrdinalIgnoreCase));
             }
-            else if (installed.Count > 0)
-            {
-                SummarizerCombo.SelectedIndex = 0;
-            }
+
+            selected ??= choices.Models.FirstOrDefault(m => choices.InstalledNames.Contains(m));
+            selected ??= choices.Models.FirstOrDefault();
+            SummarizerCombo.SelectedItem = selected;
         }
         finally
         {
@@ -5040,24 +5046,32 @@ public partial class MainWindow : Window
 
     private async void RefreshSummarizerList_Click(object sender, RoutedEventArgs e)
     {
-        if (!BeginTaskFlash(sender))
-        {
-            return;
-        }
+        var flash = BeginTaskFlash(sender);
 
         SetAiSettingsActionStatus("Refreshing summarizer list...");
         SetAiSettingsButtonsEnabled(false);
         try
         {
+            _svc.ApiClient.InvalidateCaches();
             await RefreshAiSettingsUiAsync().ConfigureAwait(true);
-            SetAiSettingsActionStatus("Summarizer list refreshed.");
-            EndTaskFlashSuccess(sender, "Refreshed");
+            var count = SummarizerCombo.Items.Count;
+            SetAiSettingsActionStatus(count == 0
+                ? "Summarizer list empty — start Ollama, then refresh again."
+                : $"Summarizer list refreshed — {count} choice(s).");
+            if (flash)
+            {
+                EndTaskFlashSuccess(sender, "Refreshed");
+            }
         }
         catch (Exception ex)
         {
             SetAiSettingsActionStatus($"Refresh failed: {ex.Message}");
             _svc.ActivityLog.Write("Error", ex.Message);
-            EndTaskFlashIdle(sender);
+            _svc.Diagnostics.Write("AI", $"Summarizer list refresh failed: {ex.Message}");
+            if (flash)
+            {
+                EndTaskFlashIdle(sender);
+            }
         }
         finally
         {

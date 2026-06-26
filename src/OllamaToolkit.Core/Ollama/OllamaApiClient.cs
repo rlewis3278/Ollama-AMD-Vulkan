@@ -94,18 +94,18 @@ public sealed class OllamaApiClient : IDisposable
             }
         }
 
-        _tagsCheckedAt = DateTime.UtcNow;
-        if (_tagsCache is null)
-        {
-            _tagsCache = new List<OllamaModelTag>();
-        }
-
         if (lastError is not null)
         {
             System.Diagnostics.Debug.WriteLine($"GetTagsAsync failed after {attempts} attempt(s): {lastError.Message}");
         }
 
-        return _tagsCache;
+        if (_tagsCache is not null)
+        {
+            _tagsCheckedAt = DateTime.UtcNow;
+            return _tagsCache;
+        }
+
+        return Array.Empty<OllamaModelTag>();
     }
 
     public async Task<OllamaTagsSnapshot> FetchTagsSnapshotAsync(
