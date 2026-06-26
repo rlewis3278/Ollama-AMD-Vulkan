@@ -7,7 +7,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <AssemblyName>OllamaToolkit.App</AssemblyName>
+    <ApplicationIcon>Assets\ollama_gui_manager_icon.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\ollama_gui_manager_icon.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\OllamaToolkit.Core\OllamaToolkit.Core.csproj" />
