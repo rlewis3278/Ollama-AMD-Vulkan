@@ -5,7 +5,7 @@ using System.Windows.Threading;
 namespace OllamaToolkit.App.Services;
 
 /// <summary>
-/// Rate-limited ceiling pursuit for progress bars — never snaps or stalls during active tests.
+/// Rate-limited ceiling pursuit — only the overall bar and active mode bar animate during a test run.
 /// </summary>
 public sealed class SmoothProgressPresenter : IDisposable
 {
@@ -16,7 +16,11 @@ public sealed class SmoothProgressPresenter : IDisposable
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _timer;
     private readonly Dictionary<ProgressBar, double> _ceilings = new();
+    private readonly HashSet<ProgressBar> _frozenBars = new();
+    private ProgressBar? _overallBar;
+    private ProgressBar? _activeModeBar;
     private bool _active;
+    private bool _halted;
 
     public SmoothProgressPresenter(Dispatcher? dispatcher = null)
     {
@@ -37,14 +41,87 @@ public sealed class SmoothProgressPresenter : IDisposable
         }
 
         _active = active;
-        if (_active)
+        if (_active && !_halted)
         {
             _timer.Start();
         }
-        else if (_ceilings.Count == 0)
+        else if (!_active && AllBarsAtCeiling())
         {
             _timer.Stop();
         }
+    }
+
+    public void SetOverallBar(ProgressBar bar) => _overallBar = bar;
+
+    public void SetActiveModeBar(ProgressBar? bar)
+    {
+        if (bar is not null)
+        {
+            _frozenBars.Remove(bar);
+        }
+
+        _activeModeBar = bar;
+    }
+
+    public void ResetModeBars()
+    {
+        if (!_dispatcher.CheckAccess())
+        {
+            _dispatcher.BeginInvoke(ResetModeBars);
+            return;
+        }
+
+        _activeModeBar = null;
+        _frozenBars.Clear();
+    }
+
+    public void FreezeBar(ProgressBar bar, double value)
+    {
+        if (!_dispatcher.CheckAccess())
+        {
+            _dispatcher.BeginInvoke(() => FreezeBar(bar, value));
+            return;
+        }
+
+        value = Math.Clamp(value, 0, 100);
+        bar.Value = value;
+        _ceilings[bar] = value;
+        _frozenBars.Add(bar);
+        if (ReferenceEquals(bar, _activeModeBar))
+        {
+            _activeModeBar = null;
+        }
+    }
+
+    public void Halt()
+    {
+        if (!_dispatcher.CheckAccess())
+        {
+            _dispatcher.Invoke(Halt);
+            return;
+        }
+
+        _halted = true;
+        _active = false;
+        _activeModeBar = null;
+        _timer.Stop();
+        foreach (var bar in _ceilings.Keys.ToArray())
+        {
+            _frozenBars.Add(bar);
+        }
+    }
+
+    public void BeginSession()
+    {
+        if (!_dispatcher.CheckAccess())
+        {
+            _dispatcher.BeginInvoke(BeginSession);
+            return;
+        }
+
+        _halted = false;
+        _frozenBars.Clear();
+        _activeModeBar = null;
     }
 
     public void SetCeiling(ProgressBar bar, double targetPercent)
@@ -52,6 +129,11 @@ public sealed class SmoothProgressPresenter : IDisposable
         if (!_dispatcher.CheckAccess())
         {
             _dispatcher.BeginInvoke(() => SetCeiling(bar, targetPercent));
+            return;
+        }
+
+        if (_halted || _frozenBars.Contains(bar))
+        {
             return;
         }
 
@@ -66,7 +148,10 @@ public sealed class SmoothProgressPresenter : IDisposable
         }
 
         _ceilings[bar] = targetPercent;
-        _timer.Start();
+        if (!_halted)
+        {
+            _timer.Start();
+        }
     }
 
     public void AnimateTo(ProgressBar bar, double targetPercent) => SetCeiling(bar, targetPercent);
@@ -82,7 +167,8 @@ public sealed class SmoothProgressPresenter : IDisposable
         value = Math.Clamp(value, 0, 100);
         bar.Value = value;
         _ceilings[bar] = value;
-        if (!_active && AllBarsAtCeiling())
+        _frozenBars.Remove(bar);
+        if (!_active && !_halted && AllBarsAtCeiling())
         {
             _timer.Stop();
         }
@@ -97,6 +183,17 @@ public sealed class SmoothProgressPresenter : IDisposable
         }
 
         _ceilings.Remove(bar);
+        _frozenBars.Remove(bar);
+        if (ReferenceEquals(bar, _activeModeBar))
+        {
+            _activeModeBar = null;
+        }
+
+        if (ReferenceEquals(bar, _overallBar))
+        {
+            _overallBar = null;
+        }
+
         if (!_active && _ceilings.Count == 0)
         {
             _timer.Stop();
@@ -107,12 +204,14 @@ public sealed class SmoothProgressPresenter : IDisposable
     {
         _timer.Stop();
         _ceilings.Clear();
+        _frozenBars.Clear();
         _active = false;
+        _halted = true;
     }
 
     private void OnTick()
     {
-        if (_ceilings.Count == 0 && !_active)
+        if (_halted || (_ceilings.Count == 0 && !_active))
         {
             _timer.Stop();
             return;
@@ -120,6 +219,11 @@ public sealed class SmoothProgressPresenter : IDisposable
 
         foreach (var (bar, ceiling) in _ceilings.ToArray())
         {
+            if (_frozenBars.Contains(bar))
+            {
+                continue;
+            }
+
             var current = bar.Value;
             if (current < ceiling - 0.001)
             {
@@ -129,11 +233,18 @@ public sealed class SmoothProgressPresenter : IDisposable
                 continue;
             }
 
-            if (_active && current < 99.95)
+            if (!_active || current >= 99.95)
             {
-                bar.Value = Math.Min(99.95, current + IdleDriftPerFrame);
-                _ceilings[bar] = Math.Max(ceiling, bar.Value);
+                continue;
             }
+
+            if (!ReferenceEquals(bar, _overallBar) && !ReferenceEquals(bar, _activeModeBar))
+            {
+                continue;
+            }
+
+            bar.Value = Math.Min(99.95, current + IdleDriftPerFrame);
+            _ceilings[bar] = Math.Max(ceiling, bar.Value);
         }
     }
 
@@ -141,6 +252,11 @@ public sealed class SmoothProgressPresenter : IDisposable
     {
         foreach (var (bar, ceiling) in _ceilings)
         {
+            if (_frozenBars.Contains(bar))
+            {
+                continue;
+            }
+
             if (bar.Value < ceiling - 0.05)
             {
                 return false;

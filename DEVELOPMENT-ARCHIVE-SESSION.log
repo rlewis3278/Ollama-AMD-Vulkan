@@ -3222,3 +3222,66 @@ foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included
 [2026-06-25 18:40:05] [BUILD] Release build 0 errors; published OllamaToolkit.App
 [2026-06-25 18:40:05] [SYNC] Processed updates.jsonl lines 13224..13225
 [2026-06-25 18:40:05] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 19:11:13] [FILE] Sequential mode bars: SetActiveModeBar + FreezeBar; idle drift scoped
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Grep - Grep
+[2026-06-25 19:11:14] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 19:11:14] [TOOL] Grep - Grep
+[2026-06-25 19:11:14] [TOOL] Grep - Grep
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Grep - Grep
+[2026-06-25 19:11:14] [TOOL] Grep - Grep
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 19:11:14] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Grep - Grep
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Write - Write
+[2026-06-25 19:11:14] [TOOL] Grep - Grep
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] Read - Read
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [TOOL] Grep - Grep
+[2026-06-25 19:11:14] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release 2>&1
+[2026-06-25 19:11:14] [TOOL] StrReplace - StrReplace
+[2026-06-25 19:11:14] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 --self-contained false -o publish/OllamaToolkit.App; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|Sequential mode bars: SetActiveModeBar + FreezeBar; idle drift scoped"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|HaltTestProgressAnimation on Stop Test; _testCts + progress session guard"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build 0 errors; published OllamaToolkit.App"; git add -A; git commit -m "fix: sequential per-mode progress bars and halt on cancel`n`n- Only active mode bar and overall bar animate during tests`n- Freeze completed modes at 100% and pending modes at 0%`n- HaltTestProgressAnimation stops all drift immediately on Stop Test`n- Unified _testCts for pre-queue cancel; ignore stale progress callbacks"
+[2026-06-25 19:11:14] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 19:11:14] [SYNC] Processed updates.jsonl lines 13226..13462
+[2026-06-25 19:11:14] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 19:11:14] [FILE] HaltTestProgressAnimation on Stop Test; _testCts + progress session guard
+[2026-06-25 19:11:15] [SYNC] Processed updates.jsonl lines 13463..13467
+[2026-06-25 19:11:15] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 19:11:15] [BUILD] Release build 0 errors; published OllamaToolkit.App
+[2026-06-25 19:11:16] [SYNC] Processed updates.jsonl lines 13468..13469
+[2026-06-25 19:11:16] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

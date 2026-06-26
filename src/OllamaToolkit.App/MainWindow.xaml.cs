@@ -32,7 +32,10 @@ public partial class MainWindow : Window
     private readonly ModeCardPresenter _modeCardPresenter;
     private CancellationTokenSource? _chatCts;
     private CancellationTokenSource? _benchmarkCts;
+    private CancellationTokenSource? _testCts;
     private CancellationTokenSource? _undownloadCts;
+    private int _progressSession;
+    private volatile bool _acceptProgressUpdates;
     private volatile bool _benchmarkQueueRunning;
     private int _testOperations;
     private Task? _activeTestWork;
@@ -50,6 +53,7 @@ public partial class MainWindow : Window
     private bool _testLogAutoScrolling;
     private const int ActivityTimerIntervalMs = 4000;
     private const int ActivityTimerActiveTestMs = 1000;
+    private static readonly string[] BenchmarkModeOrder = ["CPU", "APU", "GPU", "Hybrid", "ROCm"];
     private readonly Dictionary<string, (ProgressBar Bar, TextBlock Status)> _testModeProgress = new(StringComparer.OrdinalIgnoreCase);
     private readonly SmoothProgressPresenter _testProgressAnimator;
     private DispatcherTimer? _testSpinUpTimer;
@@ -270,7 +274,30 @@ public partial class MainWindow : Window
         if (_testOperations == 0)
         {
             _testProgressAnimator.SetActive(false);
+            _testProgressAnimator.SetActiveModeBar(null);
+            _testCts?.Dispose();
+            _testCts = null;
         }
+    }
+
+    private void BeginTestProgressSession()
+    {
+        _testCts?.Cancel();
+        _testCts?.Dispose();
+        _testCts = new CancellationTokenSource();
+        _progressSession++;
+        _acceptProgressUpdates = true;
+        _testProgressAnimator.BeginSession();
+        _testProgressAnimator.SetOverallBar(TestOverallProgress);
+        _testProgressAnimator.SetActive(true);
+    }
+
+    private void HaltTestProgressAnimation()
+    {
+        StopTestSpinUpCreep();
+        _progressSession++;
+        _acceptProgressUpdates = false;
+        _testProgressAnimator.Halt();
     }
 
     private void UpdateStopTestButtonUi()
@@ -295,6 +322,8 @@ public partial class MainWindow : Window
 
     private void ResetTestOperationState()
     {
+        HaltTestProgressAnimation();
+
         foreach (var button in _activeTestFlashButtons.ToList())
         {
             _flashButtons.EndIdle(button);
@@ -303,14 +332,20 @@ public partial class MainWindow : Window
         _activeTestFlashButtons.Clear();
         _testOperations = 0;
         _benchmarkQueueRunning = false;
+        _testCts?.Cancel();
+        _testCts?.Dispose();
+        _testCts = null;
         UpdateStopTestButtonUi();
         ClearCatalogTestingHighlights();
     }
 
     private async Task CancelTestOperationsAsync()
     {
+        _testCts?.Cancel();
         _benchmarkCts?.Cancel();
         _undownloadCts?.Cancel();
+
+        UiDispatcher.Invoke(HaltTestProgressAnimation);
 
         if (_activeTestWork is not null)
         {
@@ -1145,11 +1180,15 @@ public partial class MainWindow : Window
     private async Task RunUntestedBenchmarkQueueAsync(object? flashSender = null)
     {
         _svc.Diagnostics.Write("Testing", "Test Local Untested clicked");
+        var ct = _testCts?.Token ?? CancellationToken.None;
 
+        try
+        {
         await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Checking Ollama API…")).ConfigureAwait(true);
+        ct.ThrowIfCancellationRequested();
 
         var startup = await EnsureOllamaApiReadyAsync(
-            CancellationToken.None, "Test Local Untested requires Ollama", timeoutSec: 90).ConfigureAwait(true);
+            ct, "Test Local Untested requires Ollama", timeoutSec: 90).ConfigureAwait(true);
         if (!startup.Success)
         {
             _svc.Diagnostics.Write("Ollama", $"Test Local Untested aborted: {startup.Message}");
@@ -1163,8 +1202,10 @@ public partial class MainWindow : Window
         }
 
         await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Building local retest queue…")).ConfigureAwait(true);
+        ct.ThrowIfCancellationRequested();
 
         var build = await _svc.Profiles.BuildLocalRetestQueueAsync().ConfigureAwait(true);
+        ct.ThrowIfCancellationRequested();
         var names = build.Queue.Select(u => u.Model).ToList();
 
         foreach (var decision in build.Decisions)
@@ -1214,8 +1255,10 @@ public partial class MainWindow : Window
 
         var failedRetests = build.Queue.Count(s => !s.NeedsRetest);
         await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Prioritizing queue with AI…")).ConfigureAwait(true);
-        var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
+        ct.ThrowIfCancellationRequested();
+        var summaries = await _svc.Profiles.GetAllSummariesAsync(ct).ConfigureAwait(true);
         var queue = await _svc.QueueAdvisor.PrioritizeAsync(names, summaries).ConfigureAwait(true);
+        ct.ThrowIfCancellationRequested();
         _svc.Diagnostics.Write("Testing",
             $"AI prioritized queue ({queue.Models.Count} model(s)): {string.Join(" -> ", queue.Models)}");
         await UiDispatcher.InvokeAsync(() =>
@@ -1227,6 +1270,21 @@ public partial class MainWindow : Window
         }).ConfigureAwait(true);
         _svc.ActivityLog.Write("AI", queue.Rationale);
         await RunBenchmarkQueueAsync(queue.Models, flashSender).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            _svc.Diagnostics.Write("Testing", "Test Local Untested cancelled during pre-queue");
+            await UiDispatcher.InvokeAsync(() =>
+            {
+                if (_acceptProgressUpdates)
+                {
+                    HaltTestProgressAnimation();
+                }
+
+                TestStatusLabel.Text = "Benchmark queue stopped.";
+                FinishTestOperation(flashSender, success: false, cancelled: true);
+            }).ConfigureAwait(true);
+        }
     }
 
     private void TestModelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -1388,7 +1446,7 @@ public partial class MainWindow : Window
 
         TestStatusLabel.Text = "Tests Spinning Up — Please Wait…";
         AppendTestLog("Tests Spinning Up.....Please Wait.");
-        _testProgressAnimator.SetActive(true);
+        BeginTestProgressSession();
         StartTestSpinUpCreep();
     }
 
@@ -1483,6 +1541,11 @@ public partial class MainWindow : Window
 
     private void ApplyDownloadProgressUpdate(ModelPullProgress update)
     {
+        if (!_acceptProgressUpdates)
+        {
+            return;
+        }
+
         if (!_testModeProgress.TryGetValue("Download", out var row))
         {
             return;
@@ -1522,6 +1585,8 @@ public partial class MainWindow : Window
             $"Overall: {model} ({modelIndex + 1}/{modelCount}) — {aiLine}";
         BuildTestModeProgressRows(modes, includeDownloadRow);
 
+        _testProgressAnimator.ResetModeBars();
+        _testProgressAnimator.SetOverallBar(TestOverallProgress);
         foreach (var (bar, status) in _testModeProgress.Values)
         {
             bar.IsIndeterminate = false;
@@ -1531,8 +1596,43 @@ public partial class MainWindow : Window
         }
     }
 
+    private void SyncModeBarStates(BenchmarkProgressUpdate update, string activeMode)
+    {
+        for (var i = 0; i < BenchmarkModeOrder.Length; i++)
+        {
+            var mode = BenchmarkModeOrder[i];
+            if (mode.Equals(activeMode, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!_testModeProgress.TryGetValue(mode, out var row))
+            {
+                continue;
+            }
+
+            if (i < update.ModeIndex)
+            {
+                _testProgressAnimator.FreezeBar(row.Bar, 100);
+                row.Status.Text = "Complete";
+                row.Status.Foreground = (Brush)FindResource("Brush.Active");
+            }
+            else if (i > update.ModeIndex)
+            {
+                _testProgressAnimator.FreezeBar(row.Bar, 0);
+                row.Status.Text = "Pending";
+                row.Status.Foreground = (Brush)FindResource("Brush.Muted");
+            }
+        }
+    }
+
     private void ApplyBenchmarkProgressUpdate(BenchmarkProgressUpdate update)
     {
+        if (!_acceptProgressUpdates)
+        {
+            return;
+        }
+
         _testProgressAnimator.SetCeiling(TestOverallProgress, update.OverallPercent);
         var isEmbed = update.BenchmarkKind.Equals(BenchmarkKinds.Embed, StringComparison.OrdinalIgnoreCase);
 
@@ -1565,20 +1665,25 @@ public partial class MainWindow : Window
             ? null
             : update.ModeStatusDetail;
 
-        _testProgressAnimator.SetCeiling(row.Bar, modeBarValue);
+        SyncModeBarStates(update, update.Mode);
 
         switch (update.Phase)
         {
             case BenchmarkProgressPhase.ModeApplying:
-                row.Status.Text = statusDetail ?? "Applying mode…";
-                row.Status.Foreground = (Brush)FindResource("Brush.Warning");
-                break;
             case BenchmarkProgressPhase.ModeBenchmarking:
-                row.Status.Text = statusDetail ?? (isEmbed ? "Embedding…" : "Benchmarking…");
+                _testProgressAnimator.SetActiveModeBar(row.Bar);
+                _testProgressAnimator.SetCeiling(row.Bar, modeBarValue);
+                row.Status.Text = statusDetail ?? update.Phase switch
+                {
+                    BenchmarkProgressPhase.ModeApplying => "Applying mode…",
+                    _ => isEmbed ? "Embedding…" : "Benchmarking…"
+                };
                 row.Status.Foreground = (Brush)FindResource("Brush.Warning");
                 break;
             case BenchmarkProgressPhase.ModeCompleted:
                 _testProgressAnimator.SetCeiling(row.Bar, 100);
+                _testProgressAnimator.FreezeBar(row.Bar, 100);
+                _testProgressAnimator.SetActiveModeBar(null);
                 row.Status.Text = statusDetail ?? (isEmbed
                     ? $"{update.EmbedLatencyMs:F1} ms"
                     : $"{update.GenerationTps:F1} tok/s");
@@ -1586,9 +1691,14 @@ public partial class MainWindow : Window
                 break;
             case BenchmarkProgressPhase.ModeFailed:
                 _testProgressAnimator.SetCeiling(row.Bar, 100);
+                _testProgressAnimator.FreezeBar(row.Bar, 100);
+                _testProgressAnimator.SetActiveModeBar(null);
                 row.Bar.Foreground = (Brush)FindResource("Brush.Accent");
                 row.Status.Text = statusDetail ?? "Failed";
                 row.Status.Foreground = (Brush)FindResource("Brush.Accent");
+                break;
+            default:
+                _testProgressAnimator.SetCeiling(row.Bar, modeBarValue);
                 break;
         }
 
@@ -1693,7 +1803,11 @@ public partial class MainWindow : Window
                         await RefreshModelsUiAsync().ConfigureAwait(true);
                         await RefreshTestResultsUiAsync().ConfigureAwait(true);
                         await RefreshCatalogUiAsync().ConfigureAwait(true);
-                        _testProgressAnimator.SetCeiling(TestOverallProgress, 100);
+                        if (!cancelled)
+                        {
+                            _testProgressAnimator.SetCeiling(TestOverallProgress, 100);
+                        }
+
                         TestStatusLabel.Text = cancelled
                             ? "Benchmark queue stopped."
                             : "Benchmark queue complete.";
@@ -2028,9 +2142,23 @@ public partial class MainWindow : Window
 
                 var log = new Progress<string>(AppendTestLog);
 
+                var session = _progressSession;
                 var progress = new Progress<BenchmarkProgressUpdate>(update =>
                 {
-                    UiDispatcher.InvokeAsync(() => ApplyBenchmarkProgressUpdate(update));
+                    if (session != _progressSession)
+                    {
+                        return;
+                    }
+
+                    UiDispatcher.InvokeAsync(() =>
+                    {
+                        if (session != _progressSession || !_acceptProgressUpdates)
+                        {
+                            return;
+                        }
+
+                        ApplyBenchmarkProgressUpdate(update);
+                    });
                 });
 
                 await _svc.BenchmarkRunner.RunAsync(
