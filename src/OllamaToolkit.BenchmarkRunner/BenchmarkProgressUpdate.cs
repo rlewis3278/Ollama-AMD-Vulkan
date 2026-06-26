@@ -44,8 +44,6 @@ public sealed record BenchmarkProgressUpdate
             ? Math.Clamp(ModeFraction, 0, 1)
             : Phase switch
             {
-                BenchmarkProgressPhase.ModeApplying => 0.15,
-                BenchmarkProgressPhase.ModeBenchmarking => 0.65,
                 BenchmarkProgressPhase.ModeCompleted or BenchmarkProgressPhase.ModeFailed => 1.0,
                 _ => 0
             };

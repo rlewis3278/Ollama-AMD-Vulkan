@@ -5,13 +5,18 @@ using System.Windows.Threading;
 namespace OllamaToolkit.App.Services;
 
 /// <summary>
-/// Lerps <see cref="ProgressBar.Value"/> toward targets on the UI thread for smooth, monotonic updates.
+/// Rate-limited ceiling pursuit for progress bars — never snaps or stalls during active tests.
 /// </summary>
 public sealed class SmoothProgressPresenter : IDisposable
 {
+    private const double MaxStepPerFrame = 0.10;
+    private const double MinStepPerFrame = 0.02;
+    private const double IdleDriftPerFrame = 0.025;
+
     private readonly Dispatcher _dispatcher;
     private readonly DispatcherTimer _timer;
-    private readonly Dictionary<ProgressBar, double> _targets = new();
+    private readonly Dictionary<ProgressBar, double> _ceilings = new();
+    private bool _active;
 
     public SmoothProgressPresenter(Dispatcher? dispatcher = null)
     {
@@ -23,39 +28,48 @@ public sealed class SmoothProgressPresenter : IDisposable
         _timer.Tick += (_, _) => OnTick();
     }
 
-    public void AnimateTo(ProgressBar bar, double targetPercent)
+    public void SetActive(bool active)
     {
         if (!_dispatcher.CheckAccess())
         {
-            _dispatcher.BeginInvoke(() => AnimateTo(bar, targetPercent));
+            _dispatcher.BeginInvoke(() => SetActive(active));
+            return;
+        }
+
+        _active = active;
+        if (_active)
+        {
+            _timer.Start();
+        }
+        else if (_ceilings.Count == 0)
+        {
+            _timer.Stop();
+        }
+    }
+
+    public void SetCeiling(ProgressBar bar, double targetPercent)
+    {
+        if (!_dispatcher.CheckAccess())
+        {
+            _dispatcher.BeginInvoke(() => SetCeiling(bar, targetPercent));
             return;
         }
 
         targetPercent = Math.Clamp(targetPercent, 0, 100);
-        var current = bar.Value;
-        if (targetPercent < current - 0.05 && targetPercent < 99.5)
+        if (_ceilings.TryGetValue(bar, out var existing))
         {
-            targetPercent = current;
+            targetPercent = Math.Max(existing, targetPercent);
+        }
+        else
+        {
+            targetPercent = Math.Max(bar.Value, targetPercent);
         }
 
-        if (Math.Abs(targetPercent - current) < 0.05)
-        {
-            bar.Value = targetPercent;
-            _targets.Remove(bar);
-            if (_targets.Count == 0)
-            {
-                _timer.Stop();
-            }
-
-            return;
-        }
-
-        _targets[bar] = targetPercent;
-        if (!_timer.IsEnabled)
-        {
-            _timer.Start();
-        }
+        _ceilings[bar] = targetPercent;
+        _timer.Start();
     }
+
+    public void AnimateTo(ProgressBar bar, double targetPercent) => SetCeiling(bar, targetPercent);
 
     public void SetImmediate(ProgressBar bar, double value)
     {
@@ -67,8 +81,23 @@ public sealed class SmoothProgressPresenter : IDisposable
 
         value = Math.Clamp(value, 0, 100);
         bar.Value = value;
-        _targets.Remove(bar);
-        if (_targets.Count == 0)
+        _ceilings[bar] = value;
+        if (!_active && AllBarsAtCeiling())
+        {
+            _timer.Stop();
+        }
+    }
+
+    public void ClearBar(ProgressBar bar)
+    {
+        if (!_dispatcher.CheckAccess())
+        {
+            _dispatcher.BeginInvoke(() => ClearBar(bar));
+            return;
+        }
+
+        _ceilings.Remove(bar);
+        if (!_active && _ceilings.Count == 0)
         {
             _timer.Stop();
         }
@@ -77,35 +106,47 @@ public sealed class SmoothProgressPresenter : IDisposable
     public void Dispose()
     {
         _timer.Stop();
-        _targets.Clear();
+        _ceilings.Clear();
+        _active = false;
     }
 
     private void OnTick()
     {
-        if (_targets.Count == 0)
+        if (_ceilings.Count == 0 && !_active)
         {
             _timer.Stop();
             return;
         }
 
-        foreach (var (bar, target) in _targets.ToArray())
+        foreach (var (bar, ceiling) in _ceilings.ToArray())
         {
             var current = bar.Value;
-            if (Math.Abs(target - current) < 0.15)
+            if (current < ceiling - 0.001)
             {
-                bar.Value = target;
-                _targets.Remove(bar);
+                var delta = ceiling - current;
+                var step = Math.Min(MaxStepPerFrame, Math.Max(MinStepPerFrame, delta * 0.04));
+                bar.Value = Math.Min(ceiling, current + step);
                 continue;
             }
 
-            var delta = target - current;
-            var step = Math.Max(0.25, Math.Abs(delta) * 0.18);
-            bar.Value = delta > 0 ? Math.Min(target, current + step) : Math.Max(target, current - step);
+            if (_active && current < 99.95)
+            {
+                bar.Value = Math.Min(99.95, current + IdleDriftPerFrame);
+                _ceilings[bar] = Math.Max(ceiling, bar.Value);
+            }
+        }
+    }
+
+    private bool AllBarsAtCeiling()
+    {
+        foreach (var (bar, ceiling) in _ceilings)
+        {
+            if (bar.Value < ceiling - 0.05)
+            {
+                return false;
+            }
         }
 
-        if (_targets.Count == 0)
-        {
-            _timer.Stop();
-        }
+        return true;
     }
 }

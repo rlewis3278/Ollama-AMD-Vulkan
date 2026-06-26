@@ -266,6 +266,11 @@ public partial class MainWindow : Window
 
         UpdateStopTestButtonUi();
         ClearCatalogTestingHighlights();
+
+        if (_testOperations == 0)
+        {
+            _testProgressAnimator.SetActive(false);
+        }
     }
 
     private void UpdateStopTestButtonUi()
@@ -1383,6 +1388,7 @@ public partial class MainWindow : Window
 
         TestStatusLabel.Text = "Tests Spinning Up — Please Wait…";
         AppendTestLog("Tests Spinning Up.....Please Wait.");
+        _testProgressAnimator.SetActive(true);
         StartTestSpinUpCreep();
     }
 
@@ -1405,7 +1411,7 @@ public partial class MainWindow : Window
             }
 
             _testSpinUpProgress = Math.Min(8, _testSpinUpProgress + 0.2);
-            _testProgressAnimator.AnimateTo(TestOverallProgress, _testSpinUpProgress);
+            _testProgressAnimator.SetCeiling(TestOverallProgress, _testSpinUpProgress);
         };
         _testSpinUpTimer.Start();
     }
@@ -1485,12 +1491,12 @@ public partial class MainWindow : Window
         row.Bar.Foreground = (Brush)FindResource("Brush.Purple");
         if (update.Percent is >= 0)
         {
-            _testProgressAnimator.AnimateTo(row.Bar, update.Percent.Value);
+            _testProgressAnimator.SetCeiling(row.Bar, update.Percent.Value);
             row.Status.Text = $"{update.Percent.Value}%";
         }
         else
         {
-            _testProgressAnimator.AnimateTo(row.Bar, row.Bar.Value > 0 ? row.Bar.Value : 5);
+            _testProgressAnimator.SetCeiling(row.Bar, row.Bar.Value > 0 ? row.Bar.Value : 5);
             row.Status.Text = update.Status;
         }
 
@@ -1527,7 +1533,7 @@ public partial class MainWindow : Window
 
     private void ApplyBenchmarkProgressUpdate(BenchmarkProgressUpdate update)
     {
-        _testProgressAnimator.AnimateTo(TestOverallProgress, update.OverallPercent);
+        _testProgressAnimator.SetCeiling(TestOverallProgress, update.OverallPercent);
         var isEmbed = update.BenchmarkKind.Equals(BenchmarkKinds.Embed, StringComparison.OrdinalIgnoreCase);
 
         if (!string.IsNullOrWhiteSpace(update.Model))
@@ -1559,27 +1565,27 @@ public partial class MainWindow : Window
             ? null
             : update.ModeStatusDetail;
 
+        _testProgressAnimator.SetCeiling(row.Bar, modeBarValue);
+
         switch (update.Phase)
         {
             case BenchmarkProgressPhase.ModeApplying:
-                _testProgressAnimator.AnimateTo(row.Bar, modeBarValue);
                 row.Status.Text = statusDetail ?? "Applying mode…";
                 row.Status.Foreground = (Brush)FindResource("Brush.Warning");
                 break;
             case BenchmarkProgressPhase.ModeBenchmarking:
-                _testProgressAnimator.AnimateTo(row.Bar, modeBarValue);
                 row.Status.Text = statusDetail ?? (isEmbed ? "Embedding…" : "Benchmarking…");
                 row.Status.Foreground = (Brush)FindResource("Brush.Warning");
                 break;
             case BenchmarkProgressPhase.ModeCompleted:
-                _testProgressAnimator.AnimateTo(row.Bar, 100);
+                _testProgressAnimator.SetCeiling(row.Bar, 100);
                 row.Status.Text = statusDetail ?? (isEmbed
                     ? $"{update.EmbedLatencyMs:F1} ms"
                     : $"{update.GenerationTps:F1} tok/s");
                 row.Status.Foreground = (Brush)FindResource("Brush.Active");
                 break;
             case BenchmarkProgressPhase.ModeFailed:
-                _testProgressAnimator.AnimateTo(row.Bar, 100);
+                _testProgressAnimator.SetCeiling(row.Bar, 100);
                 row.Bar.Foreground = (Brush)FindResource("Brush.Accent");
                 row.Status.Text = statusDetail ?? "Failed";
                 row.Status.Foreground = (Brush)FindResource("Brush.Accent");
@@ -1687,7 +1693,7 @@ public partial class MainWindow : Window
                         await RefreshModelsUiAsync().ConfigureAwait(true);
                         await RefreshTestResultsUiAsync().ConfigureAwait(true);
                         await RefreshCatalogUiAsync().ConfigureAwait(true);
-                        _testProgressAnimator.AnimateTo(TestOverallProgress, 100);
+                        _testProgressAnimator.SetCeiling(TestOverallProgress, 100);
                         TestStatusLabel.Text = cancelled
                             ? "Benchmark queue stopped."
                             : "Benchmark queue complete.";
@@ -1848,7 +1854,7 @@ public partial class MainWindow : Window
                         {
                             if (_testModeProgress.TryGetValue("Download", out var row))
                             {
-                                _testProgressAnimator.AnimateTo(row.Bar, 100);
+                                _testProgressAnimator.SetCeiling(row.Bar, 100);
                                 row.Status.Text = "Complete";
                                 row.Status.Foreground = (Brush)FindResource("Brush.Active");
                             }

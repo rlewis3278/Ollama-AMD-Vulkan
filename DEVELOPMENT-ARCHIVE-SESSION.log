@@ -3170,3 +3170,55 @@ foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included
 [2026-06-25 18:17:48] [BUILD] Release build 0 errors; published OllamaToolkit.App
 [2026-06-25 18:17:48] [SYNC] Processed updates.jsonl lines 13029..13031
 [2026-06-25 18:17:48] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:40:03] [FILE] BenchmarkProgressAnimator RunToward seamless retarget; 50ms 100+ steps
+[2026-06-25 18:40:03] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 18:40:03] [TOOL] update_goal - update_goal
+[2026-06-25 18:40:03] [TOOL] Read - Read
+[2026-06-25 18:40:03] [TOOL] Read - Read
+[2026-06-25 18:40:03] [TOOL] Read - Read
+[2026-06-25 18:40:03] [TOOL] Grep - Grep
+[2026-06-25 18:40:03] [TOOL] Read - Read
+[2026-06-25 18:40:03] [TOOL] Grep - Grep
+[2026-06-25 18:40:03] [TOOL] Read - Read
+[2026-06-25 18:40:03] [TOOL] Read - Read
+[2026-06-25 18:40:03] [TOOL] Grep - Grep
+[2026-06-25 18:40:03] [TOOL] Read - Read
+[2026-06-25 18:40:03] [TOOL] Read - Read
+[2026-06-25 18:40:03] [TOOL] CreatePlan - CreatePlan
+[2026-06-25 18:40:03] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 18:40:03] [TOOL] Read - Read
+[2026-06-25 18:40:03] [TOOL] Read - Read
+[2026-06-25 18:40:03] [TOOL] Read - Read
+[2026-06-25 18:40:03] [TOOL] Grep - Grep
+[2026-06-25 18:40:03] [TOOL] Read - Read
+[2026-06-25 18:40:03] [TOOL] Read - Read
+[2026-06-25 18:40:03] [TOOL] Write - Write
+[2026-06-25 18:40:03] [TOOL] Write - Write
+[2026-06-25 18:40:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:40:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:40:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:40:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:40:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:40:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:40:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:40:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:40:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:40:03] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:40:04] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:40:04] [TOOL] Read - Read
+[2026-06-25 18:40:04] [TOOL] Grep - Grep
+[2026-06-25 18:40:04] [TOOL] StrReplace - StrReplace
+[2026-06-25 18:40:04] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release
+[2026-06-25 18:40:04] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 --self-contained false -o publish/OllamaToolkit.App; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|BenchmarkProgressAnimator RunToward seamless retarget; 50ms 100+ steps"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|AutomatedBenchmarkService chained fractional segments; no stop/jump milestones"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|SmoothProgressPresenter rate-limited ceiling pursuit + SetActive idle drift"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build 0 errors; published OllamaToolkit.App"; git add -A; git commit -m "feat: continuous smooth progress bars across full test run`n`n- BenchmarkProgressAnimator RunToward with seamless ceiling retargeting`n- AutomatedBenchmarkService chains mode fractions without phase jumps`n- SmoothProgressPresenter rate-limited pursuit with idle drift during tests`n- BenchmarkProgressUpdate removes harsh phase fallback jumps"
+[2026-06-25 18:40:04] [TOOL] TodoWrite - TodoWrite
+[2026-06-25 18:40:04] [SYNC] Processed updates.jsonl lines 13032..13217
+[2026-06-25 18:40:04] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:40:04] [FILE] AutomatedBenchmarkService chained fractional segments; no stop/jump milestones
+[2026-06-25 18:40:04] [SYNC] Processed updates.jsonl lines 13218..13221
+[2026-06-25 18:40:04] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:40:04] [FILE] SmoothProgressPresenter rate-limited ceiling pursuit + SetActive idle drift
+[2026-06-25 18:40:05] [SYNC] Processed updates.jsonl lines 13222..13223
+[2026-06-25 18:40:05] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
+[2026-06-25 18:40:05] [BUILD] Release build 0 errors; published OllamaToolkit.App
+[2026-06-25 18:40:05] [SYNC] Processed updates.jsonl lines 13224..13225
+[2026-06-25 18:40:05] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log

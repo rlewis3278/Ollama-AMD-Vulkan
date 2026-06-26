@@ -96,9 +96,10 @@ public sealed class AutomatedBenchmarkService
             var mode = modes[modeIndex];
             cancellationToken.ThrowIfCancellationRequested();
 
+            var modePhase = BenchmarkProgressPhase.ModeApplying;
             var modeTemplate = () => new BenchmarkProgressUpdate
             {
-                Phase = BenchmarkProgressPhase.ModeApplying,
+                Phase = modePhase,
                 BenchmarkKind = benchmarkKind,
                 Model = modelName,
                 ModelIndex = modelIndex,
@@ -113,7 +114,7 @@ public sealed class AutomatedBenchmarkService
 
             BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
             {
-                ModeFraction = 0.05,
+                ModeFraction = 0,
                 ModeStatusDetail = "Applying mode…",
                 LogLine = BenchmarkProgressFormatter.ModeApplying(modeIndex, modes.Count, mode)
             });
@@ -125,9 +126,11 @@ public sealed class AutomatedBenchmarkService
             try
             {
                 using var animator = new BenchmarkProgressAnimator(progress, modeTemplate);
+                animator.Report(0, "Applying mode…");
+
                 if (_lastBenchmarkMode != mode)
                 {
-                    animator.StartCreep(0.05, 0.18, "Applying mode & restarting Ollama…");
+                    animator.RunToward(0.18, "Applying mode & restarting Ollama…");
                     try
                     {
                         await _modelSessions.StopModelAsync(modelName, cancellationToken)
@@ -142,30 +145,33 @@ public sealed class AutomatedBenchmarkService
                         .ConfigureAwait(false);
                     _apiClient.InvalidateCaches();
                     _lastBenchmarkMode = mode;
-                    animator.StopCreep();
-                    animator.Report(0.20, "Mode applied — loading model…");
 
                     modeEnvSummary = _modeService.GetManagedEnvSummary();
+                    animator.RunToward(0.25, "Mode applied — loading model…");
                     BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
                     {
-                        Phase = BenchmarkProgressPhase.ModeApplying,
-                        ModeFraction = 0.20,
+                        ModeFraction = animator.CurrentFraction,
                         ModeStatusDetail = "Mode applied — loading model…",
                         LogLine = BenchmarkProgressFormatter.ModeAppliedWithRestart(mode, modeEnvSummary)
                     });
 
-                    animator.StartCreep(0.22, 0.32, "Warming model…");
+                    animator.RunToward(0.34, "Warming model…");
                     await _modelSessions.SwitchToModelAsync(modelName, warmLoad: true, cancellationToken)
                         .ConfigureAwait(false);
-                    animator.StopCreep();
-                    animator.Report(0.35, "Model ready");
+                    animator.RunToward(0.40, "Model ready");
+                }
+                else
+                {
+                    animator.RunToward(0.40, "Preparing benchmark…");
                 }
 
+                modePhase = BenchmarkProgressPhase.ModeBenchmarking;
+                var benchDetail = isEmbed ? "Embedding…" : "Starting benchmark…";
+                animator.RunToward(0.40, benchDetail);
                 BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
                 {
-                    Phase = BenchmarkProgressPhase.ModeBenchmarking,
-                    ModeFraction = 0.38,
-                    ModeStatusDetail = isEmbed ? "Embedding…" : "Starting benchmark…",
+                    ModeFraction = animator.CurrentFraction,
+                    ModeStatusDetail = benchDetail,
                     LogLine = isEmbed
                         ? BenchmarkProgressFormatter.ModeEmbedBenchmarking(modeIndex, modes.Count, mode)
                         : BenchmarkProgressFormatter.ModeBenchmarking(modeIndex, modes.Count, mode)
@@ -173,11 +179,10 @@ public sealed class AutomatedBenchmarkService
 
                 if (isEmbed)
                 {
-                    animator.StartCreep(0.40, 0.92, "Running embed benchmark…");
+                    animator.RunToward(0.92, "Running embed benchmark…");
                     var bench = await _apiClient.BenchmarkEmbedAsync(
                         modelName, DefaultEmbedInput, warmup: true, cancellationToken)
                         .ConfigureAwait(false);
-                    animator.StopCreep();
 
                     modeResult.Status = "Success";
                     modeResult.EmbedLatencyMs = bench.LatencyMs;
@@ -187,9 +192,10 @@ public sealed class AutomatedBenchmarkService
                         modeEnvSummary);
                     modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
 
+                    modePhase = BenchmarkProgressPhase.ModeCompleted;
+                    animator.RunToward(1.0, $"{bench.LatencyMs:F1} ms");
                     BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
                     {
-                        Phase = BenchmarkProgressPhase.ModeCompleted,
                         ModeFraction = 1.0,
                         ModeStatusDetail = $"{bench.LatencyMs:F1} ms",
                         EmbedLatencyMs = bench.LatencyMs,
@@ -200,11 +206,12 @@ public sealed class AutomatedBenchmarkService
                 }
                 else
                 {
+                    animator.SetIdleAdvance(0.04, "Benchmarking…");
                     var tokenProgress = new Progress<int>(count =>
                     {
                         var target = numPredict > 0 ? numPredict : 32;
-                        var fraction = 0.40 + 0.55 * Math.Clamp(count / (double)target, 0, 1);
-                        animator.Report(
+                        var fraction = 0.40 + 0.52 * Math.Clamp(count / (double)target, 0, 1);
+                        animator.RunToward(
                             fraction,
                             $"Benchmarking… {Math.Min(count, target)}/{target} tokens");
                     });
@@ -228,9 +235,10 @@ public sealed class AutomatedBenchmarkService
                         modeEnvSummary);
                     modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
 
+                    modePhase = BenchmarkProgressPhase.ModeCompleted;
+                    animator.RunToward(1.0, $"{bench.GenerationTps:F1} tok/s");
                     BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
                     {
-                        Phase = BenchmarkProgressPhase.ModeCompleted,
                         ModeFraction = 1.0,
                         ModeStatusDetail = $"{bench.GenerationTps:F1} tok/s",
                         GenerationTps = bench.GenerationTps,
@@ -249,9 +257,9 @@ public sealed class AutomatedBenchmarkService
                     : $"Benchmark failed for mode {mode}.";
                 modeResult.DurationSec = Math.Round((DateTime.UtcNow - started).TotalSeconds, 1);
 
+                modePhase = BenchmarkProgressPhase.ModeFailed;
                 BenchmarkProgress.ReportAndLog(progress, log, modeTemplate() with
                 {
-                    Phase = BenchmarkProgressPhase.ModeFailed,
                     ModeFraction = 1.0,
                     ModeStatusDetail = "Failed",
                     DurationSec = modeResult.DurationSec,
