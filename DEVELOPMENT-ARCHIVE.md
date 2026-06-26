@@ -846,6 +846,8 @@ a261a8a  fix: Test Undownload pull verify, settings clamp, download progress
 019bff4  fix: robust Ollama API startup and connection error handling for downloads
 ac77a9b  feat: Ollama CLI model sessions, stop server restart loop, uninstall LLM button
 65c9f6e  fix: compute mode benchmarks restart Ollama per mode change
+6bfdfaf  feat: milestone-based actual progress bars (no simulated creep)
+7b85395  feat: test stopped UI — all bars 100%, warning styling, Stopped labels
 ```
 
 ### Archive files
@@ -859,4 +861,4 @@ ac77a9b  feat: Ollama CLI model sessions, stop server restart loop, uninstall LL
 
 ---
 
-*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated: 2026-06-25 — Phase 13 compute mode benchmark fix (`65c9f6e`); published to `publish/OllamaToolkit.App`.*
+*This archive is maintained as part of the Ollama AMD Vulkan greenfield rebuild. Last updated: 2026-06-25 — test stopped progress UI (`7b85395`); published to `publish/OllamaToolkit.App`.*
