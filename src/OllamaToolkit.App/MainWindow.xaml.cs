@@ -77,6 +77,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _refreshCatalogCts;
     private CancellationTokenSource? _refreshDescriptionsCts;
     private CancellationTokenSource? _classificationCts;
+    private CancellationTokenSource? _aiRecommendationsCts;
     private int _catalogToolbarOperations;
     private bool _suppressReportImport;
 
@@ -583,7 +584,7 @@ public partial class MainWindow : Window
         ("NaturalLanguageSearch", "5. Natural-language model search",
             "Ranks catalog models by intent when you type a natural-language query in the Model Library search box."),
         ("ModelPickerAdvisor", "6. Model picker advisor",
-            "Recommends installed models for a task via Ask AI on Models & Launch."),
+            "Ranks installed/uninstalled LLMs on AI Settings and Ask AI on Models & Launch."),
         ("OptimalBenchmarkSettings", "7. Optimal benchmark settings",
             "Suggests num_ctx, num_predict, and per-mode OLLAMA_NUM_PARALLEL before each test run."),
         ("TestQueuePrioritization", "8. Test untested prioritization",
@@ -2811,6 +2812,15 @@ public partial class MainWindow : Window
         TestSummarizerBtn.IsEnabled = enabled;
         CategorizeAllBtn.IsEnabled = enabled;
         RecategorizeAllBtn.IsEnabled = enabled;
+        GenerateAiRecommendationsBtn.IsEnabled = enabled;
+        RefreshAiRecommendationsBtn.IsEnabled = enabled;
+        ClearAiRecommendationsBtn.IsEnabled = enabled;
+        AiUninstallRecommendedBtn.IsEnabled = enabled;
+        AiLaunchRecommendedBtn.IsEnabled = enabled;
+        AiTestRecommendedBtn.IsEnabled = enabled;
+        AiDownloadRecommendedBtn.IsEnabled = enabled;
+        AiOpenInCatalogBtn.IsEnabled = enabled;
+        CancelAiRecommendationsBtn.IsEnabled = enabled;
     }
 
     private async Task LoadCatalogTabAsync()
@@ -3886,6 +3896,7 @@ public partial class MainWindow : Window
         SuggestedModelsList.ItemsSource = suggested;
 
         await RefreshCategoryStatusAsync().ConfigureAwait(true);
+        await BindAiRecommendationsFromCacheAsync().ConfigureAwait(true);
     }
 
     private async Task RefreshCategoryStatusAsync()
@@ -3893,6 +3904,508 @@ public partial class MainWindow : Window
         var entries = await _svc.CatalogStore.GetEntriesAsync().ConfigureAwait(true);
         var (classified, total) = await _svc.CategoryStore.GetStatusAsync(entries.Count).ConfigureAwait(true);
         CategoryStatusLabel.Text = $"Catalog categorization: {classified}/{total} classified";
+    }
+
+    private void SetAiRecommendationsActionStatus(string text) =>
+        AiRecommendationsActionStatus.Text = text;
+
+    private async Task BindAiRecommendationsFromCacheAsync()
+    {
+        var doc = await _svc.AiLlmRecommendations.LoadAsync().ConfigureAwait(true);
+        BindAiRecommendationsDocument(doc);
+    }
+
+    private void BindAiRecommendationsDocument(AiLlmRecommendationsDocument? doc)
+    {
+        if (doc is null || (doc.Installed.Count == 0 && doc.Uninstalled.Count == 0))
+        {
+            InstalledRecommendedGrid.ItemsSource = null;
+            UninstalledRecommendedGrid.ItemsSource = null;
+            AiRecommendationsStatusLabel.Text = "No recommendation lists generated yet.";
+            return;
+        }
+
+        InstalledRecommendedGrid.ItemsSource = doc.Installed
+            .Select(e => AiRecommendedLlmRowViewModel.FromEntry(e, installed: true))
+            .ToList();
+        UninstalledRecommendedGrid.ItemsSource = doc.Uninstalled
+            .Select(e => AiRecommendedLlmRowViewModel.FromEntry(e, installed: false))
+            .ToList();
+        AiRecommendationsStatusLabel.Text =
+            $"Last updated {doc.GeneratedAt} — {doc.Installed.Count} installed, {doc.Uninstalled.Count} uninstalled"
+            + (string.IsNullOrWhiteSpace(doc.SummaryModel) ? string.Empty : $" (via {doc.SummaryModel})");
+    }
+
+    private async void GenerateAiRecommendations_Click(object sender, RoutedEventArgs e)
+    {
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        SetAiRecommendationsActionStatus("Starting recommendation pipeline...");
+        SetAiSettingsButtonsEnabled(false);
+        _aiRecommendationsCts?.Cancel();
+        _aiRecommendationsCts?.Dispose();
+        _aiRecommendationsCts = new CancellationTokenSource();
+
+        await _svc.WorkQueue.EnqueueAsync(async workCt =>
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(workCt, _aiRecommendationsCts!.Token);
+            var ct = linked.Token;
+            EnterAiActivity();
+            try
+            {
+                if (!await ValidateAiRecommendationsPreflightAsync(ct).ConfigureAwait(false))
+                {
+                    await UiDispatcher.InvokeAsync(() => EndTaskFlashIdle(sender)).ConfigureAwait(false);
+                    return;
+                }
+
+                var entries = await _svc.CatalogStore.GetEntriesAsync(cancellationToken: ct)
+                    .ConfigureAwait(false);
+                var (classified, total) = await _svc.CategoryStore.GetStatusAsync(entries.Count, ct)
+                    .ConfigureAwait(false);
+
+                if (classified < total)
+                {
+                    SetAiRecommendationsActionStatusOnUi("Catalog incomplete — running Categorize All...");
+                    if (!await RunClassificationCoreAsync(recategorize: false, ct, useRecommendationsStatus: true)
+                            .ConfigureAwait(false))
+                    {
+                        return;
+                    }
+                }
+                else if (total > 0)
+                {
+                    SetAiRecommendationsActionStatusOnUi("Catalog categorized — running Recategorize All...");
+                    if (!await RunClassificationCoreAsync(recategorize: true, ct, useRecommendationsStatus: true)
+                            .ConfigureAwait(false))
+                    {
+                        return;
+                    }
+                }
+
+                SetAiRecommendationsActionStatusOnUi("Generating AI recommendation lists...");
+                var intent = await UiDispatcher.InvokeAsync(() => AiRecommendationsIntentBox.Text?.Trim())
+                    .ConfigureAwait(false);
+                var summaries = await _svc.Profiles.GetAllSummariesAsync(ct).ConfigureAwait(false);
+                var categories = await GetCategoryMapAsync().ConfigureAwait(true);
+                var tags = await _svc.ApiClient.GetTagsAsync(cancellationToken: ct).ConfigureAwait(false);
+                var installedNames = tags.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var doc = await _svc.AiLlmRecommendations.GenerateAsync(
+                    intent,
+                    summaries,
+                    entries,
+                    categories,
+                    installedNames,
+                    ct).ConfigureAwait(false);
+
+                _svc.ActivityLog.Write("AI",
+                    $"LLM recommendations: {doc.Installed.Count} installed, {doc.Uninstalled.Count} uninstalled.");
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    BindAiRecommendationsDocument(doc);
+                    SetAiRecommendationsActionStatus(
+                        $"Done — {doc.Installed.Count} installed and {doc.Uninstalled.Count} uninstalled recommendations.");
+                    await RefreshCategoryStatusAsync().ConfigureAwait(true);
+                    EndTaskFlashSuccess(sender, "Generated", 10);
+                }).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    SetAiRecommendationsActionStatus("Recommendation generation cancelled.");
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
+                _svc.ActivityLog.Write("Error", msg);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    SetAiRecommendationsActionStatus(msg);
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                ExitAiActivity();
+                await UiDispatcher.InvokeAsync(() => SetAiSettingsButtonsEnabled(true)).ConfigureAwait(false);
+            }
+        }).ConfigureAwait(true);
+    }
+
+    private async Task<bool> ValidateAiRecommendationsPreflightAsync(CancellationToken cancellationToken)
+    {
+        var settings = await _svc.AiSettings.LoadAsync(cancellationToken).ConfigureAwait(false);
+        if (!settings.ToolkitAiEnabled)
+        {
+            SetAiRecommendationsActionStatusOnUi("Enable Toolkit AI in AI Features to generate recommendations.");
+            return false;
+        }
+
+        if (!await _svc.AiSettings.IsFeatureEnabledAsync(AiFeatureKeys.ModelPickerAdvisor, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            SetAiRecommendationsActionStatusOnUi("Enable Model picker advisor in AI Features.");
+            return false;
+        }
+
+        if (!await _svc.AiSettings.IsFeatureEnabledAsync(AiFeatureKeys.CatalogCategorization, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            SetAiRecommendationsActionStatusOnUi("Enable Catalog categorization in AI Features.");
+            return false;
+        }
+
+        var ollamaReady = await _svc.ApiClient.IsReadyCachedAsync().ConfigureAwait(true);
+        var summarizer = await _svc.Summarizer.ResolveAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        if (!ollamaReady || string.IsNullOrWhiteSpace(summarizer))
+        {
+            SetAiRecommendationsActionStatusOnUi(
+                "Recommendations require Ollama running with a summarizer model installed.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private void SetAiRecommendationsActionStatusOnUi(string text) =>
+        UiDispatcher.InvokeAsync(() => SetAiRecommendationsActionStatus(text));
+
+    private async Task<bool> RunClassificationCoreAsync(
+        bool recategorize,
+        CancellationToken cancellationToken,
+        bool useRecommendationsStatus = false)
+    {
+        var progress = new Progress<string>(msg =>
+        {
+            UiDispatcher.InvokeAsync(() =>
+            {
+                if (useRecommendationsStatus)
+                {
+                    SetAiRecommendationsActionStatus(msg);
+                }
+                else
+                {
+                    SetAiSettingsActionStatus(msg);
+                }
+            });
+        });
+
+        try
+        {
+            var count = await _svc.Classification.ClassifyAllAsync(recategorize, progress, cancellationToken)
+                .ConfigureAwait(false);
+            _svc.CategoryStore.ClearCache();
+            _svc.CatalogStore.ClearCache();
+            _svc.ActivityLog.Write("AI", $"Classification complete ({count} model(s) updated).");
+            await UiDispatcher.InvokeAsync(async () =>
+            {
+                await RefreshCategoryStatusAsync().ConfigureAwait(true);
+                if (!useRecommendationsStatus)
+                {
+                    await RefreshCatalogUiAsync().ConfigureAwait(true);
+                }
+            }).ConfigureAwait(false);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var msg = await ExplainErrorAsync(ex.Message, cancellationToken).ConfigureAwait(false);
+            SetAiRecommendationsActionStatusOnUi(msg);
+            return false;
+        }
+    }
+
+    private async void RefreshAiRecommendations_Click(object sender, RoutedEventArgs e)
+    {
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        SetAiSettingsButtonsEnabled(false);
+        try
+        {
+            await BindAiRecommendationsFromCacheAsync().ConfigureAwait(true);
+            SetAiRecommendationsActionStatus("Recommendation lists refreshed from cache.");
+            EndTaskFlashSuccess(sender, "Refreshed");
+        }
+        catch (Exception ex)
+        {
+            SetAiRecommendationsActionStatus($"Refresh failed: {ex.Message}");
+            EndTaskFlashIdle(sender);
+        }
+        finally
+        {
+            SetAiSettingsButtonsEnabled(true);
+        }
+    }
+
+    private async void ClearAiRecommendations_Click(object sender, RoutedEventArgs e)
+    {
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        try
+        {
+            await _svc.AiLlmRecommendations.ClearAsync().ConfigureAwait(true);
+            BindAiRecommendationsDocument(null);
+            SetAiRecommendationsActionStatus("Recommendation lists cleared.");
+            EndTaskFlashSuccess(sender, "Cleared");
+        }
+        catch (Exception ex)
+        {
+            SetAiRecommendationsActionStatus($"Clear failed: {ex.Message}");
+            EndTaskFlashIdle(sender);
+        }
+    }
+
+    private void CancelAiRecommendations_Click(object sender, RoutedEventArgs e)
+    {
+        _aiRecommendationsCts?.Cancel();
+        _classificationCts?.Cancel();
+        SetAiRecommendationsActionStatus("Cancelling...");
+    }
+
+    private async void AiDownloadRecommended_Click(object sender, RoutedEventArgs e)
+    {
+        if (UninstalledRecommendedGrid.SelectedItem is not AiRecommendedLlmRowViewModel row)
+        {
+            SetAiRecommendationsActionStatus("Select an uninstalled recommended model first.");
+            return;
+        }
+
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        SetAiSettingsButtonsEnabled(false);
+        await DownloadModelTagFromAiSettingsAsync(row.PullTag, sender).ConfigureAwait(true);
+    }
+
+    private async void AiUninstallRecommended_Click(object sender, RoutedEventArgs e)
+    {
+        if (InstalledRecommendedGrid.SelectedItem is not AiRecommendedLlmRowViewModel row)
+        {
+            SetAiRecommendationsActionStatus("Select an installed recommended model first.");
+            return;
+        }
+
+        if (!ToolkitConfirmDialog.ShowAccept(
+                this,
+                $"Remove {row.PullTag} from this PC? Benchmark data in the toolkit will be kept.",
+                "Uninstall LLM"))
+        {
+            return;
+        }
+
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        SetAiSettingsButtonsEnabled(false);
+        try
+        {
+            await _svc.ModelSessions.UninstallModelAsync(row.PullTag, CancellationToken.None).ConfigureAwait(false);
+            _svc.ApiClient.InvalidateCaches();
+            _svc.Profiles.ClearCache();
+            _svc.AiLlmRecommendations.ClearCache();
+            await RefreshModelsUiAsync().ConfigureAwait(true);
+            await RefreshAiSettingsUiAsync().ConfigureAwait(true);
+            SetAiRecommendationsActionStatus($"Uninstalled {row.PullTag}.");
+            EndTaskFlashSuccess(sender, "Removed");
+        }
+        catch (Exception ex)
+        {
+            var msg = await ExplainErrorAsync(ex.Message, CancellationToken.None).ConfigureAwait(false);
+            SetAiRecommendationsActionStatus(msg);
+            EndTaskFlashIdle(sender);
+        }
+        finally
+        {
+            SetAiSettingsButtonsEnabled(true);
+        }
+    }
+
+    private async void AiLaunchRecommended_Click(object sender, RoutedEventArgs e)
+    {
+        if (InstalledRecommendedGrid.SelectedItem is not AiRecommendedLlmRowViewModel row)
+        {
+            SetAiRecommendationsActionStatus("Select an installed recommended model first.");
+            return;
+        }
+
+        var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
+        var match = summaries.FirstOrDefault(s =>
+            s.Model.Equals(row.Model, StringComparison.OrdinalIgnoreCase)
+            || s.Model.StartsWith($"{row.Model.Split(':')[0]}:", StringComparison.OrdinalIgnoreCase));
+        if (match is null)
+        {
+            SetAiRecommendationsActionStatus($"No profile found for {row.Model}.");
+            return;
+        }
+
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        MainTabs.SelectedItem = ModelRunTab;
+        try
+        {
+            await LaunchBestMode_Click_Internal(match).ConfigureAwait(true);
+            EndTaskFlashSuccess(sender, "Launched");
+        }
+        catch
+        {
+            EndTaskFlashIdle(sender);
+            throw;
+        }
+    }
+
+    private void AiTestRecommended_Click(object sender, RoutedEventArgs e)
+    {
+        if (InstalledRecommendedGrid.SelectedItem is not AiRecommendedLlmRowViewModel row)
+        {
+            SetAiRecommendationsActionStatus("Select an installed recommended model first.");
+            return;
+        }
+
+        MainTabs.SelectedItem = TestingSuiteTab;
+        for (var i = 0; i < TestModelCombo.Items.Count; i++)
+        {
+            var item = TestModelCombo.Items[i]?.ToString();
+            if (item is not null
+                && (item.Equals(row.Model, StringComparison.OrdinalIgnoreCase)
+                    || item.StartsWith($"{row.Model.Split(':')[0]}:", StringComparison.OrdinalIgnoreCase)))
+            {
+                TestModelCombo.SelectedIndex = i;
+                SetAiRecommendationsActionStatus($"Selected {item} in Testing Suite.");
+                return;
+            }
+        }
+
+        SetAiRecommendationsActionStatus($"{row.Model} was not found in the Testing Suite model list.");
+    }
+
+    private void AiOpenInCatalog_Click(object sender, RoutedEventArgs e)
+    {
+        if (UninstalledRecommendedGrid.SelectedItem is not AiRecommendedLlmRowViewModel row)
+        {
+            SetAiRecommendationsActionStatus("Select an uninstalled recommended model first.");
+            return;
+        }
+
+        MainTabs.SelectedItem = ModelLibraryTab;
+        CatalogSearchBox.Text = row.Model.Split(':')[0];
+        SetAiRecommendationsActionStatus($"Opened Model Library for {row.Model}.");
+    }
+
+    private async Task DownloadModelTagFromAiSettingsAsync(string pullTag, object? flashSender)
+    {
+        SetAiRecommendationsActionStatus($"Downloading {pullTag}...");
+        _aiRecommendationsCts?.Cancel();
+        _aiRecommendationsCts?.Dispose();
+        _aiRecommendationsCts = new CancellationTokenSource();
+        var ct = _aiRecommendationsCts.Token;
+
+        await _svc.WorkQueue.EnqueueAsync(async workCt =>
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(workCt, ct);
+            var token = linked.Token;
+            await UiDispatcher.InvokeAsync(() =>
+            {
+                AiSettingsDownloadProgressPanel.Visibility = Visibility.Visible;
+                AiSettingsDownloadProgress.Value = 0;
+                AiSettingsDownloadProgressLabel.Text = "Preparing...";
+            }).ConfigureAwait(false);
+
+            try
+            {
+                var startup = await EnsureOllamaApiReadyAsync(token, $"Cannot download {pullTag}", timeoutSec: 90)
+                    .ConfigureAwait(false);
+                if (!startup.Success)
+                {
+                    throw new InvalidOperationException(startup.Message);
+                }
+
+                var progress = new Progress<ModelPullProgress>(update =>
+                {
+                    UiDispatcher.InvokeAsync(() =>
+                    {
+                        if (update.Percent is int percent)
+                        {
+                            AiSettingsDownloadProgress.Value = percent;
+                        }
+
+                        AiSettingsDownloadProgressLabel.Text = update.Percent is int pct
+                            ? $"{pullTag} — {update.Status} ({pct}%)"
+                            : $"{pullTag} — {update.Status}";
+                        SetAiRecommendationsActionStatus($"Downloading {pullTag}: {update.Status}");
+                    });
+                });
+
+                await _svc.ApiClient.PullAsync(pullTag, progress, token).ConfigureAwait(false);
+                _svc.ApiClient.InvalidateCaches();
+                _svc.Profiles.ClearCache();
+                _svc.AiLlmRecommendations.ClearCache();
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    AiSettingsDownloadProgressPanel.Visibility = Visibility.Collapsed;
+                    SetAiRecommendationsActionStatus($"Downloaded {pullTag}. Regenerate recommendations to refresh lists.");
+                    await RefreshModelsUiAsync().ConfigureAwait(true);
+                    await RefreshAiSettingsUiAsync().ConfigureAwait(true);
+                    if (flashSender is not null)
+                    {
+                        EndTaskFlashSuccess(flashSender, "Downloaded", 10);
+                    }
+                }).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    AiSettingsDownloadProgressPanel.Visibility = Visibility.Collapsed;
+                    SetAiRecommendationsActionStatus($"Download cancelled for {pullTag}.");
+                    if (flashSender is not null)
+                    {
+                        EndTaskFlashIdle(flashSender);
+                    }
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await ExplainErrorAsync(ex.Message, token).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    AiSettingsDownloadProgressPanel.Visibility = Visibility.Collapsed;
+                    SetAiRecommendationsActionStatus(msg);
+                    if (flashSender is not null)
+                    {
+                        EndTaskFlashIdle(flashSender);
+                    }
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                await UiDispatcher.InvokeAsync(() => SetAiSettingsButtonsEnabled(true)).ConfigureAwait(false);
+            }
+        }).ConfigureAwait(true);
     }
 
     private async void SummarizerCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)

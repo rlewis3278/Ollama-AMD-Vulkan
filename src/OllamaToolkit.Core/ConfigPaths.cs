@@ -14,6 +14,7 @@ public static class ConfigPaths
     public static string ModelBenchmarkSettingsFile => Path.Combine(ConfigDirectory, "model-benchmark-settings.json");
     public static string ModelComparisonCacheFile => Path.Combine(ConfigDirectory, "model-comparison-cache.json");
     public static string NlSearchCacheFile => Path.Combine(ConfigDirectory, "nl-search-cache.json");
+    public static string AiLlmRecommendationsFile => Path.Combine(ConfigDirectory, "ai-llm-recommendations.json");
     public static string LogAnomaliesFile => Path.Combine(ConfigDirectory, "log-anomalies.json");
     public static string VulkanWorkaroundFile => Path.Combine(ConfigDirectory, "vulkan-workaround.json");
     public static string GuiAiActivityLog => Path.Combine(ConfigDirectory, "gui-ai-activity.log");

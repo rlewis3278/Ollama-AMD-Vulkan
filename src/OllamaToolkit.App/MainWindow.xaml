@@ -337,6 +337,7 @@
             <TabItem x:Name="AiSettingsTab" Header="AI Settings">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12">
                     <StackPanel>
+                        <TextBlock Text="Summarizer" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
                         <TextBlock x:Name="AiSettingsStatus" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                             <TextBlock Text="Summarizer model:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" />
@@ -346,9 +347,86 @@
                             <Button x:Name="TestSummarizerBtn" Content="Test Summarizer" Style="{StaticResource ToolkitButton}" Click="TestSummarizer_Click" />
                         </StackPanel>
                         <TextBlock x:Name="AiSettingsActionStatus" TextWrapping="Wrap" Foreground="{StaticResource Brush.Warning}" Margin="0,0,0,8" />
-                        <TextBlock x:Name="SummarizerTestResult" TextWrapping="Wrap" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,16" />
-                        <TextBlock Text="Suggested models (not installed):" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,4" />
-                        <ListBox x:Name="SuggestedModelsList" Height="120" Margin="0,0,0,16" />
+                        <TextBlock x:Name="SummarizerTestResult" TextWrapping="Wrap" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
+                        <TextBlock Text="Suggested summarizer models (not installed):" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,4" />
+                        <ListBox x:Name="SuggestedModelsList" Height="90" Margin="0,0,0,16" />
+
+                        <TextBlock Text="Recommended LLMs" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
+                        <TextBlock x:Name="AiRecommendationsStatusLabel" Foreground="{StaticResource Brush.Muted}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <TextBlock Text="Intent (optional):" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,4" />
+                        <TextBox x:Name="AiRecommendationsIntentBox" Margin="0,0,0,8"
+                                 ToolTip="Leave blank for general chat, coding, and reasoning recommendations." />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <Button x:Name="GenerateAiRecommendationsBtn" Content="Generate Recommendations"
+                                    Style="{StaticResource ToolkitButton}" Click="GenerateAiRecommendations_Click" />
+                            <Button x:Name="RefreshAiRecommendationsBtn" Content="Refresh Lists"
+                                    Style="{StaticResource ToolkitButton}" Click="RefreshAiRecommendations_Click" />
+                            <Button x:Name="ClearAiRecommendationsBtn" Content="Clear"
+                                    Style="{StaticResource ToolkitButton}" Click="ClearAiRecommendations_Click" />
+                            <Button x:Name="CancelAiRecommendationsBtn" Content="Cancel"
+                                    Style="{StaticResource ToolkitButton}" Click="CancelAiRecommendations_Click" />
+                        </StackPanel>
+                        <TextBlock x:Name="AiRecommendationsActionStatus" TextWrapping="Wrap"
+                                   Foreground="{StaticResource Brush.Warning}" Margin="0,0,0,8" />
+                        <Grid x:Name="AiSettingsDownloadProgressPanel" Margin="0,0,0,8" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ProgressBar x:Name="AiSettingsDownloadProgress" Height="14" Minimum="0" Maximum="100"
+                                         Foreground="{StaticResource Brush.Warning}" />
+                            <TextBlock x:Name="AiSettingsDownloadProgressLabel" Grid.Column="1"
+                                       Margin="10,0,0,0" VerticalAlignment="Center"
+                                       Foreground="{StaticResource Brush.Text}" />
+                        </Grid>
+
+                        <TextBlock Text="Installed recommended LLMs" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,4" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <Button x:Name="AiUninstallRecommendedBtn" Content="Uninstall Selected"
+                                    Style="{StaticResource ToolkitButton}" Click="AiUninstallRecommended_Click" />
+                            <Button x:Name="AiLaunchRecommendedBtn" Content="Launch Best Mode"
+                                    Style="{StaticResource ToolkitButton}" Click="AiLaunchRecommended_Click" />
+                            <Button x:Name="AiTestRecommendedBtn" Content="Test Selected"
+                                    Style="{StaticResource ToolkitButton}" Click="AiTestRecommended_Click" />
+                        </StackPanel>
+                        <DataGrid x:Name="InstalledRecommendedGrid" Height="180" Margin="0,0,0,16"
+                                  Style="{StaticResource ToolkitDataGrid}" AutoGenerateColumns="False"
+                                  IsReadOnly="True" SelectionMode="Single" HeadersVisibility="Column"
+                                  CanUserAddRows="False" CanUserDeleteRows="False"
+                                  EnableRowVirtualization="False" ScrollViewer.CanContentScroll="False">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="#" Binding="{Binding DisplayRank}" Width="36" />
+                                <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*" MinWidth="140" />
+                                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
+                                <DataGridTextColumn Header="Best Mode" Binding="{Binding BestMode, Mode=OneWay}" Width="80" />
+                                <DataGridTextColumn Header="Metric" Binding="{Binding MetricDisplay, Mode=OneWay}" Width="72" />
+                                <DataGridTextColumn Header="Note" Binding="{Binding AiNote}" Width="*" MinWidth="160" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Text="Uninstalled recommended LLMs" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,4" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <Button x:Name="AiDownloadRecommendedBtn" Content="Download Selected"
+                                    Style="{StaticResource ToolkitButton}" Click="AiDownloadRecommended_Click" />
+                            <Button x:Name="AiOpenInCatalogBtn" Content="Open in Model Library"
+                                    Style="{StaticResource ToolkitButton}" Click="AiOpenInCatalog_Click" />
+                        </StackPanel>
+                        <DataGrid x:Name="UninstalledRecommendedGrid" Height="180" Margin="0,0,0,16"
+                                  Style="{StaticResource ToolkitDataGrid}" AutoGenerateColumns="False"
+                                  IsReadOnly="True" SelectionMode="Single" HeadersVisibility="Column"
+                                  CanUserAddRows="False" CanUserDeleteRows="False"
+                                  EnableRowVirtualization="False" ScrollViewer.CanContentScroll="False">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="#" Binding="{Binding DisplayRank}" Width="36" />
+                                <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*" MinWidth="120" />
+                                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
+                                <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
+                                <DataGridTextColumn Header="Size" Binding="{Binding FileSize}" Width="80" />
+                                <DataGridTextColumn Header="Note" Binding="{Binding AiNote}" Width="*" MinWidth="160" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <TextBlock Text="Catalog maintenance" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
                         <TextBlock x:Name="CategoryStatusLabel" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="CategorizeAllBtn" Content="Categorize All" Style="{StaticResource ToolkitButton}" Click="CategorizeAll_Click" />

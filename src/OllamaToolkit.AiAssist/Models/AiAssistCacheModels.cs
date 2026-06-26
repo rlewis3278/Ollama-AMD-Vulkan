@@ -60,3 +60,30 @@ public sealed class ModelAdvisorRecommendation
     public string Category { get; init; } = string.Empty;
     public int Rank { get; init; }
 }
+
+public sealed class AiLlmRecommendationsDocument
+{
+    public int Version { get; set; } = 1;
+    public string LastUpdated { get; set; } = DateTimeOffset.Now.ToString("o");
+    public string? Intent { get; set; }
+    public string GeneratedAt { get; set; } = DateTimeOffset.Now.ToString("o");
+    public string? SummaryModel { get; set; }
+    public List<AiRecommendedLlmEntry> Installed { get; set; } = new();
+    public List<AiRecommendedLlmEntry> Uninstalled { get; set; } = new();
+}
+
+public sealed class AiRecommendedLlmEntry
+{
+    public string ModelOrLibrary { get; set; } = string.Empty;
+    public string PullTag { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string ParameterSize { get; set; } = "-";
+    public string FileSize { get; set; } = "-";
+    public int AiRank { get; set; }
+    public double BenchmarkScore { get; set; }
+    public double CompositeScore { get; set; }
+    public string BestMode { get; set; } = string.Empty;
+    public string MetricDisplay { get; set; } = "-";
+    public string? AiNote { get; set; }
+    public int DisplayRank { get; set; }
+}

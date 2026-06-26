@@ -53,6 +53,7 @@ public sealed class AppServices : IDisposable
         LogAnomalies = new LogAnomalyService(AiSettings, ApiClient, Summarizer);
         NlSearch = new NaturalLanguageSearchService(AiSettings, ApiClient, Summarizer);
         ModelAdvisor = new ModelAdvisorService(AiSettings, ApiClient, Summarizer);
+        AiLlmRecommendations = new AiLlmRecommendationService(AiSettings, ApiClient, Summarizer);
         BenchmarkSettingsAdvisor = new BenchmarkSettingsAdvisorService(
             AiSettings, ApiClient, Summarizer, ModeDefinitions.DeviceMap);
         QueueAdvisor = new BenchmarkQueueAdvisorService(AiSettings, ApiClient, Summarizer);
@@ -89,6 +90,7 @@ public sealed class AppServices : IDisposable
     public LogAnomalyService LogAnomalies { get; }
     public NaturalLanguageSearchService NlSearch { get; }
     public ModelAdvisorService ModelAdvisor { get; }
+    public AiLlmRecommendationService AiLlmRecommendations { get; }
     public BenchmarkSettingsAdvisorService BenchmarkSettingsAdvisor { get; }
     public BenchmarkQueueAdvisorService QueueAdvisor { get; }
     public ModelComparisonService ModelComparison { get; }
