@@ -11,6 +11,12 @@ public sealed class UsageCategoryStoreService
 
     public async Task ResetStoreAsync(CancellationToken cancellationToken = default)
     {
+        ClearCache();
+        if (File.Exists(ConfigPaths.ModelUsageCategoriesFile))
+        {
+            File.Delete(ConfigPaths.ModelUsageCategoriesFile);
+        }
+
         await SaveAsync(new UsageCategoryStoreDocument(), cancellationToken).ConfigureAwait(false);
     }
 

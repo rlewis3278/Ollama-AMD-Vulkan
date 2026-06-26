@@ -22,9 +22,15 @@ public sealed class LibraryCatalogStoreService
 
     public async Task ResetStoreAsync(CancellationToken cancellationToken = default)
     {
+        ClearCache();
+        if (File.Exists(ConfigPaths.LibraryCatalogStoreFile))
+        {
+            File.Delete(ConfigPaths.LibraryCatalogStoreFile);
+        }
+
         var store = new LibraryCatalogStoreDocument
         {
-            Items = new List<LibraryCatalogEntry>(),
+            Items = [],
             CatalogFetchedAt = null,
             SortGeneratedAt = null,
             SummaryModel = null

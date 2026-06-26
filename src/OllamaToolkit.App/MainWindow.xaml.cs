@@ -3247,20 +3247,27 @@ public partial class MainWindow : Window
                 await _svc.CatalogStore.ResetStoreAsync(ct).ConfigureAwait(false);
                 await _svc.Descriptions.ResetStoreAsync(ct).ConfigureAwait(false);
                 await _svc.CategoryStore.ResetStoreAsync(ct).ConfigureAwait(false);
+                _svc.CatalogStore.ClearCache();
+                _svc.Descriptions.ClearCache();
+                _svc.CategoryStore.ClearCache();
 
-                await UiDispatcher.InvokeAsync(() =>
+                await UiDispatcher.InvokeAsync(async () =>
                 {
                     _catalogRowAnimator.Stop();
                     CatalogRowRefreshAnimator.ResetAll(_catalogRows);
                     _catalogRows.Clear();
                     _catalogRowByName = new Dictionary<string, CatalogRowViewModel>(StringComparer.OrdinalIgnoreCase);
-                    CategoryFilterCombo.ItemsSource = new List<string> { "All" };
-                    CategoryFilterCombo.SelectedIndex = 0;
-                    CatalogStatusLabel.Text = "Catalog cleared — use Refresh Catalog to reload.";
-                    _svc.ActivityLog.Write("Task", "Catalog metadata cleared.");
+                    InitCategoryFilter();
+                    CatalogStatusLabel.Text =
+                        "Catalog cleared — cached library, AI descriptions, and categories removed. Use Refresh Catalog to reload.";
+                    CategoryStatusLabel.Text = "Catalog categorization: 0/0 classified";
+                    _svc.ActivityLog.Write("Task",
+                        "Catalog cleared: library cache, AI descriptions (model-descriptions.json), and usage categories (model-usage-categories.json).");
                     EndTaskFlashIdle(sender);
+                    await RefreshCategoryStatusAsync().ConfigureAwait(true);
                 }).ConfigureAwait(false);
-                _svc.Diagnostics.Write("Catalog", "ClearCatalog complete.");
+                _svc.Diagnostics.Write("Catalog",
+                    "ClearCatalog complete — library catalog, AI descriptions, and category data removed.");
             }
             catch (OperationCanceledException)
             {

@@ -28,6 +28,12 @@ public sealed class DescriptionStoreService
 
     public async Task ResetStoreAsync(CancellationToken cancellationToken = default)
     {
+        ClearCache();
+        if (File.Exists(ConfigPaths.ModelDescriptionsFile))
+        {
+            File.Delete(ConfigPaths.ModelDescriptionsFile);
+        }
+
         await SaveAsync(new ModelDescriptionStoreDocument(), cancellationToken).ConfigureAwait(false);
     }
 
