@@ -76,13 +76,24 @@ public static partial class OllamaLibraryHtmlParser
                 fileSize = blockMatch.Groups[1].Value.Trim().ToUpperInvariant();
             }
 
+            var parameterSize = FormatParameterSizeLabel(paramSizes);
+            if (parameterSize == "-")
+            {
+                parameterSize = OllamaLibraryTagsParser.TryParseParamsFromDescription(description);
+            }
+
+            var isCloudOnly = capabilities.Contains("cloud", StringComparer.OrdinalIgnoreCase)
+                && fileSize == "-"
+                && parameterSize == "-";
+
             results.Add(new LibraryCatalogEntry
             {
                 Name = name,
                 Description = description,
                 Tags = string.Join(' ', capabilities),
-                ParameterSize = FormatParameterSizeLabel(paramSizes),
-                FileSize = fileSize
+                ParameterSize = parameterSize,
+                FileSize = fileSize,
+                IsCloudOnly = isCloudOnly
             });
         }
 

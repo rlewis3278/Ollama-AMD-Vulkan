@@ -48,6 +48,8 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     private bool _isTesting;
 
     public required string Name { get; init; }
+    public string DefaultPullTag { get; init; } = string.Empty;
+    public bool IsCloudOnly { get; init; }
 
     public string Description
     {

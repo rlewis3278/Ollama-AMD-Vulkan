@@ -125,6 +125,13 @@ public sealed class LibraryCatalogStoreService
                 {
                     item.ListDescription = previous.ListDescription;
                 }
+
+                if (!string.IsNullOrWhiteSpace(previous.DefaultPullTag))
+                {
+                    item.DefaultPullTag = previous.DefaultPullTag;
+                }
+
+                item.IsCloudOnly = previous.IsCloudOnly;
             }
 
             store.CatalogFetchedAt = DateTimeOffset.Now.ToString("o");
@@ -162,7 +169,13 @@ public sealed class LibraryCatalogStoreService
         }
     }
 
-    public async Task<int> EnrichFileSizesAsync(
+    public Task<int> EnrichFileSizesAsync(
+        IProgress<string>? progress = null,
+        Func<bool>? shouldAbort = null,
+        CancellationToken cancellationToken = default) =>
+        EnrichTagsAndMetadataAsync(progress, shouldAbort, cancellationToken);
+
+    public async Task<int> EnrichTagsAndMetadataAsync(
         IProgress<string>? progress = null,
         Func<bool>? shouldAbort = null,
         CancellationToken cancellationToken = default)
@@ -179,7 +192,7 @@ public sealed class LibraryCatalogStoreService
 
         try
         {
-            return await EnrichFileSizesCoreAsync(progress, shouldAbort, enrichToken).ConfigureAwait(false);
+            return await EnrichTagsAndMetadataCoreAsync(progress, shouldAbort, enrichToken).ConfigureAwait(false);
         }
         finally
         {
@@ -187,14 +200,36 @@ public sealed class LibraryCatalogStoreService
         }
     }
 
-    private async Task<int> EnrichFileSizesCoreAsync(
+    public async Task<CatalogPullResolution> ResolvePullTagAsync(
+        string libraryName,
+        CancellationToken cancellationToken = default)
+    {
+        var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        var entry = store.Items.FirstOrDefault(e => e.Name.Equals(libraryName, StringComparison.OrdinalIgnoreCase));
+        if (entry is not null && !string.IsNullOrWhiteSpace(entry.DefaultPullTag))
+        {
+            return CatalogPullTagResolver.ResolveFromEntry(entry);
+        }
+
+        var tags = await FetchTagsAsync(libraryName, cancellationToken).ConfigureAwait(false);
+        var resolution = CatalogPullTagResolver.Resolve(libraryName, tags);
+        if (entry is not null && resolution.Resolved)
+        {
+            ApplyResolution(entry, resolution);
+            await SaveAsync(store, cancellationToken).ConfigureAwait(false);
+        }
+
+        return resolution;
+    }
+
+    private async Task<int> EnrichTagsAndMetadataCoreAsync(
         IProgress<string>? progress,
         Func<bool>? shouldAbort,
         CancellationToken cancellationToken)
     {
         var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
         var missing = store.Items
-            .Where(e => string.IsNullOrWhiteSpace(e.FileSize) || e.FileSize == "-")
+            .Where(NeedsTagMetadataEnrichment)
             .ToList();
         if (missing.Count == 0)
         {
@@ -211,28 +246,25 @@ public sealed class LibraryCatalogStoreService
             }
 
             var entry = missing[i];
-            progress?.Report($"Fetching catalog file sizes ({i + 1}/{missing.Count}): {entry.Name}");
+            progress?.Report($"Fetching catalog tags ({i + 1}/{missing.Count}): {entry.Name}");
 
             try
             {
-                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                timeoutCts.CancelAfter(FileSizeRequestTimeout);
-
-                var url = $"{CatalogUrl}/{entry.Name}";
-                using var response = await _httpClient.GetAsync(url, timeoutCts.Token).ConfigureAwait(false);
-                if (!response.IsSuccessStatusCode)
+                var tags = await FetchTagsAsync(entry.Name, cancellationToken).ConfigureAwait(false);
+                if (tags.Count == 0)
                 {
                     continue;
                 }
 
-                var html = await response.Content.ReadAsStringAsync(timeoutCts.Token).ConfigureAwait(false);
-                var size = OllamaLibraryDetailParser.ParseFileSizeRange(html);
-                if (size != "-" && !string.IsNullOrWhiteSpace(size))
+                var resolution = CatalogPullTagResolver.Resolve(entry.Name, tags);
+                if (!resolution.Resolved)
                 {
-                    entry.FileSize = size;
-                    enriched++;
-                    await SaveAsync(store, cancellationToken).ConfigureAwait(false);
+                    continue;
                 }
+
+                ApplyResolution(entry, resolution);
+                enriched++;
+                await SaveAsync(store, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -245,6 +277,54 @@ public sealed class LibraryCatalogStoreService
         }
 
         return enriched;
+    }
+
+    private async Task<IReadOnlyList<LibraryTagInfo>> FetchTagsAsync(
+        string libraryName,
+        CancellationToken cancellationToken)
+    {
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(FileSizeRequestTimeout);
+
+        var url = $"{CatalogUrl}/{libraryName}/tags";
+        using var response = await _httpClient.GetAsync(url, timeoutCts.Token).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            return Array.Empty<LibraryTagInfo>();
+        }
+
+        var html = await response.Content.ReadAsStringAsync(timeoutCts.Token).ConfigureAwait(false);
+        return OllamaLibraryTagsParser.ParseTagsHtml(html, libraryName);
+    }
+
+    private static bool NeedsTagMetadataEnrichment(LibraryCatalogEntry entry) =>
+        string.IsNullOrWhiteSpace(entry.DefaultPullTag)
+        || string.IsNullOrWhiteSpace(entry.FileSize)
+        || entry.FileSize == "-"
+        || string.IsNullOrWhiteSpace(entry.ParameterSize)
+        || entry.ParameterSize == "-";
+
+    private static void ApplyResolution(LibraryCatalogEntry entry, CatalogPullResolution resolution)
+    {
+        entry.DefaultPullTag = resolution.PullTag;
+        entry.IsCloudOnly = resolution.IsCloudOnly;
+        if (!string.IsNullOrWhiteSpace(resolution.ParameterSize) && resolution.ParameterSize != "-")
+        {
+            entry.ParameterSize = resolution.ParameterSize;
+        }
+        else if (entry.ParameterSize is "-" or "")
+        {
+            entry.ParameterSize = OllamaLibraryTagsParser.TryParseParamsFromDescription(entry.Description);
+        }
+
+        if (!string.IsNullOrWhiteSpace(resolution.FileSize) && resolution.FileSize != "-")
+        {
+            entry.FileSize = resolution.FileSize;
+        }
+        else if (resolution.IsCloudOnly)
+        {
+            entry.FileSize = "Cloud";
+        }
     }
 
     public int CountMissingFileSizes()

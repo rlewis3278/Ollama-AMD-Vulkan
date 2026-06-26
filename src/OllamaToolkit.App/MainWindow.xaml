@@ -157,6 +157,9 @@
                             <Button x:Name="DownloadCatalogModelBtn" Content="Download Selected LLM"
                                     Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
                                     Click="DownloadCatalogModel_Click" />
+                            <Button x:Name="CatalogStopDownloadBtn" Content="Stop Download"
+                                    Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
+                                    Click="CatalogStopDownload_Click" />
                             <Button x:Name="UninstallCatalogModelBtn" Content="Uninstall Selected LLM"
                                     Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
                                     Click="UninstallCatalogModel_Click" />
@@ -170,6 +173,10 @@
                                        VerticalAlignment="Center"
                                        Foreground="{StaticResource Brush.Muted}"
                                        Margin="12,0,0,0" />
+                            <TextBlock Text="Hold Shift to select a range of LLMs"
+                                       VerticalAlignment="Center"
+                                       Foreground="{StaticResource Brush.Muted}"
+                                       Margin="8,0,0,0" />
                         </StackPanel>
                     </Grid>
                     <StackPanel Grid.Row="1" Margin="0,0,0,8">

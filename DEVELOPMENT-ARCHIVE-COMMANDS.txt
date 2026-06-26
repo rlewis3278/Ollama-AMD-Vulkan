@@ -390,3 +390,185 @@ Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArc
 dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release; dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 --self-contained false -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"
 Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|AiActivityHub + dual status buttons (AI Active / Ollama AI Active)"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|InferenceActivityCallbacks on OllamaApiClient benchmark/chat + model warm-load"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|ToolkitAiFeatureCheckBox â€” larger boxes, bright red checkmark, instant-save feedback"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build 0 errors; published OllamaToolkit.App"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: reliable AI activity indicators and AI Features checkbox UI`n`n- AiActivityHub ref-counts toolkit AI vs Ollama inference separately`n- AI Active flashes yellow/black for all toolkit AI tasks`n- Ollama AI Active button for benchmark/chat/launch inference`n- Fix flash presenter to use ToolkitFlashButtonTemplate`n- Larger AI Features checkboxes with bright red checkmarks; instant-save feedback"
 dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 --self-contained false -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App"; Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|Dual idle/active labels on Program AI and Ollama AI status buttons"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|AI Features page feature descriptions beside each toggle"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build 0 errors; published OllamaToolkit.App"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: dual status button labels and AI Features descriptions`n`n- Program AI Inactive/Active and Ollama AI Inactive/Ollama Active labels`n- Active label shown while yellow/black flash is running`n- AI Features rows include detailed muted descriptions per toggle"
+Get-Item "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.exe" | Select-Object FullName, LastWriteTime; Get-Item "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\bin\Release\net8.0-windows\OllamaToolkit.App.exe" -ErrorAction SilentlyContinue | Select-Object FullName, LastWriteTime; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" log -3 --oneline
+Select-String -Path "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll" -Pattern "Program AI Inactive","Ollama Active","Program AI Active" -Encoding unicode -ErrorAction SilentlyContinue; Select-String -Path "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll" -Pattern "AI Inactive" -Encoding unicode -ErrorAction SilentlyContinue | Select-Object -First 5
+$dll = "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll"; $bytes = [System.IO.File]::ReadAllBytes($dll); $text = [System.Text.Encoding]::UTF8.GetString($bytes); @("Program AI Inactive","Program AI Active","Ollama Active","Ollama AI Inactive","AI Inactive","GetFeatureDefinitions","AiActivityHub") | ForEach-Object { "$_ : $($text.Contains($_))" }; (Get-Item $dll).LastWriteTime
+$dll = "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\bin\Release\net8.0-windows\OllamaToolkit.App.dll"; $bytes = [System.IO.File]::ReadAllBytes($dll); $text = [System.Text.Encoding]::UTF8.GetString($bytes); @("Program AI Inactive","Program AI Active","Ollama Active","AiActivityHub") | ForEach-Object { "$_ : $($text.Contains($_))" }; (Get-Item $dll).LastWriteTime
+$pub = "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll"; $bin = "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\bin\Release\net8.0-windows\OllamaToolkit.App.dll"; foreach ($p in @($pub,$bin)) { if (Test-Path $p) { $i=Get-Item $p; Write-Output "--- $p"; Write-Output "LastWriteTime: $($i.LastWriteTime)"; $t=[IO.File]::ReadAllText($p); foreach ($s in @('Program AI Inactive','Program AI Active','Ollama AI Inactive','Ollama Active','AI Inactive','OllamaAiStatusButton','GetFeatureDefinitions','Each toggle saves instantly')) { Write-Output ("  {0,-30} {1}" -f $s, $t.Contains($s)) } } }; Get-Process OllamaToolkit.App -ErrorAction SilentlyContinue | Select-Object Id,Path,StartTime
+Get-Item "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.exe","C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll" | Format-Table Name,LastWriteTime,Length -AutoSize; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" log -1 --format="%h %ci %s"
+powershell -NoProfile -Command "Get-Item 'C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll','C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\bin\Release\net8.0-windows\OllamaToolkit.App.dll' -ErrorAction SilentlyContinue | Select-Object FullName,LastWriteTime; Select-String -Path 'C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll','C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\bin\Release\net8.0-windows\OllamaToolkit.App.dll' -Pattern 'Program AI Inactive','Ollama AI Inactive','GetFeatureDefinitions' -ErrorAction SilentlyContinue"
+powershell -NoProfile -Command "$pub='C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'; $rel='C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\bin\Release\net8.0-windows\OllamaToolkit.App.dll'; foreach($p in @('Program AI Inactive','Ollama AI Inactive','Master switch for all Program AI')) { Write-Host \"--- $p ---\"; foreach($f in @($pub,$rel)) { $bytes=[IO.File]::ReadAllBytes($f); $text=[Text.Encoding]::UTF8.GetString($bytes); if($text -match [regex]::Escape($p)) { Write-Host \"FOUND in $f\" } else { Write-Host \"MISSING in $f\" } } }"
+powershell -NoProfile -File - <<'EOF'
+$pub = 'C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'
+$rel = 'C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\bin\Release\net8.0-windows\OllamaToolkit.App.dll'
+Get-Item $pub,$rel | Format-Table FullName,LastWriteTime -AutoSize
+$markers = @('Program AI Inactive','Ollama AI Inactive','Master switch for all Program AI')
+foreach ($m in $markers) {
+  Write-Host "--- $m ---"
+  foreach ($f in @($pub,$rel)) {
+    $text = [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($f))
+    if ($text.Contains($m)) { Write-Host "FOUND: $f" } else { Write-Host "MISSING: $f" }
+  }
+}
+EOF
+$pub='C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'; $rel='C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\bin\Release\net8.0-windows\OllamaToolkit.App.dll'; Get-Item $pub,$rel | Format-Table FullName,LastWriteTime -AutoSize; $markers=@('Program AI Inactive','Ollama AI Inactive','Master switch for all Program AI'); foreach($m in $markers){ Write-Host "--- $m ---"; foreach($f in @($pub,$rel)){ $text=[Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($f)); if($text.Contains($m)){ Write-Host "FOUND: $f" } else { Write-Host "MISSING: $f" } } }
+Get-Item 'C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll','C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\bin\Release\net8.0-windows\OllamaToolkit.App.dll' | Select-Object FullName,@{N='LastWriteTime';E={$_.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')}}
+powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Publish-OllamaToolkitApp.ps1"
+& "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Publish-OllamaToolkitApp.ps1"
+dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; Stop-Process -Name OllamaToolkit.App -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 2; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App
+$dll='C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'; $text=[Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($dll)); @('Program AI Inactive','Ollama AI Inactive','Description summarization') | ForEach-Object { if($text.Contains($_)){ "FOUND: $_" } else { "MISSING: $_" } }; (Get-Item $dll).LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; dotnet build OllamaToolkit.sln -c Release --no-restore 2>&1 | Select-Object -Last 15
+$dll='C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'; $text=[Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($dll)); @('1. Description summarization','Condenses long model pages','GetFeatureDefinitions') | ForEach-Object { if($text.Contains($_)){ "FOUND: $_" } else { "MISSING: $_" } }
+$dll='C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'; $bytes=[IO.File]::ReadAllBytes($dll); $utf16=[Text.Encoding]::Unicode.GetString($bytes); @('Program AI Inactive','1. Description summarization','Condenses long model pages') | ForEach-Object { if($utf16.Contains($_)){ "UTF16 FOUND: $_" } else { "UTF16 MISSING: $_" } }
+$dll='C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'; $bytes=[IO.File]::ReadAllBytes($dll); $utf16=[Text.Encoding]::Unicode.GetString($bytes); @('Condenses','model pages','Catalog categorization','Build stamp') | ForEach-Object { if($utf16.Contains($_)){ "UTF16 FOUND: $_" } else { "UTF16 MISSING: $_" } }
+$dll='C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'; $bytes=[IO.File]::ReadAllBytes($dll); $u8=[Text.Encoding]::UTF8.GetString($bytes); $u16=[Text.Encoding]::Unicode.GetString($bytes); @('Program AI Inactive','Ollama AI Inactive','1. Description summarization','Build stamp: DLL') | ForEach-Object { $m=$_; $f8=$u8.Contains($m); $f16=$u16.Contains($m); "$m => utf8:$f8 utf16:$f16" }
+$dll='C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'; $bytes=[IO.File]::ReadAllBytes($dll); $u8=[Text.Encoding]::UTF8.GetString($bytes); $u16=[Text.Encoding]::Unicode.GetString($bytes); 'Build stamp' | ForEach-Object { "$_ => utf8:$($u8.Contains($_)) utf16:$($u16.Contains($_))" }
+$dll='C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'; $u16=[Text.Encoding]::Unicode.GetString([IO.File]::ReadAllBytes($dll)); @('Build stamp','git ','TryGetGitShortHash','ApplyStatusButtonPresentations') | ForEach-Object { "$_ : $($u16.Contains($_))" }
+$dll='C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\bin\Release\net8.0-windows\OllamaToolkit.App.dll'; $u16=[Text.Encoding]::Unicode.GetString([IO.File]::ReadAllBytes($dll)); @('ApplyStatusButtonPresentations','TryGetGitShortHash','Build stamp') | ForEach-Object { "$_ : $($u16.Contains($_))" }
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; Stop-Process -Name OllamaToolkit.App -Force -ErrorAction SilentlyContinue; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; & .\scripts\Publish-OllamaToolkitApp.ps1
+$dll='C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'; $u16=[Text.Encoding]::Unicode.GetString([IO.File]::ReadAllBytes($dll)); @('Build stamp','rev-parse','FindGitRepoRoot') | ForEach-Object { "$_ : $($u16.Contains($_))" }; (Get-Item $dll).LastWriteTime
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; Stop-Process -Name OllamaToolkit.App -Force -ErrorAction SilentlyContinue; dotnet clean src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App --no-incremental
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App
+$dll='C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'; $u16=[Text.Encoding]::Unicode.GetString([IO.File]::ReadAllBytes($dll)); @('Build stamp','rev-parse --short HEAD','Program AI Inactive','1. Description summarization') | ForEach-Object { "$_ : $($u16.Contains($_) -or [Text.Encoding]::UTF8.GetString([IO.File]::ReadAllBytes($dll)).Contains($_))" }; (Get-Item $dll).LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; git status; git diff --stat
+$bytes=[IO.File]::ReadAllBytes('C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'); $u16=[Text.Encoding]::Unicode.GetString($bytes); $matches=[regex]::Matches($u16,'[Bb]uild.{0,20}stamp'); $matches | ForEach-Object { $_.Value }
+Select-String -Path 'C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\MainWindow.xaml.cs' -Pattern 'LogBuildStamp|Build stamp' ; $win='C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\bin\Release\net8.0-windows\win-x64\OllamaToolkit.App.dll'; if(Test-Path $win){ $u16=[Text.Encoding]::Unicode.GetString([IO.File]::ReadAllBytes($win)); "win-x64 dll time: $((Get-Item $win).LastWriteTime)"; "Build stamp in win-x64: $($u16.Contains('Build stamp'))" } else { 'win-x64 dll missing' }
+$u16=[Text.Encoding]::Unicode.GetString([IO.File]::ReadAllBytes('C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\bin\Release\net8.0-windows\win-x64\OllamaToolkit.App.dll')); @('Build stamp: DLL ','Build stamp: DLL','git {','unknown') | ForEach-Object { "$_ : $($u16.Contains($_))" }
+$u16=[Text.Encoding]::Unicode.GetString([IO.File]::ReadAllBytes('C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\bin\Release\net8.0-windows\win-x64\OllamaToolkit.App.dll')); @('yyyy-MM-dd HH:mm:ss','MainWindow loaded','ApplyStatusButtonPresentations') | ForEach-Object { "$_ : $($u16.Contains($_))" }
+$asm=[Reflection.Assembly]::LoadFrom('C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'); $t=$asm.GetType('OllamaToolkit.App.MainWindow'); @('ApplyStatusButtonPresentations','LogBuildStamp','TryGetGitShortHash','UpdateAiStatusAsync') | ForEach-Object { $m=$t.GetMethod($_, [Reflection.BindingFlags]'NonPublic,Instance,Static,Public'); "$_ : $($null -ne $m)" }
+$asm=[Reflection.Assembly]::LoadFrom('C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll'); $asm.GetTypes() | Where-Object { $_.Name -like '*MainWindow*' } | ForEach-Object { $_.FullName; $_.GetMethods([Reflection.BindingFlags]'NonPublic,Instance,Public') | Where-Object { $_.Name -match 'ApplyStatus|LogBuild|UpdateAi' } | ForEach-Object { $_.Name } }
+findstr /C:"ApplyStatus" /C:"LogBuild" /C:"Build stamp" "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.dll"
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; git check-ignore -v publish/OllamaToolkit.App/OllamaToolkit.App.dll 2>$null; if(-not $?) { 'not ignored' }
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; git add scripts/Publish-OllamaToolkitApp.ps1 src/OllamaToolkit.App/MainWindow.xaml.cs; git commit -m "Fix stale publish: guarded publish script, early AI status labels, build stamp"
+New-Item -ItemType Directory -Force -Path "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\Assets" | Out-Null; Copy-Item -LiteralPath "C:\Users\lewis\Downloads\ollama_gui_manager_icon.ico" -Destination "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\Assets\ollama_gui_manager_icon.ico" -Force; Get-Item "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\Assets\ollama_gui_manager_icon.ico" | Select-Object Length,LastWriteTime
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release
+$exe='C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.exe'; if(Test-Path $exe){ $icon=[System.Drawing.Icon]::ExtractAssociatedIcon($exe); "Exe icon extracted: $($null -ne $icon), size=$($icon.Width)x$($icon.Height)" } else { 'exe missing' }
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; git add src/OllamaToolkit.App/Assets/ollama_gui_manager_icon.ico src/OllamaToolkit.App/OllamaToolkit.App.csproj src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/ToolkitConfirmDialog.xaml; git commit -m "Add custom app icon to executable and window chrome"
+Test-Path "$env:USERPROFILE\Desktop"; Test-Path "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.exe"; Test-Path "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\Assets\ollama_gui_manager_icon.ico"
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; & .\scripts\Create-DesktopShortcut.ps1
+Test-Path "C:\Users\lewis\OneDrive\Desktop\Ollama AMD Vulkan Manager.lnk"; Get-Item "C:\Users\lewis\OneDrive\Desktop\Ollama AMD Vulkan Manager.lnk" | Select-Object FullName,LastWriteTime
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; git add scripts/Create-DesktopShortcut.ps1; git commit -m "Add script to create Desktop shortcut for Ollama GUI"
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; git add src/OllamaToolkit.App/OllamaToolkit.App.csproj src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/Services/AppBuildInfo.cs src/OllamaToolkit.App/Services/StartupSplashPresenter.cs scripts/Publish-OllamaToolkitApp.ps1; git commit -m "Add launch splash overlay with version display and build-baked revision"
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; git status; git diff src/OllamaToolkit.App/MainWindow.xaml.cs
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release; & .\scripts\Publish-OllamaToolkitApp.ps1
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; git add src/OllamaToolkit.App/Services/StartupSplashPresenter.cs src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs; git commit -m "Fix startup splash: hold opacity after fade-in, minimum 5s visible"
+Copy-Item -LiteralPath "C:\Users\lewis\.grok\sessions\C%3A%5CUsers%5Clewis\019ef98d-ebd9-7ea0-b305-ee7496b813b8\assets\image-277153b4-28be-4448-aab7-6a45350b2cfe.png" -Destination "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\Assets\startup_splash_logo.png" -Force; Get-Item "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\Assets\startup_splash_logo.png" | Select-Object Length,LastWriteTime
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; git add src/OllamaToolkit.App/Assets/startup_splash_logo.png src/OllamaToolkit.App/OllamaToolkit.App.csproj src/OllamaToolkit.App/MainWindow.xaml; git commit -m "Use custom PNG logo on startup splash instead of app icon"
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release 2>&1
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; git add -A; git status
+Set-Location C:\Users\lewis\Ollama-AMD-Vulkan; git commit -m "Add master flash clock and synced yellow/black testing row highlights"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git log --oneline -15 -- src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/Services/ModelLaunchRowViewModel.cs
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git log --oneline -15 -- src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/Services/ModelLaunchRowViewModel.cs
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git show 739b9e6 --stat
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git show 739b9e6 -- src/OllamaToolkit.App/MainWindow.xaml.cs | Select-String -Pattern "BestMode|BenchmarkKind|ModelLaunch|RefreshModels" -Context 2,2
+if (Test-Path "$env:USERPROFILE\.ollama-amd-vulkan\model-profiles.json") { Get-Content "$env:USERPROFILE\.ollama-amd-vulkan\model-profiles.json" -Head 100 } else { Write-Host "no model-profiles.json" }
+Get-Content "$env:USERPROFILE\.ollama-amd-vulkan\model-profiles.json" | Select-String -Pattern '"bestMode"' | Select-Object -First 20
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git show 739b9e6^:src/OllamaToolkit.App/MainWindow.xaml.cs | Select-String -Pattern "RefreshModelsUiAsync" -Context 0,35
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; @'
+using OllamaToolkit.BenchmarkStore;
+using OllamaToolkit.App.Services;
+
+var profiles = new ProfileStoreService();
+var summaries = await profiles.GetAllSummariesAsync();
+foreach (var s in summaries.Where(x => !string.IsNullOrEmpty(x.BestMode)).Take(5))
+{
+    var enriched = new OllamaToolkit.BenchmarkStore.Models.ModelProfileSummary {
+        Model = s.Model, BestMode = s.BestMode, BestTps = s.BestTps, Status = s.Status
+    };
+    var row = ModelLaunchRowViewModel.FromSummary(enriched);
+    Console.WriteLine($"{s.Model}: src BestMode={s.BestMode} kind={s.BenchmarkKind} embed={s.BestEmbedMs} tps={s.BestTps}");
+    Console.WriteLine($"  enriched row: BestMode={row.BestMode} metric={row.BestMetricDisplay} kind={row.BenchmarkKind}");
+    var row2 = ModelLaunchRowViewModel.FromSummary(s);
+    Console.WriteLine($"  direct row: BestMode={row2.BestMode} metric={row2.BestMetricDisplay} kind={row2.BenchmarkKind}");
+}
+'@ | Set-Content -Path ".\tmp-check\Program.cs" -Encoding UTF8
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; New-Item -ItemType Directory -Force -Path "tmp-check" | Out-Null; @'
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\src\OllamaToolkit.App\OllamaToolkit.App.csproj" />
+  </ItemGroup>
+</Project>
+'@ | Set-Content -Path "tmp-check\tmp-check.csproj" -Encoding UTF8; @'
+using OllamaToolkit.App.Services;
+using OllamaToolkit.BenchmarkStore;
+using OllamaToolkit.BenchmarkStore.Models;
+
+var profiles = new ProfileStoreService();
+var summaries = await profiles.GetAllSummariesAsync();
+foreach (var s in summaries.Where(x => !string.IsNullOrEmpty(x.BestMode)).Take(5))
+{
+    var enriched = new ModelProfileSummary {
+        Model = s.Model, BestMode = s.BestMode, BestTps = s.BestTps, Status = s.Status
+    };
+    var row = ModelLaunchRowViewModel.FromSummary(enriched);
+    Console.WriteLine($"{s.Model}");
+    Console.WriteLine($"  source: BestMode={s.BestMode} kind={s.BenchmarkKind} embed={s.BestEmbedMs} tps={s.BestTps} metric={s.BestMetricDisplay}");
+    Console.WriteLine($"  enriched: BestMode={row.BestMode} kind={row.BenchmarkKind} metric={row.BestMetricDisplay}");
+    var row2 = ModelLaunchRowViewModel.FromSummary(s);
+    Console.WriteLine($"  direct: BestMode={row2.BestMode} kind={row2.BenchmarkKind} metric={row2.BestMetricDisplay}");
+}
+'@ | Set-Content -Path "tmp-check\Program.cs" -Encoding UTF8; dotnet run --project tmp-check\tmp-check.csproj
+if (Test-Path "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.exe") { Get-Item "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App\OllamaToolkit.App.exe" | Select-Object LastWriteTime, Length } else { "no publish exe" }; git -C "C:\Users\lewis\Ollama-AMD-Vulkan" log -1 --format="%h %ci %s"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; New-Item -ItemType Directory -Force -Path "tmp-check" | Out-Null; @'
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\src\OllamaToolkit.App\OllamaToolkit.App.csproj" />
+  </ItemGroup>
+</Project>
+'@ | Set-Content -Path "tmp-check\tmp-check.csproj" -Encoding UTF8; @'
+using OllamaToolkit.App.Services;
+using OllamaToolkit.BenchmarkStore;
+
+var profiles = new ProfileStoreService();
+var summaries = await profiles.GetAllSummariesAsync();
+var tested = summaries.Where(x => !string.IsNullOrEmpty(x.BestMode)).ToList();
+Console.WriteLine($"Tested models: {tested.Count}");
+foreach (var s in tested)
+{
+    var row = ModelLaunchRowViewModel.FromSummary(ModelLaunchRowViewModel.WithCategory(s, s.Category));
+    Console.WriteLine($"{s.Model}: BestMode={row.BestMode}, Metric={row.BestMetricDisplay}, Kind={row.BenchmarkKind}");
+}
+'@ | Set-Content -Path "tmp-check\Program.cs" -Encoding UTF8; dotnet run --project tmp-check\tmp-check.csproj
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; powershell -NoProfile -File ".\scripts\Publish-OllamaToolkitApp.ps1"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.BenchmarkStore/BenchmarkMetricFormatter.cs src/OllamaToolkit.App/Services/ModelLaunchRowViewModel.cs src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.ModelRegistry/Models/RegistryModels.cs; git commit -m "$(cat <<'EOF'
+fix: populate Best Mode and Metric on Models & Launch grid
+
+RefreshModelsUiAsync was dropping BenchmarkKind and BestEmbedMs when
+re-projecting summaries, so embed models always showed empty metrics.
+Materialize BestMetricDisplay at map time, add WithCategory helper,
+use OneWay bindings, and disable row virtualization on ModelsGrid.
+EOF
+)"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.BenchmarkStore/BenchmarkMetricFormatter.cs src/OllamaToolkit.App/Services/ModelLaunchRowViewModel.cs src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.ModelRegistry/Models/RegistryModels.cs; git commit -m "fix: populate Best Mode and Metric on Models and Launch grid"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs; git commit -m "feat: show current compute mode in footer between version and AI buttons"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release 2>&1
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.Core/ConfigPaths.cs src/OllamaToolkit.AiAssist/Models/AiAssistCacheModels.cs src/OllamaToolkit.AiAssist/AiLlmRecommendationService.cs src/OllamaToolkit.App/Services/AiRecommendedLlmRowViewModel.cs src/OllamaToolkit.App/Services/AppServices.cs src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs; git commit -m "feat: complete AI Settings with recommended LLM lists and hybrid ranking"
+dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" -c Release --no-restore 2>&1; if (-not $?) { dotnet restore "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln"; dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" -c Release }
+powershell -ExecutionPolicy Bypass -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Publish-OllamaToolkitApp.ps1"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git status && git diff --stat
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git status; git diff --stat
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.AiAssist/AiLlmRecommendationService.cs src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.App/Services/AppServices.cs src/OllamaToolkit.App/Services/SummarizerInferenceService.cs src/OllamaToolkit.ModelCategory/CatalogClassificationService.cs; git commit -m "Fix AI recommendations cancel, summarizer best mode, and AI Settings UI"
+dotnet build "C:\Users\lewis\Ollama-AMD-Vulkan\OllamaToolkit.sln" -c Release
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git commit -m "Fix Model Library freezes/crashes, catalog STOP/flash, v1.1.0"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git commit -m "Fix catalog ops stuck busy: missing Brush.AccentHover and STOP reset"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git commit -m "Fix running mode display, mode page sync, and categorize grid refresh"
+cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git commit -m "fix: Clear Catalog fully wipes AI descriptions and category data"; powershell -ExecutionPolicy Bypass -File ".\scripts\Publish-OllamaToolkitApp.ps1"; git push
+powershell -ExecutionPolicy Bypass -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "FILE|Clear Catalog deletes library-catalog-store.json, model-descriptions.json, and model-usage-categories.json" -Entry "FILE|Clear Catalog resets category filter and AI Settings categorization status" -Entry "BUILD|Release build 0 errors; published OllamaToolkit.App d311e5f; pushed to git"
+powershell -ExecutionPolicy Bypass -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry @("FILE|Clear Catalog deletes library-catalog-store.json, model-descriptions.json, and model-usage-categories.json","FILE|Clear Catalog resets category filter and AI Settings categorization status","BUILD|Release build 0 errors; published OllamaToolkit.App d311e5f; pushed to git")
+powershell -ExecutionPolicy Bypass -Command "& { .\scripts\Update-DevelopmentArchive.ps1 -Entry 'FILE|Clear Catalog fully wipes AI descriptions and category JSON stores'; .\scripts\Update-DevelopmentArchive.ps1 -Entry 'BUILD|Published d311e5f and pushed to git' }"
+powershell -ExecutionPolicy Bypass -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "FILE|Clear Catalog fully wipes AI descriptions and category JSON stores"
+powershell -ExecutionPolicy Bypass -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "BUILD|Published d311e5f and pushed to git"

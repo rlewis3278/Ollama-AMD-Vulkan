@@ -83,7 +83,11 @@ public sealed class ModelRegistryService
                 : downloadDescription;
 
             var fileSize = e.FileSize;
-            if ((fileSize == "-" || string.IsNullOrWhiteSpace(fileSize))
+            if ((fileSize == "-" || string.IsNullOrWhiteSpace(fileSize)) && e.IsCloudOnly)
+            {
+                fileSize = "Cloud";
+            }
+            else if ((fileSize == "-" || string.IsNullOrWhiteSpace(fileSize))
                 && installedSizes.TryGetValue(e.Name, out var installedSize))
             {
                 fileSize = installedSize;
@@ -96,6 +100,8 @@ public sealed class ModelRegistryService
             rows.Add(new CatalogRowViewModel
             {
                 Name = e.Name,
+                DefaultPullTag = e.DefaultPullTag,
+                IsCloudOnly = e.IsCloudOnly,
                 Description = e.Description,
                 ListDescription = listDesc,
                 DownloadDescription = downloadDescription,
@@ -269,13 +275,17 @@ public sealed class ModelRegistryService
             var fileSize = entry.FileSize;
             if (!ModelSizeFormatter.TryParseSizeLabelToBytes(fileSize, out var bytes))
             {
-                bytes = long.MaxValue;
+                bytes = entry.IsCloudOnly ? long.MaxValue - 1 : long.MaxValue;
             }
+
+            var pullTag = !string.IsNullOrWhiteSpace(entry.DefaultPullTag)
+                ? entry.DefaultPullTag
+                : $"{entry.Name}:latest";
 
             candidates.Add(new UndownloadTestCandidate
             {
                 LibraryName = entry.Name,
-                PullTag = $"{entry.Name}:latest",
+                PullTag = pullTag,
                 FileSizeBytes = bytes
             });
         }

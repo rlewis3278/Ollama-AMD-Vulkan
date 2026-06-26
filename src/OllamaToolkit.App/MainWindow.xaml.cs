@@ -174,6 +174,7 @@ public partial class MainWindow : Window
             UpdateFooterVersionLabel();
             ApplyCatalogDescriptionModeUi();
             UpdateCatalogStopButtonUi();
+            UpdateCatalogDownloadButtonUi();
             UpdateStopTestButtonUi();
             InitModeCards();
             InitAiFeatureToggles();
@@ -243,8 +244,48 @@ public partial class MainWindow : Window
     private bool IsBenchmarkQueueRunning() =>
         _benchmarkQueueRunning || _activeTestWork is { IsCompleted: false };
 
+    private bool IsCatalogDownloadActive => _catalogDownloadInProgress;
+
+    private bool TryBlockDownloadIfTestActive()
+    {
+        if (!IsBenchmarkQueueRunning())
+        {
+            return true;
+        }
+
+        MessageBox.Show(
+            "A benchmark test is running. Click Stop Test before downloading models.",
+            "Download",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
+        return false;
+    }
+
+    private bool TryBlockWorkloadIfDownloadActive(string operationName)
+    {
+        if (!IsCatalogDownloadActive)
+        {
+            return true;
+        }
+
+        var message = $"A Model Library download is in progress. Click Stop Download or wait for it to finish before {operationName}.";
+        MessageBox.Show(message, operationName, MessageBoxButton.OK, MessageBoxImage.Information);
+        CatalogStatusLabel.Text = message;
+        return false;
+    }
+
     private bool BeginTestOperation(object? sender, FlashColorScheme scheme = FlashColorScheme.YellowBlack)
     {
+        if (IsCatalogDownloadActive)
+        {
+            if (TaskButton(sender) is not null)
+            {
+                TestStatusLabel.Text = "Model Library download in progress — wait or click Stop Download.";
+            }
+
+            return false;
+        }
+
         if (IsBenchmarkQueueRunning())
         {
             return false;
@@ -698,36 +739,33 @@ public partial class MainWindow : Window
             ? _svc.ModeDefinitions.Get(runningMode).ShortLabel
             : running;
         var pending = _svc.ModeService.HasPendingModeChange(apiReady);
-
-        if (pending)
-        {
-            var configuredLabel = _svc.ModeDefinitions.TryParse(configured, out var configuredMode)
-                ? _svc.ModeDefinitions.Get(configuredMode).ShortLabel
-                : configured;
-            ModeStatusLabel.Text = apiReady
+        var configuredLabel = _svc.ModeDefinitions.TryParse(configured, out var configuredMode)
+            ? _svc.ModeDefinitions.Get(configuredMode).ShortLabel
+            : configured;
+        var modeStatusText = pending
+            ? apiReady
                 ? $"Running: {runningLabel} — saved {configuredLabel} (restart Ollama to apply)"
-                : $"Saved: {configuredLabel} — Ollama API not reachable";
-        }
-        else
-        {
-            ModeStatusLabel.Text = apiReady
+                : $"Saved: {configuredLabel} — Ollama API not reachable"
+            : apiReady
                 ? $"Running: {runningLabel} — Ollama is running and ready"
                 : $"Saved: {runningLabel} — Ollama API not reachable (start Ollama if needed)";
-        }
-
-        _modeCardPresenter.ApplyActiveMode(running);
-
+        var footerText = pending
+            ? $"Mode: {runningLabel} (running)"
+            : $"Mode: {runningLabel}";
         var snapshot = _svc.EnvBackup.ReadUserSnapshot();
-        EnvBox.Text = ModeEnvSummaryBuilder.Build(
+        var envText = ModeEnvSummaryBuilder.Build(
             configured,
             snapshot,
             _svc.ModeDefinitions.DeviceMap,
             _svc.ModeDefinitions);
 
-        var footerText = pending
-            ? $"Mode: {runningLabel} (running)"
-            : $"Mode: {runningLabel}";
-        ComputeModeFooterText.Text = footerText;
+        await UiDispatcher.InvokeAsync(() =>
+        {
+            ModeStatusLabel.Text = modeStatusText;
+            _modeCardPresenter.ApplyActiveMode(running);
+            EnvBox.Text = envText;
+            ComputeModeFooterText.Text = footerText;
+        }).ConfigureAwait(true);
     }
 
     private async Task<Dictionary<string, string>> GetCategoryMapAsync()
@@ -880,6 +918,13 @@ public partial class MainWindow : Window
 
     private async Task<string> ExplainErrorAsync(string message, CancellationToken cancellationToken = default)
     {
+        if (message.Contains("different thread owns it", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("file does not exist", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("pull model manifest", StringComparison.OrdinalIgnoreCase))
+        {
+            return message;
+        }
+
         if (!await _svc.AiSettings.IsFeatureEnabledAsync(AiFeatureKeys.PlainLanguageErrors, cancellationToken)
                 .ConfigureAwait(false))
         {
@@ -923,6 +968,23 @@ public partial class MainWindow : Window
             CatalogStopBtn.Background = ThemeBrush("Brush.Button", Brushes.Black);
             CatalogStopBtn.BorderBrush = ThemeBrush("Brush.PanelBorder", Brushes.Gray);
             CatalogStopBtn.Foreground = ThemeBrush("Brush.Text", Brushes.White);
+        }
+    }
+
+    private void UpdateCatalogDownloadButtonUi()
+    {
+        if (_catalogDownloadInProgress)
+        {
+            var accent = ThemeBrush("Brush.Accent", Brushes.Red);
+            CatalogStopDownloadBtn.Background = accent;
+            CatalogStopDownloadBtn.BorderBrush = accent;
+            CatalogStopDownloadBtn.Foreground = Brushes.White;
+        }
+        else
+        {
+            CatalogStopDownloadBtn.Background = ThemeBrush("Brush.Button", Brushes.Black);
+            CatalogStopDownloadBtn.BorderBrush = ThemeBrush("Brush.PanelBorder", Brushes.Gray);
+            CatalogStopDownloadBtn.Foreground = ThemeBrush("Brush.Text", Brushes.White);
         }
     }
 
@@ -1200,6 +1262,11 @@ public partial class MainWindow : Window
 
     private async void LaunchBestMode_Click(object sender, RoutedEventArgs e)
     {
+        if (!TryBlockWorkloadIfDownloadActive("launching a model"))
+        {
+            return;
+        }
+
         var model = GetSelectedModel();
         if (model is null)
         {
@@ -1252,6 +1319,11 @@ public partial class MainWindow : Window
 
     private async void TestSelected_Click(object sender, RoutedEventArgs e)
     {
+        if (!TryBlockWorkloadIfDownloadActive("running tests"))
+        {
+            return;
+        }
+
         var model = TestModelCombo.SelectedItem as string ?? GetSelectedModel()?.Model;
         if (string.IsNullOrWhiteSpace(model))
         {
@@ -1276,6 +1348,11 @@ public partial class MainWindow : Window
 
     private async void TestUntested_Click(object sender, RoutedEventArgs e)
     {
+        if (!TryBlockWorkloadIfDownloadActive("running tests"))
+        {
+            return;
+        }
+
         if (!BeginTestOperation(sender))
         {
             if (IsBenchmarkQueueRunning())
@@ -1304,6 +1381,11 @@ public partial class MainWindow : Window
             + "This will happen sequentially until all undownloaded LLMs have been tested.";
 
         if (!ToolkitConfirmDialog.ShowAccept(this, message, "Test Undownload"))
+        {
+            return;
+        }
+
+        if (!TryBlockWorkloadIfDownloadActive("running tests"))
         {
             return;
         }
@@ -3629,6 +3711,7 @@ public partial class MainWindow : Window
         CatalogDownloadProgress.Value = 0;
         CatalogDownloadProgressLabel.Text = $"{model} — {status}";
         CatalogStatusLabel.Text = CatalogDownloadProgressLabel.Text;
+        UpdateCatalogDownloadButtonUi();
     }
 
     private void ShowCatalogDownloadProgress(string model, ModelPullProgress update)
@@ -3646,6 +3729,7 @@ public partial class MainWindow : Window
         CatalogDownloadProgressPanel.Visibility = Visibility.Collapsed;
         CatalogDownloadProgress.Value = 0;
         CatalogDownloadProgressLabel.Text = string.Empty;
+        UpdateCatalogDownloadButtonUi();
     }
 
     private void BeginCatalogDownloadRow(CatalogRowViewModel row)
@@ -3666,11 +3750,29 @@ public partial class MainWindow : Window
             installed ? CatalogRowRefreshHighlight.Installed : CatalogRowRefreshHighlight.None);
     }
 
+    private void CatalogStopDownload_Click(object sender, RoutedEventArgs e)
+    {
+        if (!IsCatalogDownloadActive)
+        {
+            return;
+        }
+
+        _catalogDownloadCts?.Cancel();
+        _svc.Diagnostics.Write("Catalog", "STOP download requested.");
+        CatalogStatusLabel.Text = "Stopping download…";
+    }
+
     private async void DownloadCatalogModel_Click(object sender, RoutedEventArgs e)
     {
-        if (CatalogGrid.SelectedItem is not CatalogRowViewModel row)
+        var rows = CatalogGrid.SelectedItems.Cast<CatalogRowViewModel>().ToList();
+        if (rows.Count == 0)
         {
             MessageBox.Show("Select a catalog model first.", "Download", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (!TryBlockDownloadIfTestActive())
+        {
             return;
         }
 
@@ -3689,78 +3791,152 @@ public partial class MainWindow : Window
         _catalogDownloadCts?.Cancel();
         _catalogDownloadCts = new CancellationTokenSource();
         var ct = _catalogDownloadCts.Token;
-        var model = $"{row.Name}:latest";
 
         await _svc.WorkQueue.EnqueueAsync(async workCt =>
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(workCt, ct);
             var token = linked.Token;
             _catalogDownloadInProgress = true;
+            var downloaded = 0;
 
-            await UiDispatcher.InvokeAsync(() =>
-            {
-                BeginCatalogDownloadRow(row);
-                BeginCatalogDownloadProgressUi(model, "Preparing download…");
-            }).ConfigureAwait(false);
+            await UiDispatcher.InvokeAsync(UpdateCatalogDownloadButtonUi).ConfigureAwait(false);
 
             try
             {
-                var startup = await EnsureOllamaApiReadyAsync(token, $"Cannot download {model}", timeoutSec: 90)
+                var startup = await EnsureOllamaApiReadyAsync(token, "Cannot download — Ollama API not ready", timeoutSec: 90)
                     .ConfigureAwait(false);
                 if (!startup.Success)
                 {
                     throw new InvalidOperationException(startup.Message);
                 }
 
-                await UiDispatcher.InvokeAsync(() =>
-                    BeginCatalogDownloadProgressUi(model, "Downloading…")).ConfigureAwait(false);
-
-                var progress = new Progress<ModelPullProgress>(update =>
+                for (var i = 0; i < rows.Count; i++)
                 {
-                    UiDispatcher.InvokeAsync(() =>
+                    token.ThrowIfCancellationRequested();
+                    var row = rows[i];
+                    var resolution = !string.IsNullOrWhiteSpace(row.DefaultPullTag)
+                        ? new CatalogPullResolution
+                        {
+                            PullTag = row.DefaultPullTag,
+                            Resolved = true,
+                            IsCloudOnly = row.IsCloudOnly
+                        }
+                        : await _svc.CatalogStore.ResolvePullTagAsync(row.Name, token).ConfigureAwait(false);
+
+                    if (!resolution.Resolved)
                     {
-                        ShowCatalogDownloadProgress(model, update);
-                        _svc.ActivityLog.Write("Download", update.Status);
+                        var missingTagMessage =
+                            $"{row.Name} has no downloadable tag on ollama.com. Try Refresh Catalog.";
+                        _svc.Diagnostics.Write("Catalog", $"Download skipped: {missingTagMessage}");
+                        await UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = missingTagMessage)
+                            .ConfigureAwait(false);
+                        continue;
+                    }
+
+                    var pullTag = resolution.PullTag;
+                    if (resolution.IsCloudOnly)
+                    {
+                        var proceed = await UiDispatcher.InvokeAsync(() =>
+                            MessageBox.Show(
+                                $"{pullTag} is a cloud model (runs via Ollama cloud, not a local weight download). Continue?",
+                                "Cloud model",
+                                MessageBoxButton.YesNo,
+                                MessageBoxImage.Question) == MessageBoxResult.Yes).ConfigureAwait(false);
+                        if (!proceed)
+                        {
+                            continue;
+                        }
+                    }
+
+                    _svc.Diagnostics.Write("Catalog", $"Download started: {pullTag}");
+                    await UiDispatcher.InvokeAsync(() =>
+                    {
+                        BeginCatalogDownloadRow(row);
+                        BeginCatalogDownloadProgressUi(
+                            pullTag,
+                            rows.Count > 1
+                                ? $"Preparing download {i + 1}/{rows.Count}…"
+                                : "Preparing download…");
+                    }).ConfigureAwait(false);
+
+                    await UiDispatcher.InvokeAsync(() =>
+                        BeginCatalogDownloadProgressUi(pullTag, "Downloading…")).ConfigureAwait(false);
+
+                    var progress = new Progress<ModelPullProgress>(update =>
+                    {
+                        _ = UiDispatcher.InvokeAsync(() =>
+                        {
+                            ShowCatalogDownloadProgress(pullTag, update);
+                            _svc.ActivityLog.Write("Download", update.Status);
+                        });
                     });
-                });
 
-                await _svc.ApiClient.PullAsync(model, progress, token).ConfigureAwait(false);
-                _svc.ApiClient.InvalidateCaches();
-                _svc.Profiles.ClearCache();
+                    await _svc.ApiClient.PullAsync(pullTag, progress, token).ConfigureAwait(false);
+                    _svc.ApiClient.InvalidateCaches();
+                    _svc.Profiles.ClearCache();
 
-                var installed = await _svc.ApiClient.IsModelInstalledAsync(model, token).ConfigureAwait(false);
-                if (!installed)
-                {
-                    throw new InvalidOperationException(
-                        $"Download finished but {model} was not found in the local Ollama model list.");
+                    var installed = await _svc.ApiClient.IsModelInstalledAsync(pullTag, token).ConfigureAwait(false);
+                    if (!installed)
+                    {
+                        throw new InvalidOperationException(
+                            $"Download finished but {pullTag} was not found in the local Ollama model list.");
+                    }
+
+                    downloaded++;
+                    _svc.ActivityLog.Write("Task", $"Downloaded {pullTag}.");
+                    await UiDispatcher.InvokeAsync(async () =>
+                    {
+                        EndCatalogDownloadRow(row, installed: true);
+                        if (i == rows.Count - 1)
+                        {
+                            HideCatalogDownloadProgress();
+                        }
+
+                        CatalogStatusLabel.Text = rows.Count > 1
+                            ? $"Downloaded {downloaded}/{rows.Count} model(s). Last: {pullTag}."
+                            : $"Downloaded {pullTag}.";
+                        await RefreshModelsUiAsync().ConfigureAwait(true);
+                    }).ConfigureAwait(false);
                 }
 
-                _svc.ActivityLog.Write("Task", $"Downloaded {model}.");
-                await UiDispatcher.InvokeAsync(async () =>
+                await UiDispatcher.InvokeAsync(() =>
                 {
-                    EndCatalogDownloadRow(row, installed: true);
                     HideCatalogDownloadProgress();
-                    CatalogStatusLabel.Text = $"Downloaded {model}.";
-                    await RefreshModelsUiAsync().ConfigureAwait(true);
-                    EndTaskFlashSuccess(sender, "Downloaded", 10);
+                    if (downloaded > 0)
+                    {
+                        EndTaskFlashSuccess(sender, "Downloaded", 10);
+                    }
+                    else
+                    {
+                        EndTaskFlashIdle(sender);
+                    }
                 }).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    EndCatalogDownloadRow(row, row.Installed);
+                    foreach (var row in rows)
+                    {
+                        EndCatalogDownloadRow(row, row.Installed);
+                    }
+
                     HideCatalogDownloadProgress();
-                    CatalogStatusLabel.Text = $"Download cancelled for {model}.";
+                    CatalogStatusLabel.Text = "Download cancelled.";
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
+                _svc.Diagnostics.Write("Catalog", $"Download failed: {ex.Message}");
                 var msg = await ExplainErrorAsync(ex.Message, token).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    EndCatalogDownloadRow(row, row.Installed);
+                    foreach (var row in rows)
+                    {
+                        EndCatalogDownloadRow(row, row.Installed);
+                    }
+
                     HideCatalogDownloadProgress();
                     CatalogStatusLabel.Text = msg;
                     EndTaskFlashIdle(sender);
@@ -3769,6 +3945,7 @@ public partial class MainWindow : Window
             finally
             {
                 _catalogDownloadInProgress = false;
+                await UiDispatcher.InvokeAsync(UpdateCatalogDownloadButtonUi).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }
@@ -4010,6 +4187,11 @@ public partial class MainWindow : Window
 
     private async void LaunchFromResults_Click(object sender, RoutedEventArgs e)
     {
+        if (!TryBlockWorkloadIfDownloadActive("launching a model"))
+        {
+            return;
+        }
+
         if (TestResultsGrid.SelectedItem is not TestResultRowViewModel row)
         {
             return;
@@ -4535,6 +4717,11 @@ public partial class MainWindow : Window
 
     private async void AiLaunchRecommended_Click(object sender, RoutedEventArgs e)
     {
+        if (!TryBlockWorkloadIfDownloadActive("launching a model"))
+        {
+            return;
+        }
+
         if (InstalledRecommendedGrid.SelectedItem is not AiRecommendedLlmRowViewModel row)
         {
             SetAiRecommendationsActionStatus("Select an installed recommended model first.");
@@ -4895,6 +5082,11 @@ public partial class MainWindow : Window
 
     private async Task RunAskAiAsync(bool fromModelRun, object? sender = null)
     {
+        if (!TryBlockWorkloadIfDownloadActive("using Ask AI"))
+        {
+            return;
+        }
+
         var intent = PromptForIntent("What do you want to do?");
         if (string.IsNullOrWhiteSpace(intent))
         {
@@ -4984,6 +5176,11 @@ public partial class MainWindow : Window
     {
         try
         {
+            if (!TryBlockWorkloadIfDownloadActive("comparing models"))
+            {
+                return;
+            }
+
             var selected = CatalogGrid.SelectedItems.Cast<CatalogRowViewModel>().ToList();
             if (selected.Count < 2)
             {
