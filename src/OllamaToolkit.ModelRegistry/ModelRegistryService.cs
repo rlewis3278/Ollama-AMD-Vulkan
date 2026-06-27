@@ -286,7 +286,8 @@ public sealed class ModelRegistryService
                 continue;
             }
 
-            if (!CatalogEntryNeedsRetest(entry.Name, profileDoc))
+            var profile = ProfileResolver.ResolveForLibrary(entry.Name, profileDoc);
+            if (!BenchmarkCompletion.ShouldRetest(profile))
             {
                 continue;
             }
@@ -311,31 +312,6 @@ public sealed class ModelRegistryService
         }
 
         return SortUndownloadCandidates(candidates);
-    }
-
-    private static bool CatalogEntryNeedsRetest(string libraryName, ModelProfileStoreDocument profileDoc)
-    {
-        ModelProfileEntry? profile = null;
-        if (profileDoc.Models.TryGetValue(libraryName, out var direct))
-        {
-            profile = direct;
-        }
-        else
-        {
-            foreach (var (key, entry) in profileDoc.Models)
-            {
-                if (key.Equals(libraryName, StringComparison.OrdinalIgnoreCase)
-                    || key.StartsWith($"{libraryName}:", StringComparison.OrdinalIgnoreCase))
-                {
-                    profile = entry;
-                    break;
-                }
-            }
-        }
-
-        return profile is null
-               || string.IsNullOrEmpty(profile.BestMode)
-               || !ProfileSanitizer.IsSupportedMode(profile.BestMode);
     }
 
     private static (string BestMode, string BestTps) ResolveCatalogBenchmarkDisplay(

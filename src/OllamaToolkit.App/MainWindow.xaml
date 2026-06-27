@@ -49,7 +49,9 @@
                              Foreground="{StaticResource Brush.Text}" BorderBrush="{StaticResource Brush.PanelBorder}"
                              FontFamily="Segoe UI" FontSize="14" Padding="10" />
                     <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,0">
-                        <CheckBox x:Name="RestartCheck" Content="Restart Ollama after applying mode" IsChecked="True" Foreground="{StaticResource Brush.Text}" />
+                        <CheckBox x:Name="RestartCheck" IsChecked="True" Style="{StaticResource ToolkitAiFeatureCheckBox}" Margin="0,0,12,0">
+                            <TextBlock Text="Restart Ollama after applying mode" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" />
+                        </CheckBox>
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModes_Click" />
                     </StackPanel>
                 </Grid>
@@ -65,6 +67,11 @@
                         <Button x:Name="AskAiModelsBtn" Content="Ask AI" Style="{StaticResource ToolkitButton}" Click="AskAiModels_Click" />
                         <Button x:Name="CompareModelsBtn" Content="Compare with AI" Style="{StaticResource ToolkitButton}"
                                 Click="CompareModels_Click" ToolTip="Select at least 2 LLM models to compare" />
+                        <Button x:Name="ModelsAiDescriptionsBtn" Content="AI Descriptions"
+                                Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="AiDescriptionsMode_Click" />
+                        <Button x:Name="ModelsOfficialDescriptionsBtn" Content="Official Descriptions"
+                                Style="{StaticResource CatalogDescriptionModeActive}" Margin="0,0,4,0"
+                                Click="DownloadDescriptionsMode_Click" />
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModels_Click" />
                         <Button Content="Import Reports" Style="{StaticResource ToolkitButton}" Click="ImportReports_Click" />
                     </StackPanel>
@@ -76,13 +83,18 @@
                               EnableRowVirtualization="False"
                               ScrollViewer.CanContentScroll="False">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*" />
-                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="100" />
-                            <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="80" />
-                            <DataGridTextColumn Header="Best Mode" Binding="{Binding BestMode, Mode=OneWay}" Width="80" />
-                            <DataGridTextColumn Header="Metric" Binding="{Binding BestMetricDisplay, Mode=OneWay}" Width="70" />
-                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120" />
-                            <DataGridTextColumn Header="Last Tested" Binding="{Binding LastTested}" Width="130" />
+                            <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="120" />
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
+                            <DataGridTextColumn Header="Description" Binding="{Binding DisplayDescription}" Width="*"
+                                                MinWidth="200">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridWrapCell}" />
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
+                            <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="85" />
+                            <DataGridTextColumn Header="Fastest Mode" Binding="{Binding BestMode, Mode=OneWay}" Width="90" />
+                            <DataGridTextColumn Header="Best Metric" Binding="{Binding BestMetricDisplay, Mode=OneWay}" Width="85" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -301,9 +313,11 @@
                               RowStyle="{StaticResource TestResultsRow}"
                               CellStyle="{StaticResource TestResultsCell}"
                               AutoGenerateColumns="False" IsReadOnly="True"
+                              SelectionMode="Single" SelectionUnit="FullRow"
                               EnableRowVirtualization="False"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                               ScrollViewer.CanContentScroll="False"
+                              PreviewMouseLeftButtonDown="TestResultsGrid_PreviewMouseLeftButtonDown"
                               SelectionChanged="TestResultsGrid_SelectionChanged">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="160" />

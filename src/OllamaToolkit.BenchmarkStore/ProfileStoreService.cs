@@ -416,13 +416,17 @@ public sealed class ProfileStoreService
             {
                 status = "Updated - retest needed";
             }
-            else if (!string.IsNullOrEmpty(profile.BestMode))
+            else if (ProfileSanitizer.IsSupportedMode(profile.BestMode))
             {
                 status = "Tested";
-                bestMode = profile.BestMode;
+                bestMode = profile.BestMode!;
                 bestTps = profile.BestTps;
                 lastTested = profile.LastTested ?? string.Empty;
                 needsRetest = false;
+            }
+            else if (!string.IsNullOrEmpty(profile.BestMode))
+            {
+                status = "Updated - retest needed";
             }
             else
             {

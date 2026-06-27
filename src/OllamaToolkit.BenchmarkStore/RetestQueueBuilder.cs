@@ -85,31 +85,32 @@ public static class RetestQueueBuilder
 
     public static bool ShouldInclude(ModelProfileSummary summary, out string reason)
     {
+        if (BenchmarkCompletion.IsFullyTested(summary))
+        {
+            reason = "FullyTested";
+            return false;
+        }
+
         if (summary.NeedsRetest)
         {
             reason = "NeedsRetest";
             return true;
         }
 
-        if (HasFailedModeResults(summary))
+        if (BenchmarkCompletion.HasFailedModeResults(summary))
         {
             reason = "FailedModeResults";
             return true;
         }
 
         var resultCount = summary.Results?.Count ?? 0;
-        if (resultCount is > 0 and < 5)
+        if (resultCount > 0 && resultCount < BenchmarkCompletion.RequiredModeCount)
         {
-            reason = $"PartialResults({resultCount}/5)";
+            reason = $"PartialResults({resultCount}/{BenchmarkCompletion.RequiredModeCount})";
             return true;
         }
 
-        reason = resultCount >= 5 ? "FullyTested" : "NoResultsNeeded";
+        reason = "NoResultsNeeded";
         return false;
     }
-
-    private static bool HasFailedModeResults(ModelProfileSummary summary) =>
-        summary.Results?.Values.Any(r =>
-            r.Status.Equals("Failed", StringComparison.OrdinalIgnoreCase)
-            || r.Status.Equals("FAIL", StringComparison.OrdinalIgnoreCase)) == true;
 }

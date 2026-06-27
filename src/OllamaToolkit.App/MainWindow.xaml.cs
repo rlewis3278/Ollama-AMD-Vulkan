@@ -810,6 +810,9 @@ public partial class MainWindow : Window
 
         var summaries = await _svc.Profiles.GetInstalledSummariesAsync().ConfigureAwait(true);
         var categories = await GetCategoryMapAsync().ConfigureAwait(true);
+        var catalogEntries = (await _svc.CatalogStore.GetEntriesAsync().ConfigureAwait(true))
+            .ToDictionary(e => e.Name, StringComparer.OrdinalIgnoreCase);
+        var descriptionDoc = await _svc.Descriptions.LoadAsync().ConfigureAwait(true);
         var enriched = summaries.Select(s =>
         {
             var lib = s.Model.Split(':')[0];
@@ -818,7 +821,12 @@ public partial class MainWindow : Window
                 : CategoryNormalizer.HeuristicCategory(lib, string.Empty, string.Empty);
             return ModelLaunchRowViewModel.WithCategory(s, category);
         }).ToList();
-        var rows = enriched.Select(ModelLaunchRowViewModel.FromSummary).ToList();
+        var rows = enriched.Select(s =>
+        {
+            var lib = s.Model.Split(':')[0];
+            var displayDescription = ResolveLaunchDisplayDescription(lib, catalogEntries, descriptionDoc);
+            return ModelLaunchRowViewModel.FromSummary(s, displayDescription);
+        }).ToList();
         ModelsGrid.ItemsSource = rows;
         TestModelCombo.ItemsSource = enriched.Select(s => s.Model).ToList();
         _testingHighlight.ReapplyActive();
@@ -2625,6 +2633,9 @@ public partial class MainWindow : Window
                         ExitAiActivity();
                     }
                 }
+
+                await UiDispatcher.InvokeAsync(async () => await RefreshTestResultsUiAsync().ConfigureAwait(true))
+                    .ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -2829,6 +2840,18 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (ReferenceEquals(grid, ModelsGrid))
+        {
+            var modelsStar = DataGridColumnHelper.IndexOfStarColumn(grid, "Description");
+            if (modelsStar < 0)
+            {
+                modelsStar = 0;
+            }
+
+            DataGridColumnHelper.AutoFitColumns(grid, modelsStar);
+            return;
+        }
+
         var starIndex = DataGridColumnHelper.IndexOfStarColumn(grid, "Description");
         if (starIndex < 0)
         {
@@ -2845,12 +2868,40 @@ public partial class MainWindow : Window
 
     private void ApplyCatalogDescriptionModeUi()
     {
-        DownloadDescriptionsModeBtn.Style = _catalogDescriptionMode == CatalogDescriptionDisplayMode.Download
+        var downloadActive = _catalogDescriptionMode == CatalogDescriptionDisplayMode.Download
             ? (Style)FindResource("CatalogDescriptionModeActive")
             : (Style)FindResource("ToolkitButton");
-        AiDescriptionsModeBtn.Style = _catalogDescriptionMode == CatalogDescriptionDisplayMode.Ai
+        var aiActive = _catalogDescriptionMode == CatalogDescriptionDisplayMode.Ai
             ? (Style)FindResource("CatalogDescriptionModeActive")
             : (Style)FindResource("ToolkitButton");
+
+        DownloadDescriptionsModeBtn.Style = downloadActive;
+        AiDescriptionsModeBtn.Style = aiActive;
+        ModelsOfficialDescriptionsBtn.Style = downloadActive;
+        ModelsAiDescriptionsBtn.Style = aiActive;
+    }
+
+    private string ResolveLaunchDisplayDescription(
+        string libraryName,
+        IReadOnlyDictionary<string, LibraryCatalogEntry> catalogEntries,
+        ModelDescriptionStoreDocument descriptionDoc)
+    {
+        if (!catalogEntries.TryGetValue(libraryName, out var entry))
+        {
+            return string.Empty;
+        }
+
+        var downloadDescription = string.IsNullOrWhiteSpace(entry.Description)
+            ? string.Empty
+            : entry.Description.Trim();
+        var aiDescription = descriptionDoc.Models.TryGetValue(libraryName, out var aiEntry)
+            && !string.IsNullOrWhiteSpace(aiEntry.ListDescription)
+            ? aiEntry.ListDescription!.Trim()
+            : string.Empty;
+
+        return _catalogDescriptionMode == CatalogDescriptionDisplayMode.Ai
+            ? string.IsNullOrWhiteSpace(aiDescription) ? "(not summarized)" : aiDescription
+            : downloadDescription;
     }
 
     private async void DownloadDescriptionsMode_Click(object sender, RoutedEventArgs e)
@@ -2866,6 +2917,7 @@ public partial class MainWindow : Window
             _catalogDescriptionMode = CatalogDescriptionDisplayMode.Download;
             ApplyCatalogDescriptionModeUi();
             await RefreshCatalogUiAsync().ConfigureAwait(true);
+            await RefreshModelsUiAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -2887,6 +2939,7 @@ public partial class MainWindow : Window
             _catalogDescriptionMode = CatalogDescriptionDisplayMode.Ai;
             ApplyCatalogDescriptionModeUi();
             await RefreshCatalogUiAsync().ConfigureAwait(true);
+            await RefreshModelsUiAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
@@ -4225,6 +4278,11 @@ public partial class MainWindow : Window
 
     private async Task RefreshTestResultsUiAsync()
     {
+        var selectedModel = TestResultsGrid.SelectedItem is TestResultRowViewModel selected
+            ? selected.Model
+            : null;
+
+        _svc.Profiles.ClearCache();
         var rows = await _svc.Registry.GetTestResultRowsAsync().ConfigureAwait(true);
         var enriched = new List<TestResultRowViewModel>();
         foreach (var row in rows)
@@ -4255,6 +4313,17 @@ public partial class MainWindow : Window
         }
 
         TestResultsGrid.ItemsSource = enriched;
+
+        if (!string.IsNullOrEmpty(selectedModel))
+        {
+            var match = enriched.FirstOrDefault(r =>
+                r.Model.Equals(selectedModel, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                TestResultsGrid.SelectedItem = match;
+            }
+        }
+
         ScheduleFitGridColumns(TestResultsGrid);
     }
 
@@ -4377,6 +4446,20 @@ public partial class MainWindow : Window
 
         if (TestResultsGrid.SelectedItem is not TestResultRowViewModel row)
         {
+            TestResultDetail.Text = "Select a model row in Test Results, then click Launch Selected.";
+            MessageBox.Show("No model selected.", "Launch Selected", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (!row.IsInstalledLocally)
+        {
+            TestResultDetail.Text =
+                $"'{row.Model}' is not installed locally. Download it from Model Library before launching.";
+            MessageBox.Show(
+                $"Model '{row.Model}' is not installed locally. Download it from the Model Library first.",
+                "Launch Selected",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 
@@ -4385,29 +4468,68 @@ public partial class MainWindow : Window
             return;
         }
 
-        var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
+        var summaries = await _svc.Profiles.GetInstalledSummariesAsync().ConfigureAwait(true);
         var match = summaries.FirstOrDefault(s => s.Model.Equals(row.Model, StringComparison.OrdinalIgnoreCase));
         if (match is null)
         {
             EndTaskFlashIdle(sender);
+            TestResultDetail.Text = $"Installed profile for '{row.Model}' was not found. Try Refresh on Models & Launch.";
+            MessageBox.Show(
+                $"Could not find an installed profile for '{row.Model}'.",
+                "Launch Selected",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
             return;
         }
 
-        var launchRows = summaries.Select(ModelLaunchRowViewModel.FromSummary).ToList();
-        ModelsGrid.ItemsSource = launchRows;
-        ModelsGrid.SelectedItem = launchRows.FirstOrDefault(r =>
-            r.Model.Equals(match.Model, StringComparison.OrdinalIgnoreCase));
-        _testingHighlight.ReapplyActive();
+        if (match.NeedsRetest || string.IsNullOrEmpty(match.BestMode))
+        {
+            EndTaskFlashIdle(sender);
+            TestResultDetail.Text = $"Model '{row.Model}' has no complete benchmark profile.";
+            MessageBox.Show(
+                $"Model '{row.Model}' has no benchmark profile. Run a test first.",
+                "Launch Selected",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!Enum.TryParse<ComputeMode>(match.BestMode, out _))
+        {
+            EndTaskFlashIdle(sender);
+            TestResultDetail.Text = $"Model '{row.Model}' has an unsupported best mode '{match.BestMode}'.";
+            return;
+        }
+
         try
         {
             await LaunchBestMode_Click_Internal(match).ConfigureAwait(true);
             EndTaskFlashSuccess(sender, "Launched");
+            TestResultDetail.Text = $"Launched {row.Model} in {match.BestMode} mode.";
         }
-        catch
+        catch (Exception ex)
         {
             EndTaskFlashIdle(sender);
+            TestResultDetail.Text = ex.Message;
             throw;
         }
+    }
+
+    private void TestResultsGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (FindVisualParent<Button>(e.OriginalSource as DependencyObject) is not null)
+        {
+            return;
+        }
+
+        if (FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject) is not { } gridRow
+            || gridRow.Item is not TestResultRowViewModel item)
+        {
+            return;
+        }
+
+        TestResultsGrid.SelectedItem = item;
+        TestResultsGrid.CurrentItem = item;
     }
 
     private async Task LaunchBestMode_Click_Internal(ModelProfileSummary model)

@@ -26,6 +26,7 @@ public sealed class ModelLaunchRowViewModel : INotifyPropertyChanged
     public bool NeedsRetest { get; init; } = true;
     public int RecommendedCtx { get; init; }
     public string Category { get; init; } = string.Empty;
+    public string DisplayDescription { get; init; } = string.Empty;
     public Dictionary<string, ModeResultEntry>? Results { get; init; }
 
     public bool IsBeingTested
@@ -62,7 +63,7 @@ public sealed class ModelLaunchRowViewModel : INotifyPropertyChanged
             Results = summary.Results
         };
 
-    public static ModelLaunchRowViewModel FromSummary(ModelProfileSummary summary) =>
+    public static ModelLaunchRowViewModel FromSummary(ModelProfileSummary summary, string? displayDescription = null) =>
         new()
         {
             Model = summary.Model,
@@ -81,6 +82,7 @@ public sealed class ModelLaunchRowViewModel : INotifyPropertyChanged
             NeedsRetest = summary.NeedsRetest,
             RecommendedCtx = summary.RecommendedCtx,
             Category = summary.Category,
+            DisplayDescription = displayDescription ?? string.Empty,
             Results = summary.Results
         };
 
