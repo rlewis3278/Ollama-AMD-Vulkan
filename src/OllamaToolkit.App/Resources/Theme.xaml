@@ -280,14 +280,6 @@
             </DataTrigger>
         </Style.Triggers>
     </Style>
-    <Style x:Key="TestResultWinnerCellRocm" TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
-        <Style.Triggers>
-            <DataTrigger Binding="{Binding BestMode}" Value="ROCm">
-                <Setter Property="Background" Value="{StaticResource Brush.ActiveBg}" />
-            </DataTrigger>
-        </Style.Triggers>
-    </Style>
-
     <Style TargetType="DataGridRow">
         <Setter Property="Background" Value="{StaticResource Brush.Bg}" />
         <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />

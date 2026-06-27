@@ -5,6 +5,5 @@ public enum ComputeMode
     CPU,
     APU,
     GPU,
-    Hybrid,
-    ROCm
+    Hybrid
 }

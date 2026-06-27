@@ -63,16 +63,10 @@ public static class ModeEnvSummaryBuilder
         snapshot.TryGetValue("OLLAMA_VULKAN", out var vulkan);
         var vulkanOn = vulkan == "1";
 
-        snapshot.TryGetValue("HIP_VISIBLE_DEVICES", out var hip);
-        snapshot.TryGetValue("ROCR_VISIBLE_DEVICES", out var rocr);
-        var rocmActive = hip is "0" && rocr is "0";
-
-        if (rocmActive || detectedMode.Equals("ROCm", StringComparison.OrdinalIgnoreCase))
+        if (detectedMode.Equals("Legacy/ROCm", StringComparison.OrdinalIgnoreCase))
         {
-            yield return "  • AMD ROCm / HIP path is active — Vulkan is off.";
-            yield return $"  • Discrete GPU via ROCm (HIP device 0): {map.GpuName}.";
-            yield return "  • Requires ROCm v7 / HIP7-capable AMD drivers on Windows.";
-            yield return $"  • Integrated GPU ({map.ApuName}) is not used with ROCm on Windows — use APU mode for iGPU.";
+            yield return "  • Legacy ROCm/HIP settings detected — ROCm mode was removed from this toolkit.";
+            yield return "  • Switch to GPU mode to restore Vulkan acceleration on the discrete GPU.";
             yield break;
         }
 
@@ -89,7 +83,7 @@ public static class ModeEnvSummaryBuilder
 
         yield return "  • Vulkan GPU acceleration is ON.";
         yield return ExplainGpuSelection(devices, igpu, map, detectedMode);
-        yield return "  • AMD ROCm / HIP is disabled (Vulkan used instead).";
+        yield return "  • HIP path is disabled (Vulkan used instead).";
     }
 
     private static string ExplainGpuSelection(
@@ -129,7 +123,7 @@ public static class ModeEnvSummaryBuilder
         "OLLAMA_NUM_GPU" => "GPU layers",
         "OLLAMA_NUM_PARALLEL" => "Parallel slots",
         "HIP_VISIBLE_DEVICES" => "AMD HIP",
-        "ROCR_VISIBLE_DEVICES" => "AMD ROCm",
+        "ROCR_VISIBLE_DEVICES" => "AMD HIP runtime",
         "CUDA_VISIBLE_DEVICES" => "NVIDIA CUDA",
         _ => name
     };
@@ -146,7 +140,7 @@ public static class ModeEnvSummaryBuilder
         "HIP_VISIBLE_DEVICES" =>
             value == "-1" ? "HIP disabled (Vulkan path)" : value == "0" ? "HIP device 0 (discrete GPU)" : $"Set to {value}",
         "ROCR_VISIBLE_DEVICES" =>
-            value == "-1" ? "ROCm disabled (Vulkan path)" : value == "0" ? "ROCm device 0 (discrete GPU)" : $"Set to {value}",
+            value == "-1" ? "HIP runtime disabled (Vulkan path)" : value == "0" ? "HIP device 0" : $"Set to {value}",
         "CUDA_VISIBLE_DEVICES" =>
             value == "(not set)" ? "Not configured (no NVIDIA path)" : $"Set to {value}",
         _ => string.Empty

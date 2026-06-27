@@ -36,12 +36,11 @@
                     </Grid.RowDefinitions>
                     <TextBlock x:Name="VulkanLabel" Grid.Row="0" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,8" />
                     <TextBlock x:Name="ModeStatusLabel" Grid.Row="1" Margin="0,0,0,8" TextWrapping="Wrap" />
-                    <UniformGrid Grid.Row="2" Columns="3" Rows="2" Margin="0,0,0,8">
+                    <UniformGrid Grid.Row="2" Columns="2" Rows="2" Margin="0,0,0,8">
                         <Button x:Name="CpuCard" Style="{StaticResource ModeCardButton}" Click="ModeCard_Click" Tag="CPU" />
                         <Button x:Name="ApuCard" Style="{StaticResource ModeCardButton}" Click="ModeCard_Click" Tag="APU" />
                         <Button x:Name="GpuCard" Style="{StaticResource ModeCardButton}" Click="ModeCard_Click" Tag="GPU" />
                         <Button x:Name="HybridCard" Style="{StaticResource ModeCardButton}" Click="ModeCard_Click" Tag="Hybrid" />
-                        <Button x:Name="RocmCard" Style="{StaticResource ModeCardButton}" Click="ModeCard_Click" Tag="ROCm" />
                     </UniformGrid>
                     <TextBlock Grid.Row="3" Text="Configuration summary" Foreground="{StaticResource Brush.Muted}"
                                FontSize="14" Margin="0,4,0,4" />
@@ -317,8 +316,6 @@
                                                 CellStyle="{StaticResource TestResultWinnerCellGpu}" />
                             <DataGridTextColumn Header="Hybrid" Binding="{Binding HybridResult}" Width="55"
                                                 CellStyle="{StaticResource TestResultWinnerCellHybrid}" />
-                            <DataGridTextColumn Header="ROCm" Binding="{Binding RocmResult}" Width="55"
-                                                CellStyle="{StaticResource TestResultWinnerCellRocm}" />
                             <DataGridTextColumn Header="Insight" Binding="{Binding Insight}" Width="*"
                                                 MinWidth="280">
                                 <DataGridTextColumn.ElementStyle>

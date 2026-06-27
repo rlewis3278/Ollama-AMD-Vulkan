@@ -124,23 +124,6 @@ public sealed class ModeDefinitionService
                     ["ROCR_VISIBLE_DEVICES"] = "-1",
                     ["OLLAMA_IGPU_ENABLE"] = "1"
                 }
-            },
-            [ComputeMode.ROCm] = new ModeDefinition
-            {
-                Mode = ComputeMode.ROCm,
-                Label = $"ROCm / HIP ({map.GpuName})",
-                ShortLabel = "ROCm",
-                CardSubtitle = "HIP on dGPU only · 680M iGPU: use APU mode",
-                Description =
-                    "AMD ROCm HIP on discrete GPU — Vulkan disabled. Requires ROCm v7 / HIP7 drivers on Windows.",
-                Variables = new Dictionary<string, string>
-                {
-                    ["OLLAMA_VULKAN"] = "0",
-                    ["HIP_VISIBLE_DEVICES"] = "0",
-                    ["GGML_VK_VISIBLE_DEVICES"] = "-1",
-                    ["ROCR_VISIBLE_DEVICES"] = "0",
-                    ["OLLAMA_IGPU_ENABLE"] = "0"
-                }
             }
         };
     }

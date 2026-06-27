@@ -99,7 +99,7 @@ public sealed class BenchmarkSettingsAdvisorService
         var prompt = $"""
             Suggest Ollama benchmark settings for AMD Vulkan Windows laptop. Reply JSON only.
             Required fields: NumCtx (int), NumPredict (int), NumParallelByMode (object), Rationale (string).
-            NumParallelByMode keys: CPU, APU, GPU, Hybrid, ROCm — integer values 1-4 only.
+            NumParallelByMode keys: CPU, APU, GPU, Hybrid — integer values 1-4 only.
             OLLAMA_NUM_PARALLEL reserves VRAM per concurrent model slot. Benchmarks run one request at a time;
             parallel >1 affects memory headroom when chatting after launch, not benchmark throughput.
             Model: {summary.Model} ({summary.SizeGB} GB, {summary.ParameterSize})

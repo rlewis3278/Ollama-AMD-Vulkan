@@ -53,7 +53,7 @@ public partial class MainWindow : Window
     private bool _testLogAutoScrolling;
     private const int ActivityTimerIntervalMs = 4000;
     private const int ActivityTimerActiveTestMs = 1000;
-    private static readonly string[] BenchmarkModeOrder = ["CPU", "APU", "GPU", "Hybrid", "ROCm"];
+    private static readonly string[] BenchmarkModeOrder = ["CPU", "APU", "GPU", "Hybrid"];
     private readonly Dictionary<string, (ProgressBar Bar, TextBlock Status)> _testModeProgress = new(StringComparer.OrdinalIgnoreCase);
     private readonly SmoothProgressPresenter _testProgressAnimator;
     private DispatcherTimer? _testSpinUpTimer;
@@ -101,7 +101,6 @@ public partial class MainWindow : Window
         _modeCards["APU"] = ApuCard;
         _modeCards["GPU"] = GpuCard;
         _modeCards["Hybrid"] = HybridCard;
-        _modeCards["ROCm"] = RocmCard;
 
         _activityTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
         _activityTimer.Tick += (_, _) =>
@@ -716,6 +715,14 @@ public partial class MainWindow : Window
                     _svc.Diagnostics.Write("Import", "Startup import: no reports found");
                 }
 
+                if (_svc.ModeService.NeedsLegacyRocmMigration())
+                {
+                    _svc.Diagnostics.Write("Modes", "Legacy ROCm env detected — migrating to GPU mode");
+                    await _svc.ModeService.MigrateLegacyRocmToGpuAsync(restartOllama: true, cancellationToken: ct)
+                        .ConfigureAwait(false);
+                    _svc.ApiClient.InvalidateCaches();
+                }
+
                 await UiDispatcher.InvokeAsync(async () =>
                 {
                     await RefreshModesUiAsync().ConfigureAwait(true);
@@ -1184,15 +1191,17 @@ public partial class MainWindow : Window
                     : $"Applied mode {mode} env (no restart). Env: {envSummary}");
                 _svc.Diagnostics.Write("Modes",
                     restart
-                        ? $"Applied {mode} and restarted Ollama"
+                        ? $"Applied {mode} and restarted Ollama. Env: {envSummary}"
                         : $"Applied {mode} env (no restart)");
+
+                var finalStatus = restart
+                    ? $"Current mode: {mode} — Ollama restarted with new backend"
+                    : $"Current mode: {mode} — env saved; restart Ollama to activate backend";
                 await UiDispatcher.InvokeAsync(async () =>
                 {
                     _modeCardPresenter.EndTransition();
                     await RefreshModesUiAsync().ConfigureAwait(true);
-                    ModeStatusLabel.Text = restart
-                        ? $"Current mode: {mode} — Ollama restarted with new backend"
-                        : $"Current mode: {mode} — env saved; restart Ollama to activate backend";
+                    ModeStatusLabel.Text = finalStatus;
                 }).ConfigureAwait(false);
             }
             catch (Exception ex)
@@ -2335,7 +2344,7 @@ public partial class MainWindow : Window
                                 pullTag,
                                 i,
                                 candidates.Count,
-                                new[] { "CPU", "APU", "GPU", "Hybrid", "ROCm" },
+                                new[] { "CPU", "APU", "GPU", "Hybrid" },
                                 aiSummarizer,
                                 includeDownloadRow: true))
                             .ConfigureAwait(false);
@@ -2389,7 +2398,7 @@ public partial class MainWindow : Window
                             }
 
                             AppendTestLog($"Download verified: {pullTag} is installed locally.");
-                            AppendTestLog("Step 2/3: Running 5-mode benchmark on downloaded model…");
+                            AppendTestLog("Step 2/3: Running 4-mode benchmark on downloaded model…");
                         }).ConfigureAwait(false);
 
                         await RunBenchmarkQueueCoreAsync(
@@ -2527,7 +2536,7 @@ public partial class MainWindow : Window
         bool skipDownloadProgressRow = false)
     {
         var ct = externalCt;
-        var benchmarkModes = new[] { "CPU", "APU", "GPU", "Hybrid", "ROCm" };
+        var benchmarkModes = new[] { "CPU", "APU", "GPU", "Hybrid" };
         var aiSummarizer = await _svc.Summarizer.ResolveAsync(cancellationToken: ct).ConfigureAwait(false);
 
         for (var modelIndex = 0; modelIndex < models.Count; modelIndex++)
@@ -4241,7 +4250,6 @@ public partial class MainWindow : Window
                 ApuResult = row.ApuResult,
                 GpuResult = row.GpuResult,
                 HybridResult = row.HybridResult,
-                RocmResult = row.RocmResult,
                 Insight = insightText,
                 LastTested = row.LastTested,
                 ReportPath = row.ReportPath

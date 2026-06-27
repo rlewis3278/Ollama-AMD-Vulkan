@@ -667,6 +667,7 @@ public sealed class OllamaApiClient : IDisposable
             public long Total { get; set; }
         }
     }
+
 }
 
 public sealed class OllamaTagsSnapshot

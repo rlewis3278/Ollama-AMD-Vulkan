@@ -202,7 +202,7 @@ Results append to `ollama-benchmark-results.csv` in the script directory when us
 | **GPU** | `1` | `-1` | `1` (Vulkan) | `0` | Best single-GPU throughput (6700S) |
 | **Hybrid** | `1` | `-1` | `0,1` (Vulkan) | `1` | Split layers across both GPUs |
 
-`HIP_VISIBLE_DEVICES=-1` disables ROCm/HIP on Windows so Vulkan is the sole GPU path.
+`HIP_VISIBLE_DEVICES=-1` disables the HIP backend so Vulkan is the sole GPU path on Windows.
 
 APU mode also sets `OLLAMA_NUM_GPU=999` and applies the system Vulkan loader workaround automatically.
 
@@ -334,7 +334,7 @@ If your laptop supports a MUX switch (dGPU-only display path), GPU-only mode may
 
 ## Radeon 680M iGPU Vulkan Workaround (Windows)
 
-The **Radeon 680M** is not on Ollama's official ROCm list. Vulkan is the supported path, but two Windows-specific issues block the 680M by default:
+On Windows, **Vulkan is the supported GPU path** for the Radeon 680M. Two Windows-specific issues block the 680M by default:
 
 1. **`OLLAMA_IGPU_ENABLE=1` is required** — Ollama detects the iGPU then **drops it** unless this is set (see `server.log`: `dropping integrated GPU; to enable, set OLLAMA_IGPU_ENABLE=1`).
 2. Ollama's **bundled** `vulkan-1.dll` (1.4.321.1) often fails to enumerate AMD GPUs — rename it so the Windows system loader is used instead.

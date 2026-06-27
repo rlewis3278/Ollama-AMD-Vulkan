@@ -201,7 +201,6 @@ public sealed class TestResultRowViewModel
     public string ApuResult { get; init; } = "-";
     public string GpuResult { get; init; } = "-";
     public string HybridResult { get; init; } = "-";
-    public string RocmResult { get; init; } = "-";
     public string Insight { get; init; } = string.Empty;
     public string LastTested { get; init; } = string.Empty;
     public string? ReportPath { get; init; }

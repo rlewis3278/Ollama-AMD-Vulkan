@@ -14,7 +14,7 @@ public sealed class AutomatedBenchmarkService
 
     private const string DefaultEmbedInput =
         "Local LLM inference on Windows laptops benefits from choosing the right GPU backend. "
-        + "Vulkan provides broad AMD compatibility while ROCm can accelerate integrated graphics. "
+        + "Vulkan provides broad AMD compatibility on Windows laptops with discrete and integrated GPUs. "
         + "Embedding models convert text into dense vectors for semantic search, retrieval augmented generation, "
         + "and clustering applications across document collections.";
 
@@ -55,7 +55,7 @@ public sealed class AutomatedBenchmarkService
         IProgress<BenchmarkProgressUpdate>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        modes ??= [ComputeMode.CPU, ComputeMode.APU, ComputeMode.GPU, ComputeMode.Hybrid, ComputeMode.ROCm];
+        modes ??= [ComputeMode.CPU, ComputeMode.APU, ComputeMode.GPU, ComputeMode.Hybrid];
         outputDir ??= ProfileStoreService.NewGuiTestOutputDir(modelName);
         Directory.CreateDirectory(outputDir);
         _lastBenchmarkMode = null;

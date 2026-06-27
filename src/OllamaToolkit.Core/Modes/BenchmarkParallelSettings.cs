@@ -49,8 +49,7 @@ public static class BenchmarkParallelSettings
             ["CPU"] = 1,
             ["APU"] = size >= 8 ? 1 : 2,
             ["GPU"] = size >= 18 ? 1 : size >= 8 ? 2 : 3,
-            ["Hybrid"] = size >= 18 ? 1 : 2,
-            ["ROCm"] = size >= 18 ? 1 : size >= 8 ? 2 : 3
+            ["Hybrid"] = size >= 18 ? 1 : 2
         };
     }
 
@@ -60,8 +59,7 @@ public static class BenchmarkParallelSettings
             ["CPU"] = 1,
             ["APU"] = 1,
             ["GPU"] = 1,
-            ["Hybrid"] = 1,
-            ["ROCm"] = 1
+            ["Hybrid"] = 1
         };
 
     public static Dictionary<string, int> NormalizeByMode(

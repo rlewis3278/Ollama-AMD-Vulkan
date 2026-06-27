@@ -172,7 +172,6 @@ public sealed class ModelRegistryService
                     ApuResult = FormatModeResult(s.Results, "APU", isEmbed),
                     GpuResult = FormatModeResult(s.Results, "GPU", isEmbed),
                     HybridResult = FormatModeResult(s.Results, "Hybrid", isEmbed),
-                    RocmResult = FormatModeResult(s.Results, "ROCm", isEmbed),
                     Insight = string.Empty,
                     LastTested = s.LastTested
                 };

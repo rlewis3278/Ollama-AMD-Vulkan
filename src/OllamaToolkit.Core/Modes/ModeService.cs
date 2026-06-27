@@ -38,8 +38,22 @@ public sealed class ModeService
             }
         }
 
+        if (LooksLikeLegacyRocmEnv(snapshot))
+        {
+            return "Legacy/ROCm";
+        }
+
         return "Custom/Unknown";
     }
+
+    public bool NeedsLegacyRocmMigration() =>
+        LooksLikeLegacyRocmEnv(_envBackup.ReadUserSnapshot());
+
+    public async Task<ModeApplyResult> MigrateLegacyRocmToGpuAsync(
+        bool restartOllama = true,
+        CancellationToken cancellationToken = default) =>
+        await ApplyModeAsync(ComputeMode.GPU, restartOllama: restartOllama, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
 
     public void InitializeRunningModeFromConfigured()
     {
@@ -124,6 +138,8 @@ public sealed class ModeService
 
         System.Environment.SetEnvironmentVariable("CUDA_VISIBLE_DEVICES", null, EnvironmentVariableTarget.User);
         System.Environment.SetEnvironmentVariable("CUDA_VISIBLE_DEVICES", null, EnvironmentVariableTarget.Process);
+        System.Environment.SetEnvironmentVariable("HSA_OVERRIDE_GFX_VERSION", null, EnvironmentVariableTarget.User);
+        System.Environment.SetEnvironmentVariable("HSA_OVERRIDE_GFX_VERSION", null, EnvironmentVariableTarget.Process);
 
         if (restartOllama)
         {
@@ -167,6 +183,15 @@ public sealed class ModeService
         }
 
         return false;
+    }
+
+    private static bool LooksLikeLegacyRocmEnv(IReadOnlyDictionary<string, string?> snapshot)
+    {
+        snapshot.TryGetValue("OLLAMA_VULKAN", out var vulkan);
+        snapshot.TryGetValue("HIP_VISIBLE_DEVICES", out var hip);
+        return vulkan == "0"
+               && !string.IsNullOrWhiteSpace(hip)
+               && hip != "-1";
     }
 }
 

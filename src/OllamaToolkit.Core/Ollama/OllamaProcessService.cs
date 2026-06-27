@@ -61,11 +61,14 @@ public sealed class OllamaProcessService
                 $"Ollama tray app not found. Expected under {ConfigPaths.OllamaAppPath}.");
         }
 
-        Process.Start(new ProcessStartInfo
+        var startInfo = new ProcessStartInfo
         {
             FileName = appPath,
-            UseShellExecute = true
-        });
+            UseShellExecute = false
+        };
+        ApplyManagedEnvToStartInfo(startInfo);
+        _ = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Failed to start Ollama tray application.");
 
         return Task.CompletedTask;
     }
@@ -98,13 +101,14 @@ public sealed class OllamaProcessService
 
     public async Task RestartAsync(
         bool autoStart = true,
-        int timeoutSec = 90,
+        int timeoutSec = 45,
         CancellationToken cancellationToken = default)
     {
-        await StopAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        await StopAsync(quick: true, timeoutSec: 15, cancellationToken: cancellationToken).ConfigureAwait(false);
         if (autoStart)
         {
-            await StartServeProcessAsync(cancellationToken).ConfigureAwait(false);
+            // Tray restart inherits managed env from this process and writes server.log.
+            await StartApplicationAsync(cancellationToken).ConfigureAwait(false);
             await WaitForApiReadyAsync(timeoutSec, autoStart: false, cancellationToken).ConfigureAwait(false);
         }
     }
@@ -166,7 +170,7 @@ public sealed class OllamaProcessService
                 continue;
             }
 
-            if (!startedTray && attempt >= 2)
+            if (!startedTray && attempt >= 2 && !HasManagedServeProcess)
             {
                 try
                 {
@@ -269,11 +273,21 @@ public sealed class OllamaProcessService
         return list;
     }
 
-    private static void ApplyManagedEnvToStartInfo(ProcessStartInfo startInfo)
+    internal static void ApplyManagedEnvToStartInfo(ProcessStartInfo startInfo)
     {
+        foreach (var key in System.Environment.GetEnvironmentVariables(EnvironmentVariableTarget.Process).Keys
+                     .Cast<string>())
+        {
+            var value = System.Environment.GetEnvironmentVariable(key, EnvironmentVariableTarget.Process);
+            if (!string.IsNullOrEmpty(value))
+            {
+                startInfo.Environment[key] = value;
+            }
+        }
+
         foreach (var name in ConfigPaths.ManagedEnvironmentVariables)
         {
-            var value = System.Environment.GetEnvironmentVariable(name);
+            var value = ResolveManagedEnvironmentValue(name);
             if (string.IsNullOrWhiteSpace(value))
             {
                 startInfo.Environment.Remove(name);
@@ -284,4 +298,18 @@ public sealed class OllamaProcessService
             }
         }
     }
+
+    internal static string? ResolveManagedEnvironmentValue(string name)
+    {
+        var processValue = System.Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.Process);
+        if (!string.IsNullOrWhiteSpace(processValue))
+        {
+            return processValue;
+        }
+
+        return System.Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User);
+    }
+
+    public bool HasManagedServeProcess =>
+        _serveProcess is { HasExited: false };
 }
