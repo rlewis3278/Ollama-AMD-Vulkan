@@ -12,13 +12,13 @@ namespace OllamaToolkit.App.Services;
 
 public static class DataGridColumnHelper
 {
-    private const double MinColumnWidth = 52;
+    private const double MinColumnWidth = 44;
     private const double CellHorizontalPadding = 28;
     private const double HeaderHorizontalPadding = 44;
     private const double ColumnWidthSlack = 14;
     private const double TemplateColumnMinWidth = 92;
     private const double DenseWrapColumnMinWidth = 240;
-    private const double DenseInsightColumnMinWidth = 280;
+    private const double DenseInsightColumnMinWidth = 160;
     private const int MaxRowsToMeasure = 500;
 
     private static readonly ConditionalWeakTable<DataGrid, FitState> FitStates = new();

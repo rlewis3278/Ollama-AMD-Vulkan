@@ -298,9 +298,10 @@
                         <Button Content="Clear All Test Results" Style="{StaticResource ToolkitButton}" Click="ClearAllTestResults_Click" />
                     </StackPanel>
                     <DataGrid x:Name="TestResultsGrid" Grid.Row="1" Style="{StaticResource ToolkitDataGrid}"
+                              RowStyle="{StaticResource TestResultsRow}"
                               AutoGenerateColumns="False" IsReadOnly="True"
                               EnableRowVirtualization="False"
-                              ScrollViewer.HorizontalScrollBarVisibility="Visible"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                               ScrollViewer.CanContentScroll="False"
                               SelectionChanged="TestResultsGrid_SelectionChanged">
                         <DataGrid.Columns>
@@ -317,9 +318,9 @@
                             <DataGridTextColumn Header="Hybrid" Binding="{Binding HybridResult}" Width="55"
                                                 CellStyle="{StaticResource TestResultWinnerCellHybrid}" />
                             <DataGridTextColumn Header="Insight" Binding="{Binding Insight}" Width="*"
-                                                MinWidth="280">
+                                                MinWidth="180">
                                 <DataGridTextColumn.ElementStyle>
-                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}" />
+                                    <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridWrapCell}" />
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
                             <DataGridTextColumn Header="Tested" Binding="{Binding LastTested}" Width="140" />

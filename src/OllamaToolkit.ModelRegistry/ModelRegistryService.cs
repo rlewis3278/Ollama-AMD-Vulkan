@@ -96,6 +96,7 @@ public sealed class ModelRegistryService
             var isInstalled = tagsSnapshot.Reachable
                 && ModelInstallMatcher.IsLibraryInstalled(e.Name, installed);
             var (bestMode, bestTps) = ResolveCatalogBenchmarkDisplay(e.Name, profileDoc);
+            var hasTestedProfile = bestMode != "-";
 
             rows.Add(new CatalogRowViewModel
             {
@@ -117,6 +118,9 @@ public sealed class ModelRegistryService
                     : "Unknown",
                 BestMode = bestMode,
                 BestTps = bestTps,
+                RefreshHighlight = !isInstalled && hasTestedProfile
+                    ? CatalogRowRefreshHighlight.TestedUndownload
+                    : CatalogRowRefreshHighlight.None,
                 SortOrder = CategoryNormalizer.GetSortOrder(category)
             });
         }
@@ -147,6 +151,7 @@ public sealed class ModelRegistryService
     {
         var summaries = await _profiles.GetAllSummariesAsync(cancellationToken).ConfigureAwait(false);
         var categoryDoc = await _categories.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var (_, installed) = await GetInstalledNameSetAsync(cancellationToken).ConfigureAwait(false);
 
         return summaries
             .Where(s => !s.NeedsRetest && !string.IsNullOrEmpty(s.BestMode))
@@ -172,12 +177,28 @@ public sealed class ModelRegistryService
                     ApuResult = FormatModeResult(s.Results, "APU", isEmbed),
                     GpuResult = FormatModeResult(s.Results, "GPU", isEmbed),
                     HybridResult = FormatModeResult(s.Results, "Hybrid", isEmbed),
+                    CpuFailed = IsModeFailed(s.Results, "CPU"),
+                    ApuFailed = IsModeFailed(s.Results, "APU"),
+                    GpuFailed = IsModeFailed(s.Results, "GPU"),
+                    HybridFailed = IsModeFailed(s.Results, "Hybrid"),
+                    IsInstalledLocally = installed.Contains(s.Model),
                     Insight = string.Empty,
                     LastTested = s.LastTested
                 };
             })
             .OrderByDescending(r => r.LastTested)
             .ToList();
+    }
+
+    private static bool IsModeFailed(Dictionary<string, ModeResultEntry>? results, string mode)
+    {
+        if (results is null || !results.TryGetValue(mode, out var row))
+        {
+            return false;
+        }
+
+        return row.Status.Equals("Failed", StringComparison.OrdinalIgnoreCase)
+               || row.Status.Equals("FAIL", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string FormatModeResult(
@@ -190,8 +211,7 @@ public sealed class ModelRegistryService
             return "-";
         }
 
-        if (row.Status.Equals("Failed", StringComparison.OrdinalIgnoreCase)
-            || row.Status.Equals("FAIL", StringComparison.OrdinalIgnoreCase))
+        if (IsModeFailed(results, mode))
         {
             return "FAIL";
         }

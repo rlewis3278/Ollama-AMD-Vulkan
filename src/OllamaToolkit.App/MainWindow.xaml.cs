@@ -40,8 +40,6 @@ public partial class MainWindow : Window
     private int _testOperations;
     private Task? _activeTestWork;
     private readonly List<Button> _activeTestFlashButtons = new();
-    private readonly HashSet<string> _undownloadPurpleLibraries = new(StringComparer.OrdinalIgnoreCase);
-    private bool _undownloadBatchActive;
     private string? _runModel;
     private readonly List<ChatMessage> _chatMessages = new();
     private readonly DispatcherTimer _activityTimer;
@@ -495,13 +493,20 @@ public partial class MainWindow : Window
         await UiDispatcher.InvokeAsync(ResetTestOperationState).ConfigureAwait(true);
     }
 
-    private void SetCatalogTestingHighlight(string modelOrLibrary, bool on) =>
-        _testingHighlight.SetActive(modelOrLibrary, on);
+    private void SetCatalogTestingHighlight(string modelOrLibrary, bool on)
+    {
+        if (on)
+        {
+            _testingHighlight.SetExclusiveActive(modelOrLibrary);
+        }
+        else
+        {
+            _testingHighlight.SetActive(modelOrLibrary, on: false);
+        }
+    }
 
     private void ClearCatalogTestingHighlights()
     {
-        _undownloadBatchActive = false;
-        _undownloadPurpleLibraries.Clear();
         _testingHighlight.ClearAll();
         foreach (var row in _catalogRows)
         {
@@ -509,19 +514,6 @@ public partial class MainWindow : Window
             {
                 row.IsDownloading = false;
             }
-        }
-    }
-
-    private void ReapplyUndownloadPurpleHighlights()
-    {
-        if (!_undownloadBatchActive)
-        {
-            return;
-        }
-
-        foreach (var library in _undownloadPurpleLibraries)
-        {
-            _testingHighlight.SetActive(library, on: true);
         }
     }
 
@@ -816,7 +808,7 @@ public partial class MainWindow : Window
             : null;
         var testComboSelection = TestModelCombo.SelectedItem as string;
 
-        var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
+        var summaries = await _svc.Profiles.GetInstalledSummariesAsync().ConfigureAwait(true);
         var categories = await GetCategoryMapAsync().ConfigureAwait(true);
         var enriched = summaries.Select(s =>
         {
@@ -2280,8 +2272,7 @@ public partial class MainWindow : Window
 
         await UiDispatcher.InvokeAsync(() =>
         {
-            _undownloadBatchActive = true;
-            _undownloadPurpleLibraries.Clear();
+            _testingHighlight.ClearTestedUndownloadMarks();
             AppendTestLog(
                 $"--- Undownload test queue ({candidates.Count} model(s), smallest file size first) ---");
             AppendTestLog(
@@ -2320,7 +2311,6 @@ public partial class MainWindow : Window
 
                     await UiDispatcher.InvokeAsync(() =>
                     {
-                        _undownloadPurpleLibraries.Add(candidate.LibraryName);
                         SetCatalogTestingHighlight(candidate.LibraryName, on: true);
                         TestStatusLabel.Text =
                             $"[{i + 1}/{candidates.Count}] Downloading {candidate.LibraryName} ({pullTag})…";
@@ -2433,10 +2423,12 @@ public partial class MainWindow : Window
 
                         await UiDispatcher.InvokeAsync(async () =>
                         {
+                            SetCatalogTestingHighlight(candidate.LibraryName, on: false);
+                            _testingHighlight.MarkTestedUndownload(candidate.LibraryName);
                             await RefreshModelsUiAsync().ConfigureAwait(true);
                             await RefreshCatalogUiAsync().ConfigureAwait(true);
                             await RefreshTestResultsUiAsync().ConfigureAwait(true);
-                            ReapplyUndownloadPurpleHighlights();
+                            _testingHighlight.ReapplyActive();
                         }).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
@@ -2457,13 +2449,14 @@ public partial class MainWindow : Window
 
                         break;
                     }
-                    catch (Exception ex)
-                    {
-                        var connectionLost = OllamaConnectionHelper.IsConnectionError(ex);
-                        var userMessage = OllamaConnectionHelper.FormatUserMessage(ex);
-                        await UiDispatcher.InvokeAsync(() =>
+                        catch (Exception ex)
                         {
-                            AppendTestLog($"FAIL ({pullTag}): {userMessage}");
+                            var connectionLost = OllamaConnectionHelper.IsConnectionError(ex);
+                            var userMessage = OllamaConnectionHelper.FormatUserMessage(ex);
+                            await UiDispatcher.InvokeAsync(() =>
+                            {
+                                SetCatalogTestingHighlight(candidate.LibraryName, on: false);
+                                AppendTestLog($"FAIL ({pullTag}): {userMessage}");
                             TestStatusLabel.Text = connectionLost
                                 ? "Undownload test aborted — Ollama API connection lost."
                                 : $"Undownload test failed for {pullTag}: {ex.Message} — continuing queue…";
@@ -3047,7 +3040,7 @@ public partial class MainWindow : Window
 
         _catalogRowByName = _catalogRows.ToDictionary(r => r.Name, StringComparer.OrdinalIgnoreCase);
         ScheduleFitGridColumns(CatalogGrid);
-        ReapplyUndownloadPurpleHighlights();
+        _testingHighlight.ReapplyActive();
     }
 
     private async Task BindFullCatalogGridAsync(
@@ -4250,6 +4243,11 @@ public partial class MainWindow : Window
                 ApuResult = row.ApuResult,
                 GpuResult = row.GpuResult,
                 HybridResult = row.HybridResult,
+                CpuFailed = row.CpuFailed,
+                ApuFailed = row.ApuFailed,
+                GpuFailed = row.GpuFailed,
+                HybridFailed = row.HybridFailed,
+                IsInstalledLocally = row.IsInstalledLocally,
                 Insight = insightText,
                 LastTested = row.LastTested,
                 ReportPath = row.ReportPath

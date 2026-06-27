@@ -22,7 +22,8 @@ public enum CatalogRowRefreshHighlight
     None,
     Installed,
     Description,
-    Testing
+    Testing,
+    TestedUndownload
 }
 
 public sealed class CatalogRowViewModel : INotifyPropertyChanged
@@ -201,6 +202,11 @@ public sealed class TestResultRowViewModel
     public string ApuResult { get; init; } = "-";
     public string GpuResult { get; init; } = "-";
     public string HybridResult { get; init; } = "-";
+    public bool CpuFailed { get; init; }
+    public bool ApuFailed { get; init; }
+    public bool GpuFailed { get; init; }
+    public bool HybridFailed { get; init; }
+    public bool IsInstalledLocally { get; init; }
     public string Insight { get; init; } = string.Empty;
     public string LastTested { get; init; } = string.Empty;
     public string? ReportPath { get; init; }

@@ -239,6 +239,15 @@ public sealed class ProfileStoreService
         return summaries.OrderBy(s => s.Model).ToList();
     }
 
+    public async Task<IReadOnlyList<ModelProfileSummary>> GetInstalledSummariesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var summaries = await GetAllSummariesAsync(cancellationToken).ConfigureAwait(false);
+        var local = await GetLocalModelsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var localNames = local.Select(m => m.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return summaries.Where(s => localNames.Contains(s.Model)).ToList();
+    }
+
     private static ModelProfileSummary BuildSummaryFromProfile(
         string modelName,
         ModelProfileEntry? profile,

@@ -6,6 +6,7 @@ public sealed class TestingRowHighlightCoordinator : IDisposable
 {
     private readonly MasterFlashClock _clock;
     private readonly HashSet<string> _activeLibraries = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _testedUndownloadLibraries = new(StringComparer.OrdinalIgnoreCase);
     private Func<IReadOnlyList<CatalogRowViewModel>>? _catalogRows;
     private Func<IEnumerable<ModelLaunchRowViewModel>>? _modelRows;
     private IDisposable? _subscription;
@@ -22,6 +23,16 @@ public sealed class TestingRowHighlightCoordinator : IDisposable
 
     public bool IsActive(string library) => _activeLibraries.Contains(NormalizeLibrary(library));
 
+    public void SetExclusiveActive(string modelOrLibrary)
+    {
+        foreach (var active in _activeLibraries.ToList())
+        {
+            SetActive(active, on: false);
+        }
+
+        SetActive(modelOrLibrary, on: true);
+    }
+
     public void SetActive(string modelOrLibrary, bool on)
     {
         var library = NormalizeLibrary(modelOrLibrary);
@@ -34,7 +45,15 @@ public sealed class TestingRowHighlightCoordinator : IDisposable
         else
         {
             _activeLibraries.Remove(library);
-            ApplyTestingState(library, active: false, accentPhase: false);
+            if (_testedUndownloadLibraries.Contains(library))
+            {
+                ApplyTestedUndownloadState(library);
+            }
+            else
+            {
+                ApplyTestingState(library, active: false, accentPhase: false);
+            }
+
             if (_activeLibraries.Count == 0)
             {
                 _subscription?.Dispose();
@@ -43,11 +62,26 @@ public sealed class TestingRowHighlightCoordinator : IDisposable
         }
     }
 
+    public void MarkTestedUndownload(string modelOrLibrary)
+    {
+        var library = NormalizeLibrary(modelOrLibrary);
+        _testedUndownloadLibraries.Add(library);
+        _activeLibraries.Remove(library);
+        ApplyTestedUndownloadState(library);
+    }
+
     public void ClearAll()
     {
         foreach (var library in _activeLibraries.ToList())
         {
-            ApplyTestingState(library, active: false, accentPhase: false);
+            if (_testedUndownloadLibraries.Contains(library))
+            {
+                ApplyTestedUndownloadState(library);
+            }
+            else
+            {
+                ApplyTestingState(library, active: false, accentPhase: false);
+            }
         }
 
         _activeLibraries.Clear();
@@ -55,8 +89,15 @@ public sealed class TestingRowHighlightCoordinator : IDisposable
         _subscription = null;
     }
 
+    public void ClearTestedUndownloadMarks() => _testedUndownloadLibraries.Clear();
+
     public void ReapplyActive()
     {
+        foreach (var library in _testedUndownloadLibraries)
+        {
+            ApplyTestedUndownloadState(library);
+        }
+
         if (_activeLibraries.Count == 0)
         {
             return;
@@ -70,6 +111,7 @@ public sealed class TestingRowHighlightCoordinator : IDisposable
         _subscription?.Dispose();
         _subscription = null;
         _activeLibraries.Clear();
+        _testedUndownloadLibraries.Clear();
     }
 
     private void EnsureSubscribed()
@@ -90,6 +132,22 @@ public sealed class TestingRowHighlightCoordinator : IDisposable
         }
     }
 
+    private void ApplyTestedUndownloadState(string library)
+    {
+        if (_catalogRows?.Invoke() is not { } catalogRows)
+        {
+            return;
+        }
+
+        foreach (var row in catalogRows.Where(r => MatchesLibrary(r.Name, library)))
+        {
+            row.IsTesting = false;
+            row.RefreshFlashPhase = false;
+            row.RefreshState = CatalogRowRefreshState.None;
+            row.RefreshHighlight = CatalogRowRefreshHighlight.TestedUndownload;
+        }
+    }
+
     private void ApplyTestingState(string library, bool active, bool accentPhase)
     {
         if (_catalogRows?.Invoke() is { } catalogRows)
@@ -103,6 +161,10 @@ public sealed class TestingRowHighlightCoordinator : IDisposable
                     row.RefreshHighlight = CatalogRowRefreshHighlight.Testing;
                     row.RefreshFlashPhase = accentPhase;
                 }
+                else if (_testedUndownloadLibraries.Contains(library))
+                {
+                    ApplyTestedUndownloadState(library);
+                }
                 else
                 {
                     row.IsTesting = false;
@@ -111,6 +173,10 @@ public sealed class TestingRowHighlightCoordinator : IDisposable
                     {
                         row.RefreshState = CatalogRowRefreshState.Complete;
                         row.RefreshHighlight = CatalogRowRefreshHighlight.Installed;
+                    }
+                    else if (row.RefreshHighlight == CatalogRowRefreshHighlight.TestedUndownload)
+                    {
+                        row.RefreshState = CatalogRowRefreshState.None;
                     }
                     else
                     {
@@ -136,5 +202,4 @@ public sealed class TestingRowHighlightCoordinator : IDisposable
 
     private static bool MatchesLibrary(string modelOrLibrary, string library) =>
         NormalizeLibrary(modelOrLibrary).Equals(library, StringComparison.OrdinalIgnoreCase);
-
 }
