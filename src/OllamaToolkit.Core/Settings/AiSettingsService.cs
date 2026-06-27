@@ -16,6 +16,7 @@ public sealed class AiSettingsService
             .ConfigureAwait(false)
             ?? new AiSettingsDocument();
 
+        _cache.FeatureFlags ??= AiSettingsDocument.CreateDefaultFeatureFlags();
         if (_cache.FeatureFlags.Count == 0)
         {
             _cache.FeatureFlags = AiSettingsDocument.CreateDefaultFeatureFlags();

@@ -71,6 +71,8 @@ public partial class MainWindow : Window
     private readonly TestingRowHighlightCoordinator _testingHighlight;
     private Dictionary<string, CatalogRowViewModel> _catalogRowByName = new(StringComparer.OrdinalIgnoreCase);
     private bool _suppressCatalogUiEvents;
+    private bool _suppressTestResultsSelectionEvents;
+    private CancellationTokenSource? _testResultsDetailCts;
     private bool _catalogDownloadInProgress;
     private CancellationTokenSource? _catalogDownloadCts;
     private readonly CatalogOperationCoordinator _catalogOps = new();
@@ -4318,16 +4320,24 @@ public partial class MainWindow : Window
             });
         }
 
-        TestResultsGrid.ItemsSource = enriched;
-
-        if (!string.IsNullOrEmpty(selectedModel))
+        _suppressTestResultsSelectionEvents = true;
+        try
         {
-            var match = enriched.FirstOrDefault(r =>
-                r.Model.Equals(selectedModel, StringComparison.OrdinalIgnoreCase));
-            if (match is not null)
+            TestResultsGrid.ItemsSource = enriched;
+
+            if (!string.IsNullOrEmpty(selectedModel))
             {
-                TestResultsGrid.SelectedItem = match;
+                var match = enriched.FirstOrDefault(r =>
+                    r.Model.Equals(selectedModel, StringComparison.OrdinalIgnoreCase));
+                if (match is not null)
+                {
+                    TestResultsGrid.SelectedItem = match;
+                }
             }
+        }
+        finally
+        {
+            _suppressTestResultsSelectionEvents = false;
         }
 
         ScheduleFitGridColumns(TestResultsGrid);
@@ -4399,22 +4409,79 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void TestResultsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void TestResultsGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        if (FindVisualParent<Button>(e.OriginalSource as DependencyObject) is not null)
+        {
+            return;
+        }
+
+        if (FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject) is not { } gridRow
+            || gridRow.Item is not TestResultRowViewModel item)
+        {
+            return;
+        }
+
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control) || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            return;
+        }
+
+        TestResultsGrid.SelectedItem = item;
+    }
+
+    private void TestResultsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressTestResultsSelectionEvents)
+        {
+            return;
+        }
+
+        if (TestResultsGrid.SelectedItem is not TestResultRowViewModel row)
+        {
+            _testResultsDetailCts?.Cancel();
+            TestResultDetail.Text = string.Empty;
+            return;
+        }
+
+        TestResultDetail.Text = string.IsNullOrWhiteSpace(row.Insight)
+            ? $"No AI insight for {row.Model} yet."
+            : row.Insight;
+
+        _ = LoadTestResultDetailAsync(row.Model);
+    }
+
+    private async Task LoadTestResultDetailAsync(string model)
+    {
+        _testResultsDetailCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _testResultsDetailCts = cts;
+        var token = cts.Token;
+
         try
         {
-            if (TestResultsGrid.SelectedItem is not TestResultRowViewModel row)
+            var entry = await _svc.BenchmarkInsights.GetEntryAsync(model, token).ConfigureAwait(true);
+            if (token.IsCancellationRequested)
             {
-                TestResultDetail.Text = string.Empty;
                 return;
             }
 
-            var entry = await _svc.BenchmarkInsights.GetEntryAsync(row.Model).ConfigureAwait(true);
+            if (TestResultsGrid.SelectedItem is not TestResultRowViewModel selected
+                || !selected.Model.Equals(model, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
             if (entry is null)
             {
                 var placeholder = await FormatInsightColumnAsync(null).ConfigureAwait(true);
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 TestResultDetail.Text = string.IsNullOrWhiteSpace(placeholder)
-                    ? $"No AI insight for {row.Model} yet."
+                    ? $"No AI insight for {model} yet."
                     : placeholder;
                 return;
             }
@@ -4423,9 +4490,14 @@ public partial class MainWindow : Window
                 && entry.FailureDiagnosis is not { Count: > 0 })
             {
                 TestResultDetail.Text = await FormatInsightColumnAsync(entry.Interpretation).ConfigureAwait(true);
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
                 if (string.IsNullOrWhiteSpace(TestResultDetail.Text))
                 {
-                    TestResultDetail.Text = $"No AI insight for {row.Model} yet.";
+                    TestResultDetail.Text = $"No AI insight for {model} yet.";
                 }
 
                 return;
@@ -4451,12 +4523,21 @@ public partial class MainWindow : Window
                 }
             }
 
-            TestResultDetail.Text = detail.ToString().TrimEnd();
+            if (!token.IsCancellationRequested)
+            {
+                TestResultDetail.Text = detail.ToString().TrimEnd();
+            }
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {
-            _svc.Diagnostics.Write("TestResults", $"SelectionChanged failed: {ex}");
-            TestResultDetail.Text = ex.Message;
+            if (!token.IsCancellationRequested)
+            {
+                _svc.Diagnostics.Write("TestResults", $"Detail load failed: {ex}");
+                TestResultDetail.Text = ex.Message;
+            }
         }
     }
 
@@ -4467,7 +4548,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var model = await GetSelectedTestResultModelAsync().ConfigureAwait(true);
+        var model = GetSelectedTestResultModel();
         if (model is null)
         {
             if (TestResultsGrid.SelectedItem is null)
@@ -4526,7 +4607,7 @@ public partial class MainWindow : Window
         }).ConfigureAwait(true);
     }
 
-    private async Task<ModelProfileSummary?> GetSelectedTestResultModelAsync()
+    private ModelProfileSummary? GetSelectedTestResultModel()
     {
         TestResultRowViewModel? row = TestResultsGrid.SelectedItem as TestResultRowViewModel;
         if (row is null && TestResultsGrid.Items.Count > 0 && TestResultsGrid.SelectedIndex < 0)
@@ -4552,19 +4633,23 @@ public partial class MainWindow : Window
             return null;
         }
 
-        var summaries = await _svc.Profiles.GetInstalledSummariesAsync().ConfigureAwait(true);
-        var match = summaries.FirstOrDefault(s => s.Model.Equals(row.Model, StringComparison.OrdinalIgnoreCase));
-        if (match is null)
+        if (ModelsGrid.ItemsSource is IEnumerable<ModelLaunchRowViewModel> modelRows)
         {
-            TestResultDetail.Text = $"Installed profile for '{row.Model}' was not found. Try Refresh on Models & Launch.";
-            MessageBox.Show(
-                $"Could not find an installed profile for '{row.Model}'.",
-                "Launch Selected",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
+            var match = modelRows.FirstOrDefault(m =>
+                m.Model.Equals(row.Model, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                return match.ToSummary();
+            }
         }
 
-        return match;
+        TestResultDetail.Text = $"Installed profile for '{row.Model}' was not found. Try Refresh on Models & Launch.";
+        MessageBox.Show(
+            $"Could not find an installed profile for '{row.Model}'.",
+            "Launch Selected",
+            MessageBoxButton.OK,
+            MessageBoxImage.Warning);
+        return null;
     }
 
     private async Task LaunchBestMode_Click_Internal(ModelProfileSummary model)
