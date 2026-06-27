@@ -36,6 +36,21 @@ dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-
 dotnet publish src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -r win-x64 -o publish/OllamaToolkit.Cli
 ```
 
+## Release to git (end-user download)
+
+```powershell
+.\scripts\Publish-ReleaseToGit.ps1
+git add releases/ README.md BUILD.md scripts/Publish-ReleaseToGit.ps1
+git commit -m "release: OllamaToolkit.App v1.1.0"
+git push origin csharp-wpf-greenfield
+gh release create v1.1.0 releases/OllamaToolkit.App-v1.1.0-win-x64-selfcontained.zip `
+  --title "OllamaToolkit.App v1.1.0" `
+  --notes "Vulkan-only WPF manager (CPU/APU/GPU/Hybrid). Self-contained Windows x64 build."
+```
+
+Committed artifacts: `releases/v1.1.0/` and `releases/OllamaToolkit.App-v*-win-x64.zip` (framework-dependent).
+The self-contained zip is attached to GitHub Releases only (too large for regular git blobs).
+
 ## Solution layout
 
 | Project | Role |

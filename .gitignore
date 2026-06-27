@@ -2,6 +2,11 @@
 bin/
 obj/
 publish/
+publish/OllamaToolkit.App-selfcontained*/
+publish/OllamaToolkit.App-selfcontained-test/
+
+# Self-contained release zips (uploaded via GitHub Releases, not committed)
+releases/*-selfcontained.zip
 
 # Generated benchmark and test reports
 reports/

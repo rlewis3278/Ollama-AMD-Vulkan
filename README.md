@@ -1,6 +1,20 @@
 # Ollama AMD Vulkan Manager
 
-Professional PowerShell toolkit for switching Ollama compute modes on **AMD Ryzen 9 6900HX + Radeon 680M iGPU + RX 6700S** laptops running **Windows 11**, using the **Vulkan** backend.
+Professional toolkit for switching Ollama compute modes on **AMD Ryzen 9 6900HX + Radeon 680M iGPU + RX 6700S** laptops running **Windows 11**, using the **Vulkan** backend.
+
+## Download Ollama Toolkit (WPF App)
+
+**Latest release: v1.1.0** — Vulkan-only compute modes (CPU / APU / GPU / Hybrid).
+
+| Option | Link | Notes |
+|--------|------|-------|
+| **GitHub Release (easiest)** | [Latest release](https://github.com/rlewis3278/Ollama-AMD-Vulkan/releases/latest) | Self-contained `.exe` — no .NET install required |
+| **Zip in this repo** | [releases/OllamaToolkit.App-v1.1.0-win-x64.zip](releases/OllamaToolkit.App-v1.1.0-win-x64.zip) | Smaller download; requires [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |
+| **Unzipped folder** | [releases/v1.1.0/OllamaToolkit.App.exe](releases/v1.1.0/OllamaToolkit.App.exe) | Same as zip; run the exe after cloning |
+
+Prerequisites: Windows 11, AMD Vulkan drivers, [Ollama for Windows](https://ollama.com/download).
+
+See [releases/README.md](releases/README.md) for full release notes.
 
 ## What This Toolkit Does
 
