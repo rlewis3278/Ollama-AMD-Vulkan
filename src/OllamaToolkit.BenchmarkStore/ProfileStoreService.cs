@@ -128,6 +128,11 @@ public sealed class ProfileStoreService
             ?? new ModelProfileStoreDocument();
 
         _cache.Models ??= new Dictionary<string, ModelProfileEntry>(StringComparer.OrdinalIgnoreCase);
+        if (ProfileSanitizer.SanitizeDocument(_cache))
+        {
+            await SaveAsync(_cache, cancellationToken).ConfigureAwait(false);
+        }
+
         return _cache;
     }
 
@@ -184,13 +189,17 @@ public sealed class ProfileStoreService
                 {
                     status = "Updated - retest needed";
                 }
-                else if (!string.IsNullOrEmpty(profile.BestMode))
+                else if (ProfileSanitizer.IsSupportedMode(profile.BestMode))
                 {
                     status = "Tested";
-                    bestMode = profile.BestMode;
+                    bestMode = profile.BestMode!;
                     bestTps = profile.BestTps;
                     lastTested = profile.LastTested ?? string.Empty;
                     needsRetest = false;
+                }
+                else if (!string.IsNullOrEmpty(profile.BestMode))
+                {
+                    status = "Updated - retest needed";
                 }
                 else
                 {
@@ -251,13 +260,17 @@ public sealed class ProfileStoreService
                 : profile.BenchmarkKind;
             bestEmbedMs = profile.BestEmbedMs;
 
-            if (!string.IsNullOrEmpty(profile.BestMode))
+            if (ProfileSanitizer.IsSupportedMode(profile.BestMode))
             {
                 status = "Tested";
-                bestMode = profile.BestMode;
+                bestMode = profile.BestMode!;
                 bestTps = profile.BestTps;
                 lastTested = profile.LastTested ?? string.Empty;
                 needsRetest = false;
+            }
+            else if (!string.IsNullOrEmpty(profile.BestMode))
+            {
+                status = "Updated - retest needed";
             }
             else
             {

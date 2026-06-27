@@ -63,9 +63,9 @@ public static class ModeEnvSummaryBuilder
         snapshot.TryGetValue("OLLAMA_VULKAN", out var vulkan);
         var vulkanOn = vulkan == "1";
 
-        if (detectedMode.Equals("Legacy/ROCm", StringComparison.OrdinalIgnoreCase))
+        if (detectedMode.Equals("Stale/Non-Vulkan", StringComparison.OrdinalIgnoreCase))
         {
-            yield return "  • Legacy ROCm/HIP settings detected — ROCm mode was removed from this toolkit.";
+            yield return "  • Non-Vulkan GPU settings detected — Vulkan acceleration is not active.";
             yield return "  • Switch to GPU mode to restore Vulkan acceleration on the discrete GPU.";
             yield break;
         }
@@ -83,7 +83,7 @@ public static class ModeEnvSummaryBuilder
 
         yield return "  • Vulkan GPU acceleration is ON.";
         yield return ExplainGpuSelection(devices, igpu, map, detectedMode);
-        yield return "  • HIP path is disabled (Vulkan used instead).";
+        yield return "  • HIP backend is disabled (Vulkan used instead).";
     }
 
     private static string ExplainGpuSelection(
@@ -122,8 +122,8 @@ public static class ModeEnvSummaryBuilder
         "OLLAMA_IGPU_ENABLE" => "Integrated GPU",
         "OLLAMA_NUM_GPU" => "GPU layers",
         "OLLAMA_NUM_PARALLEL" => "Parallel slots",
-        "HIP_VISIBLE_DEVICES" => "AMD HIP",
-        "ROCR_VISIBLE_DEVICES" => "AMD HIP runtime",
+        "HIP_VISIBLE_DEVICES" => "HIP backend",
+        "ROCR_VISIBLE_DEVICES" => "HIP runtime",
         "CUDA_VISIBLE_DEVICES" => "NVIDIA CUDA",
         _ => name
     };
@@ -138,7 +138,7 @@ public static class ModeEnvSummaryBuilder
             ? "Ollama default (typically 1 concurrent model slot)"
             : $"{value} concurrent model slot(s) — multiplies VRAM reservation per loaded model",
         "HIP_VISIBLE_DEVICES" =>
-            value == "-1" ? "HIP disabled (Vulkan path)" : value == "0" ? "HIP device 0 (discrete GPU)" : $"Set to {value}",
+            value == "-1" ? "HIP backend disabled (Vulkan path)" : value == "0" ? "HIP device 0" : $"Set to {value}",
         "ROCR_VISIBLE_DEVICES" =>
             value == "-1" ? "HIP runtime disabled (Vulkan path)" : value == "0" ? "HIP device 0" : $"Set to {value}",
         "CUDA_VISIBLE_DEVICES" =>

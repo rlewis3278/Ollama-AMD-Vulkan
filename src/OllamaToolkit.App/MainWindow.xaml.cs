@@ -715,10 +715,10 @@ public partial class MainWindow : Window
                     _svc.Diagnostics.Write("Import", "Startup import: no reports found");
                 }
 
-                if (_svc.ModeService.NeedsLegacyRocmMigration())
+                if (_svc.ModeService.NeedsStaleEnvMigration())
                 {
-                    _svc.Diagnostics.Write("Modes", "Legacy ROCm env detected — migrating to GPU mode");
-                    await _svc.ModeService.MigrateLegacyRocmToGpuAsync(restartOllama: true, cancellationToken: ct)
+                    _svc.Diagnostics.Write("Modes", "Stale non-Vulkan env detected — migrating to GPU mode");
+                    await _svc.ModeService.MigrateStaleEnvToGpuAsync(restartOllama: true, cancellationToken: ct)
                         .ConfigureAwait(false);
                     _svc.ApiClient.InvalidateCaches();
                 }

@@ -28,6 +28,11 @@ public static class ReportParser
         {
             foreach (var row in report.Results)
             {
+                if (!ProfileSanitizer.IsSupportedMode(row.Mode))
+                {
+                    continue;
+                }
+
                 results[row.Mode] = new ModeResultEntry
                 {
                     Status = row.Status,
@@ -43,10 +48,10 @@ public static class ReportParser
         }
 
         var resolvedCtx = report.NumCtx > 0 ? report.NumCtx : numCtx;
-        return new ModelProfileEntry
+        var entry = new ModelProfileEntry
         {
             BenchmarkKind = isEmbed ? BenchmarkKinds.Embed : BenchmarkKinds.Generate,
-            BestMode = report.Winner?.Mode,
+            BestMode = ProfileSanitizer.IsSupportedMode(report.Winner?.Mode) ? report.Winner?.Mode : null,
             BestTps = report.Winner?.GenerationTps ?? 0,
             BestEmbedMs = report.Winner?.EmbedLatencyMs ?? 0,
             Quantization = report.Quantization ?? "unknown",
@@ -54,12 +59,17 @@ public static class ReportParser
             NumPredict = isEmbed ? 0 : report.NumPredict > 0 ? report.NumPredict : 32,
             NumParallelByMode = report.NumParallelByMode is null
                 ? null
-                : new Dictionary<string, int>(report.NumParallelByMode, StringComparer.OrdinalIgnoreCase),
+                : new Dictionary<string, int>(
+                    report.NumParallelByMode.Where(kv => ProfileSanitizer.IsSupportedMode(kv.Key)),
+                    StringComparer.OrdinalIgnoreCase),
             Runs = report.Runs > 0 ? report.Runs : 1,
             LastTested = report.CompletedAt ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
             Results = results,
             ReportPath = Path.GetFullPath(reportPath),
             OutputDir = report.OutputDir ?? Path.GetDirectoryName(reportPath)
         };
+
+        ProfileSanitizer.SanitizeEntry(entry);
+        return entry;
     }
 }

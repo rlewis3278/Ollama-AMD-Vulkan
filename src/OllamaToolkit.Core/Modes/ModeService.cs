@@ -38,18 +38,18 @@ public sealed class ModeService
             }
         }
 
-        if (LooksLikeLegacyRocmEnv(snapshot))
+        if (LooksLikeStaleHipOnlyEnv(snapshot))
         {
-            return "Legacy/ROCm";
+            return "Stale/Non-Vulkan";
         }
 
         return "Custom/Unknown";
     }
 
-    public bool NeedsLegacyRocmMigration() =>
-        LooksLikeLegacyRocmEnv(_envBackup.ReadUserSnapshot());
+    public bool NeedsStaleEnvMigration() =>
+        LooksLikeStaleHipOnlyEnv(_envBackup.ReadUserSnapshot());
 
-    public async Task<ModeApplyResult> MigrateLegacyRocmToGpuAsync(
+    public async Task<ModeApplyResult> MigrateStaleEnvToGpuAsync(
         bool restartOllama = true,
         CancellationToken cancellationToken = default) =>
         await ApplyModeAsync(ComputeMode.GPU, restartOllama: restartOllama, cancellationToken: cancellationToken)
@@ -138,8 +138,6 @@ public sealed class ModeService
 
         System.Environment.SetEnvironmentVariable("CUDA_VISIBLE_DEVICES", null, EnvironmentVariableTarget.User);
         System.Environment.SetEnvironmentVariable("CUDA_VISIBLE_DEVICES", null, EnvironmentVariableTarget.Process);
-        System.Environment.SetEnvironmentVariable("HSA_OVERRIDE_GFX_VERSION", null, EnvironmentVariableTarget.User);
-        System.Environment.SetEnvironmentVariable("HSA_OVERRIDE_GFX_VERSION", null, EnvironmentVariableTarget.Process);
 
         if (restartOllama)
         {
@@ -185,7 +183,7 @@ public sealed class ModeService
         return false;
     }
 
-    private static bool LooksLikeLegacyRocmEnv(IReadOnlyDictionary<string, string?> snapshot)
+    private static bool LooksLikeStaleHipOnlyEnv(IReadOnlyDictionary<string, string?> snapshot)
     {
         snapshot.TryGetValue("OLLAMA_VULKAN", out var vulkan);
         snapshot.TryGetValue("HIP_VISIBLE_DEVICES", out var hip);

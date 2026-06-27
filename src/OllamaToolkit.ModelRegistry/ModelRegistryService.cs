@@ -313,7 +313,9 @@ public sealed class ModelRegistryService
             }
         }
 
-        return profile is null || string.IsNullOrEmpty(profile.BestMode);
+        return profile is null
+               || string.IsNullOrEmpty(profile.BestMode)
+               || !ProfileSanitizer.IsSupportedMode(profile.BestMode);
     }
 
     private static (string BestMode, string BestTps) ResolveCatalogBenchmarkDisplay(
@@ -339,7 +341,9 @@ public sealed class ModelRegistryService
             }
         }
 
-        if (profile is null || string.IsNullOrEmpty(profile.BestMode))
+        if (profile is null
+            || string.IsNullOrEmpty(profile.BestMode)
+            || !ProfileSanitizer.IsSupportedMode(profile.BestMode))
         {
             return ("-", "-");
         }

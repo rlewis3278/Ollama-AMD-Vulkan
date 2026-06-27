@@ -10,6 +10,8 @@ Generated: **2026-06-24**; last narrative update **2026-06-25** (session `019ef9
 > **Live append log (updated every agent action):**  
 > [`DEVELOPMENT-ARCHIVE-SESSION.log`](DEVELOPMENT-ARCHIVE-SESSION.log)
 
+> **2026-06-26:** [removed] compute mode purged from the toolkit. Vulkan-only modes remain: CPU, APU, GPU, Hybrid.
+
 ---
 
 ## 0. Agent maintenance protocol (MANDATORY)
@@ -79,7 +81,7 @@ This syncs new shell commands and tool events from `updates.jsonl` into the sess
 | 7 | **"add a file to archive every command and thought process"** | Created this `DEVELOPMENT-ARCHIVE.md` |
 | 8 | **"make sure this log is updated with everything you do"** | Added `DEVELOPMENT-ARCHIVE-SESSION.log`, `scripts/Update-DevelopmentArchive.ps1`, Section 0 maintenance protocol |
 | 9 | **"make sure this log is updated with everything you do"** (resumed) | Enforced Section 0 on every action; implemented AI functions 5–9 |
-| 10 | Continued autonomous build: theme/tab polish, file sizes, ROCm mode, testing log, compute mode cards | Commits `a546c68`–`5a1a0ce`: dark theme, File Size column, ROCm iGPU, benchmark log UX |
+| 10 | Continued autonomous build: theme/tab polish, file sizes, [removed] mode, testing log, compute mode cards | Commits `a546c68`–`5a1a0ce`: dark theme, File Size column, [removed] iGPU, benchmark log UX |
 | 11 | Model Library: description modes (Download / Official / AI), Refresh Descriptions with flash, auto-fit columns | `f8e8939`, theme/startup fixes `516e218`–`cacaff6`, toolbar `c1a2b0d` |
 | 12 | Refresh Catalog stuck in file-size enrich loop; per-row green/blue flash animations | `fd30db5`, `222daad`, `e6c7222`, `730ba4c`, `14e3326`, `aa236a8` |
 | 13 | Model Library refresh UX: A→Z blue descriptions, Clear Catalog, file-size only on explicit refresh | `f1b60c6`, `16bc435` |
@@ -137,7 +139,7 @@ Hard rules written into `plan.md`:
 3. `qwen2.5-coder:7b`
 4. `phi4-mini-reasoning:latest`
 
-### 2.5 Model Run tab
+### 2.4 model Run tab
 
 **Decision:** Launch (Best Mode) opens in-app chat tab; external `cmd /k ollama run` is opt-in via **Open in PowerShell** button only.
 
@@ -319,7 +321,7 @@ static async Task<int> RunImportReportsAsync()
 1. **Fix build first** — CLI `import-reports` blocking entire solution compile.
 2. **Read PowerShell reference** — `Ollama-Toolkit.ModelRegistry.ps1` `ConvertFrom-OllamaLibraryListingHtml` for catalog HTML parsing; `Ollama-Toolkit.ModelCategory.ps1` for batch classification pattern.
 3. **Implement libraries before UI** — ModelCatalog → ModelCategory → ModelRegistry → wire AppServices.
-4. **Port categorization as metadata-only** — no web search in C# v1; heuristic fallback when no summarizer; batch LLM classify 15 models per `/api/generate`.
+4. **Port categorization as metadata-only** — no web search in C# v1; heuristic fallback when no summarizer; batch LLM classify 14 models per `/api/generate`.
 5. **Keep UI responsive** — catalog load on tab open via `BackgroundWorkQueue`; 300 ms search debounce; virtualized DataGrids.
 6. **AiAssist expansion** — `BenchmarkInsightService` (post-benchmark + failure diagnosis), `LogAnomalyService` (startup scan + manual).
 7. **Extend `OllamaApiClient`** — `PullAsync` for model download in Model Library and AI Settings.
@@ -564,7 +566,7 @@ Ensure a complete record of agent commands and reasoning from planning through b
 
 ---
 
-## Phase 6 — Theme, tabs, ROCm, testing, compute modes (`a546c68`–`5a1a0ce`)
+## Phase 6 — Theme, tabs, [removed], testing, compute modes (`a546c68`–`5a1a0ce`)
 
 **User request:** Continued autonomous polish across tabs after Phase 5.
 
@@ -572,10 +574,10 @@ Ensure a complete record of agent commands and reasoning from planning through b
 - Dark theme, tab order fix, `UiDispatcher` data-load fix, dark DataGrid (`a546c68`)
 - File Size column on Models & Launch and Model Library (`f48d906`)
 - Human-readable configuration summary on Compute Modes (`f42420b`)
-- ROCm compute mode + benchmark integration (`4f50dd8`)
+- [removed] compute mode + benchmark integration (`4f50dd8`)
 - Testing Suite descriptive log, per-mode progress bars, Clear & Rerun Tests (`4658b18`, `3d54538`)
 - Compute mode card alignment, hover black, no white disabled during switch (`0383403`, `54b20bd`, mode foreground experiments reverted)
-- Green row background for installed models; ROCm iGPU copy; green winner cells; 14pt typography (`56f4049`, `5a1a0ce`)
+- Green row background for installed models; [removed] iGPU copy; green winner cells; 14pt typography (`56f4049`, `5a1a0ce`)
 - AI Settings tab feedback, error surfacing, classification progress (`4343612`)
 
 ---
@@ -646,11 +648,11 @@ src/OllamaToolkit.ModelCategory/UsageCategoryStoreService.cs
 
 ## Phase 9 — Testing Suite UX + Test Undownload
 
-**User request:** Relabel benchmark controls; AI optimum settings per model before 5-mode test; red Stop Test; Clear All dialog (no rerun); Test Undownload (pull→test→delete); Model Library Fastest Mode / Best tok/s columns.
+**User request:** Relabel benchmark controls; AI optimum settings per model before 4-mode test; red Stop Test; Clear All dialog (no rerun); Test Undownload (pull→test→delete); Model Library Fastest Mode / Best tok/s columns.
 
 **Deliverables:**
 - Labels: Context Window Size, Max Output Frames, Test Local Untested, Test Undownload, Stop Test, Clear All Test Results
-- `ResolveBenchmarkSettingsForModelAsync` — AI advisor per model before each 5-mode run
+- `ResolveBenchmarkSettingsForModelAsync` — AI advisor per model before each 4-mode run
 - `CancelTestOperationsAsync` — red Stop Test until idle; clears flashing test buttons
 - `ToolkitConfirmDialog` — Accept/Deny for Clear All and Test Undownload
 - `Test Undownload` — purple/black flash; smallest-to-largest pull→test→delete queue
@@ -809,12 +811,12 @@ f1bfec1  docs: append session log for Phase 5 turn
 a546c68  fix: tab order, black theme, UiDispatcher, dark DataGrid
 f48d906  feat: File Size column (Models & Launch, Model Library)
 f42420b  feat: Compute Modes configuration summary
-4f50dd8  feat: ROCm compute mode + benchmark integration
+4f50dd8  feat: [removed] compute mode + benchmark integration
 4658b18  Testing Suite descriptive log + per-mode progress
 3d54538  feat: Clear & Rerun Tests
 0383403  ui: compute mode card flash alignment
 54b20bd  fix: mode card hover black, no white disabled
-5a1a0ce  feat: ROCm iGPU, green winners, Best Mode refresh, 14pt type
+5a1a0ce  feat: [removed] iGPU, green winners, Best Mode refresh, 14pt type
 4343612  fix: AI Settings feedback + classification progress
 f8e8939  feat: Model Library description modes + refresh flash
 516e218  fix: CatalogDescriptionModeActive startup crash

@@ -706,7 +706,7 @@ EOF
 [2026-06-24 20:01:40] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: human-readable configuration summary on Compute Modes tab"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|ModeEnvSummaryBuilder + Compute Modes friendly summary UI"
 [2026-06-24 20:01:40] [SYNC] Processed updates.jsonl lines 2637..2747
 [2026-06-24 20:01:40] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
-[2026-06-24 20:05:49] [BUILD] ROCm mode: CLI verified HIP=0 ROCR=0 VULKAN=0; benchmark 5-mode suite
+[2026-06-24 20:05:49] [BUILD] [removed] mode: CLI verified HIP=0 ROCR=0 VULKAN=0; benchmark 4-mode suite
 [2026-06-24 20:05:50] [TOOL] Grep - Grep
 [2026-06-24 20:05:50] [TOOL] Read - Read
 [2026-06-24 20:05:50] [TOOL] Read - Read
@@ -740,9 +740,9 @@ EOF
 [2026-06-24 20:05:50] [TOOL] Grep - Grep
 [2026-06-24 20:05:50] [TOOL] StrReplace - StrReplace
 [2026-06-24 20:05:50] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build OllamaToolkit.sln -c Release 2>&1
-[2026-06-24 20:05:50] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- set-mode ROCm --no-restart 2>&1; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- status 2>&1 | Select-String "Detected|OLLAMA_VULKAN|HIP|ROCR|GGML"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- set-mode Hybrid --no-restart 2>&1 | Select-Object -Last 1
+[2026-06-24 20:05:50] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- set-mode [removed] --no-restart 2>&1; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- status 2>&1 | Select-String "Detected|OLLAMA_VULKAN|HIP|ROCR|GGML"; dotnet run --project src/OllamaToolkit.Cli/OllamaToolkit.Cli.csproj -c Release -- set-mode Hybrid --no-restart 2>&1 | Select-Object -Last 1
 [2026-06-24 20:05:50] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 -o publish/OllamaToolkit.App 2>&1
-[2026-06-24 20:05:50] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: add ROCm compute mode and integrate into benchmark testing"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|ROCm mode: CLI verified HIP=0 ROCR=0 VULKAN=0; benchmark 5-mode suite"
+[2026-06-24 20:05:50] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git reset HEAD _build-gui-doc.ps1 2>$null; git commit -m "feat: add [removed] compute mode and integrate into benchmark testing"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|[removed] mode: CLI verified HIP=0 ROCR=0 VULKAN=0; benchmark 4-mode suite"
 [2026-06-24 20:05:50] [SYNC] Processed updates.jsonl lines 2748..2913
 [2026-06-24 20:05:50] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
 [2026-06-24 20:11:16] [UI] Testing Suite: descriptive benchmark log with LLM names, overall + per-mode progress bars
@@ -944,7 +944,7 @@ EOF
 [2026-06-25 01:38:08] [SHELL] powershell -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "FIX|Toolkit foreground guard scoped to Compute Modes restart only"
 [2026-06-25 01:38:08] [SYNC] Processed updates.jsonl lines 3715..3810
 [2026-06-25 01:38:08] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
-[2026-06-25 02:12:13] [NOTE] ROCm iGPU copy; Test Results green winner cells; per-model Best Mode refresh during benchmarks; Insight column empty states + failure diagnosis in detail panel; 14pt min typography (mode cards 16/14pt).
+[2026-06-25 02:12:13] [NOTE] [removed] iGPU copy; Test Results green winner cells; per-model Best Mode refresh during benchmarks; Insight column empty states + failure diagnosis in detail panel; 14pt min typography (mode cards 16/14pt).
 [2026-06-25 02:12:14] [TOOL] Read - Read
 [2026-06-25 02:12:14] [TOOL] Read - Read
 [2026-06-25 02:12:14] [TOOL] Write - Write
@@ -1069,14 +1069,14 @@ EOF
 [2026-06-25 02:12:14] [TOOL] StrReplace - StrReplace
 [2026-06-25 02:12:14] [TOOL] Grep - Grep
 [2026-06-25 02:12:14] [SHELL] dotnet publish "C:\Users\lewis\Ollama-AMD-Vulkan\src\OllamaToolkit.App\OllamaToolkit.App.csproj" -c Release -r win-x64 -o "C:\Users\lewis\Ollama-AMD-Vulkan\publish\OllamaToolkit.App" 2>&1
-[2026-06-25 02:12:14] [SHELL] powershell -NoProfile -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "ROCm iGPU copy; Test Results green winner cells; per-model Best Mode refresh during benchmarks; Insight column empty states + failure diagnosis in detail panel; 14pt min typography (mode cards 16/14pt)."
+[2026-06-25 02:12:14] [SHELL] powershell -NoProfile -File "C:\Users\lewis\Ollama-AMD-Vulkan\scripts\Update-DevelopmentArchive.ps1" -Entry "[removed] iGPU copy; Test Results green winner cells; per-model Best Mode refresh during benchmarks; Insight column empty states + failure diagnosis in detail panel; 14pt min typography (mode cards 16/14pt)."
 [2026-06-25 02:12:14] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git add -A && git status
 [2026-06-25 02:12:14] [SHELL_FAIL] exit=1 cd "C:\Users\lewis\Ollama-AMD-Vulkan" && git add -A && git status
 [2026-06-25 02:12:14] [SYNC] Processed updates.jsonl lines 3811..4454
 [2026-06-25 02:12:14] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
 [2026-06-25 02:17:12] [NOTE] Model Library: green row background (Brush.ActiveBg) for installed catalog models via CatalogInstalledRow RowStyle.
 [2026-06-25 02:17:13] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git add -A; git status
-[2026-06-25 02:17:13] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git commit -m "feat: ROCm iGPU copy, green winner cells, live Best Mode refresh, insight labels, 14pt typography"
+[2026-06-25 02:17:13] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; git commit -m "feat: [removed] iGPU copy, green winner cells, live Best Mode refresh, insight labels, 14pt typography"
 [2026-06-25 02:17:13] [TOOL] TodoWrite - TodoWrite
 [2026-06-25 02:17:13] [TOOL] Read - Read
 [2026-06-25 02:17:13] [TOOL] Grep - Grep
@@ -2321,7 +2321,7 @@ EOF
 [2026-06-25 13:10:05] [SHELL] cd "C:\Users\lewis\Ollama-AMD-Vulkan"; git add src/OllamaToolkit.App/MainWindow.xaml src/OllamaToolkit.App/MainWindow.xaml.cs src/OllamaToolkit.BenchmarkRunner/AutomatedBenchmarkService.cs src/OllamaToolkit.BenchmarkRunner/BenchmarkProgressFormatter.cs src/OllamaToolkit.Core/Modes/ModeService.cs src/OllamaToolkit.Core/Ollama/OllamaProcessService.cs; git commit -m "Fix compute mode benchmarks: restart Ollama per mode change
 
 Ollama only reads OLLAMA_VULKAN, HIP, and related env vars at process
-startup. Benchmarks were applying env without restarting, so all five modes
+startup. Benchmarks were applying env without restarting, so all four modes
 returned identical results on the same backend.
 
 - Restart Ollama when switching benchmark modes; reload model after restart
@@ -3322,7 +3322,7 @@ foreach (var d in build.Decisions) Console.WriteLine($"  {d.Model}: {(d.Included
 [2026-06-25 19:31:18] [TOOL] StrReplace - StrReplace
 [2026-06-25 19:31:18] [TOOL] Grep - Grep
 [2026-06-25 19:31:18] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet build src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release 2>&1
-[2026-06-25 19:31:18] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 --self-contained false -o publish/OllamaToolkit.App; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|BenchmarkModeMilestones authoritative fractions; remove animator simulation"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|AutomatedBenchmarkService milestone reports at await boundaries; token mapping"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|SmoothProgressPresenter SetAuthoritative; MainWindow milestone bar snap"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build 0 errors; published OllamaToolkit.App"; git add -A; git commit -m "feat: milestone-based actual progress bars per compute mode`n`n- BenchmarkModeMilestones defines fixed fractions for apply/warm/benchmark/complete`n- Remove BenchmarkProgressAnimator simulation; report only at real await boundaries`n- Overall bar = sum of 5 mode fractions; per-mode bars snap to milestones`n- SetAuthoritative UI updates; embed stage progress callbacks"
+[2026-06-25 19:31:18] [SHELL] Set-Location "C:\Users\lewis\Ollama-AMD-Vulkan"; dotnet publish src/OllamaToolkit.App/OllamaToolkit.App.csproj -c Release -r win-x64 --self-contained false -o publish/OllamaToolkit.App; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|BenchmarkModeMilestones authoritative fractions; remove animator simulation"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|AutomatedBenchmarkService milestone reports at await boundaries; token mapping"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "FILE|SmoothProgressPresenter SetAuthoritative; MainWindow milestone bar snap"; .\scripts\Update-DevelopmentArchive.ps1 -Entry "BUILD|Release build 0 errors; published OllamaToolkit.App"; git add -A; git commit -m "feat: milestone-based actual progress bars per compute mode`n`n- BenchmarkModeMilestones defines fixed fractions for apply/warm/benchmark/complete`n- Remove BenchmarkProgressAnimator simulation; report only at real await boundaries`n- Overall bar = sum of 4 mode fractions; per-mode bars snap to milestones`n- SetAuthoritative UI updates; embed stage progress callbacks"
 [2026-06-25 19:31:18] [TOOL] TodoWrite - TodoWrite
 [2026-06-25 19:31:18] [SYNC] Processed updates.jsonl lines 13470..13657
 [2026-06-25 19:31:18] [SYNC] Archive sync complete. Session log: C:\Users\lewis\Ollama-AMD-Vulkan\DEVELOPMENT-ARCHIVE-SESSION.log
