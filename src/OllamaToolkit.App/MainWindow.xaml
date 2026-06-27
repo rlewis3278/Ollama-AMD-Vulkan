@@ -314,14 +314,11 @@
                               CellStyle="{StaticResource TestResultsCell}"
                               AutoGenerateColumns="False" IsReadOnly="True"
                               SelectionMode="Single" SelectionUnit="FullRow"
-                              EnableRowVirtualization="False"
-                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                              ScrollViewer.CanContentScroll="False"
-                              PreviewMouseLeftButtonDown="TestResultsGrid_PreviewMouseLeftButtonDown"
+                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True"
                               SelectionChanged="TestResultsGrid_SelectionChanged">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="160" />
-                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="100" />
+                            <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="120" />
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
                             <DataGridTextColumn Header="Best" Binding="{Binding BestMode}" Width="72" />
                             <DataGridTextColumn Header="Metric" Binding="{Binding BestMetricDisplay}" Width="80" />
                             <DataGridTextColumn Header="CPU" Binding="{Binding CpuResult}" Width="55"
@@ -333,12 +330,12 @@
                             <DataGridTextColumn Header="Hybrid" Binding="{Binding HybridResult}" Width="55"
                                                 CellStyle="{StaticResource TestResultWinnerCellHybrid}" />
                             <DataGridTextColumn Header="Insight" Binding="{Binding Insight}" Width="*"
-                                                MinWidth="180">
+                                                MinWidth="200">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridWrapCell}" />
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Tested" Binding="{Binding LastTested}" Width="140" />
+                            <DataGridTextColumn Header="Tested" Binding="{Binding LastTested}" Width="130" />
                             <DataGridTemplateColumn Header="Clear" Width="80">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>

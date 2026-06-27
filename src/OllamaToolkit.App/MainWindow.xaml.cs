@@ -2836,7 +2836,13 @@ public partial class MainWindow : Window
     {
         if (ReferenceEquals(grid, TestResultsGrid))
         {
-            DataGridColumnHelper.AutoFitColumnsDense(TestResultsGrid);
+            var insightIndex = DataGridColumnHelper.IndexOfStarColumn(grid, "Insight");
+            if (insightIndex < 0)
+            {
+                insightIndex = 0;
+            }
+
+            DataGridColumnHelper.AutoFitColumns(grid, insightIndex);
             return;
         }
 
@@ -4395,46 +4401,63 @@ public partial class MainWindow : Window
 
     private async void TestResultsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (TestResultsGrid.SelectedItem is not TestResultRowViewModel row)
+        try
         {
-            TestResultDetail.Text = string.Empty;
-            return;
-        }
-
-        var entry = await _svc.BenchmarkInsights.GetEntryAsync(row.Model).ConfigureAwait(true);
-        if (entry is null || (string.IsNullOrWhiteSpace(entry.Interpretation)
-            && entry.FailureDiagnosis is not { Count: > 0 }))
-        {
-            TestResultDetail.Text = await FormatInsightColumnAsync(entry?.Interpretation).ConfigureAwait(true);
-            if (string.IsNullOrWhiteSpace(TestResultDetail.Text))
+            if (TestResultsGrid.SelectedItem is not TestResultRowViewModel row)
             {
-                TestResultDetail.Text = $"No AI insight for {row.Model} yet.";
+                TestResultDetail.Text = string.Empty;
+                return;
             }
 
-            return;
-        }
-
-        var detail = new System.Text.StringBuilder();
-        if (!string.IsNullOrWhiteSpace(entry.Interpretation))
-        {
-            detail.Append(entry.Interpretation);
-        }
-
-        if (entry.FailureDiagnosis is { Count: > 0 })
-        {
-            if (detail.Length > 0)
+            var entry = await _svc.BenchmarkInsights.GetEntryAsync(row.Model).ConfigureAwait(true);
+            if (entry is null)
             {
-                detail.AppendLine().AppendLine();
+                var placeholder = await FormatInsightColumnAsync(null).ConfigureAwait(true);
+                TestResultDetail.Text = string.IsNullOrWhiteSpace(placeholder)
+                    ? $"No AI insight for {row.Model} yet."
+                    : placeholder;
+                return;
             }
 
-            detail.AppendLine("Failure diagnosis:");
-            foreach (var diagnosis in entry.FailureDiagnosis)
+            if (string.IsNullOrWhiteSpace(entry.Interpretation)
+                && entry.FailureDiagnosis is not { Count: > 0 })
             {
-                detail.AppendLine($"  {diagnosis.Key}: {diagnosis.Value}");
-            }
-        }
+                TestResultDetail.Text = await FormatInsightColumnAsync(entry.Interpretation).ConfigureAwait(true);
+                if (string.IsNullOrWhiteSpace(TestResultDetail.Text))
+                {
+                    TestResultDetail.Text = $"No AI insight for {row.Model} yet.";
+                }
 
-        TestResultDetail.Text = detail.ToString().TrimEnd();
+                return;
+            }
+
+            var detail = new System.Text.StringBuilder();
+            if (!string.IsNullOrWhiteSpace(entry.Interpretation))
+            {
+                detail.Append(entry.Interpretation);
+            }
+
+            if (entry.FailureDiagnosis is { Count: > 0 })
+            {
+                if (detail.Length > 0)
+                {
+                    detail.AppendLine().AppendLine();
+                }
+
+                detail.AppendLine("Failure diagnosis:");
+                foreach (var diagnosis in entry.FailureDiagnosis)
+                {
+                    detail.AppendLine($"  {diagnosis.Key}: {diagnosis.Value}");
+                }
+            }
+
+            TestResultDetail.Text = detail.ToString().TrimEnd();
+        }
+        catch (Exception ex)
+        {
+            _svc.Diagnostics.Write("TestResults", $"SelectionChanged failed: {ex}");
+            TestResultDetail.Text = ex.Message;
+        }
     }
 
     private async void LaunchFromResults_Click(object sender, RoutedEventArgs e)
@@ -4444,11 +4467,77 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (TestResultsGrid.SelectedItem is not TestResultRowViewModel row)
+        var model = await GetSelectedTestResultModelAsync().ConfigureAwait(true);
+        if (model is null)
         {
-            TestResultDetail.Text = "Select a model row in Test Results, then click Launch Selected.";
-            MessageBox.Show("No model selected.", "Launch Selected", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (TestResultsGrid.SelectedItem is null)
+            {
+                TestResultDetail.Text = "Select a model row in Test Results, then click Launch Selected.";
+                MessageBox.Show("No model selected.", "Launch Selected", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+
             return;
+        }
+
+        if (model.NeedsRetest || string.IsNullOrEmpty(model.BestMode))
+        {
+            MessageBox.Show($"Model '{model.Model}' has no benchmark profile. Run a test first.", "Launch Selected",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!Enum.TryParse<ComputeMode>(model.BestMode, out var mode))
+        {
+            MessageBox.Show($"Model '{model.Model}' has an unsupported best mode.", "Launch Selected",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        MainTabs.SelectedItem = ModelRunTab;
+        _runModel = model.Model;
+        ModelRunStatus.Text = $"Applying {model.BestMode} and restarting Ollama…";
+
+        await _svc.WorkQueue.EnqueueAsync(async ct =>
+        {
+            try
+            {
+                await ApplyLaunchParallelAndModeAsync(model, mode, ct).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    EndTaskFlashSuccess(sender, "Launched");
+                    TestResultDetail.Text = $"Launched {model.Model} in {model.BestMode} mode.";
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    ModelRunStatus.Text = msg;
+                    TestResultDetail.Text = msg;
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
+        }).ConfigureAwait(true);
+    }
+
+    private async Task<ModelProfileSummary?> GetSelectedTestResultModelAsync()
+    {
+        TestResultRowViewModel? row = TestResultsGrid.SelectedItem as TestResultRowViewModel;
+        if (row is null && TestResultsGrid.Items.Count > 0 && TestResultsGrid.SelectedIndex < 0)
+        {
+            TestResultsGrid.SelectedIndex = 0;
+            row = TestResultsGrid.SelectedItem as TestResultRowViewModel;
+        }
+
+        if (row is null)
+        {
+            return null;
         }
 
         if (!row.IsInstalledLocally)
@@ -4460,76 +4549,22 @@ public partial class MainWindow : Window
                 "Launch Selected",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
-            return;
-        }
-
-        if (!BeginTaskFlash(sender))
-        {
-            return;
+            return null;
         }
 
         var summaries = await _svc.Profiles.GetInstalledSummariesAsync().ConfigureAwait(true);
         var match = summaries.FirstOrDefault(s => s.Model.Equals(row.Model, StringComparison.OrdinalIgnoreCase));
         if (match is null)
         {
-            EndTaskFlashIdle(sender);
             TestResultDetail.Text = $"Installed profile for '{row.Model}' was not found. Try Refresh on Models & Launch.";
             MessageBox.Show(
                 $"Could not find an installed profile for '{row.Model}'.",
                 "Launch Selected",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
-            return;
         }
 
-        if (match.NeedsRetest || string.IsNullOrEmpty(match.BestMode))
-        {
-            EndTaskFlashIdle(sender);
-            TestResultDetail.Text = $"Model '{row.Model}' has no complete benchmark profile.";
-            MessageBox.Show(
-                $"Model '{row.Model}' has no benchmark profile. Run a test first.",
-                "Launch Selected",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            return;
-        }
-
-        if (!Enum.TryParse<ComputeMode>(match.BestMode, out _))
-        {
-            EndTaskFlashIdle(sender);
-            TestResultDetail.Text = $"Model '{row.Model}' has an unsupported best mode '{match.BestMode}'.";
-            return;
-        }
-
-        try
-        {
-            await LaunchBestMode_Click_Internal(match).ConfigureAwait(true);
-            EndTaskFlashSuccess(sender, "Launched");
-            TestResultDetail.Text = $"Launched {row.Model} in {match.BestMode} mode.";
-        }
-        catch (Exception ex)
-        {
-            EndTaskFlashIdle(sender);
-            TestResultDetail.Text = ex.Message;
-            throw;
-        }
-    }
-
-    private void TestResultsGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (FindVisualParent<Button>(e.OriginalSource as DependencyObject) is not null)
-        {
-            return;
-        }
-
-        if (FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject) is not { } gridRow
-            || gridRow.Item is not TestResultRowViewModel item)
-        {
-            return;
-        }
-
-        TestResultsGrid.SelectedItem = item;
-        TestResultsGrid.CurrentItem = item;
+        return match;
     }
 
     private async Task LaunchBestMode_Click_Internal(ModelProfileSummary model)
