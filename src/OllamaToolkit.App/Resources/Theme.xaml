@@ -210,6 +210,7 @@
     </Style>
 
     <Style x:Key="DataGridCellText" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
         <Setter Property="TextTrimming" Value="None" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
@@ -249,12 +250,22 @@
         <Setter Property="Padding" Value="6,4" />
     </Style>
 
-    <Style x:Key="DataGridWrapCell" TargetType="TextBlock">
+    <Style x:Key="DataGridWrapCell" TargetType="TextBlock" BasedOn="{StaticResource DataGridCellText}">
         <Setter Property="TextWrapping" Value="Wrap" />
-        <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
-    <Style x:Key="TestResultWinnerCellCpu" TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+    <Style x:Key="TestResultsCell" TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Style.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Foreground" Value="White" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="TestResultWinnerCellCpu" TargetType="DataGridCell" BasedOn="{StaticResource TestResultsCell}">
         <Style.Triggers>
             <DataTrigger Binding="{Binding CpuFailed}" Value="True">
                 <Setter Property="Background" Value="{StaticResource Brush.FailedBg}" />
@@ -268,7 +279,7 @@
             </MultiDataTrigger>
         </Style.Triggers>
     </Style>
-    <Style x:Key="TestResultWinnerCellApu" TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+    <Style x:Key="TestResultWinnerCellApu" TargetType="DataGridCell" BasedOn="{StaticResource TestResultsCell}">
         <Style.Triggers>
             <DataTrigger Binding="{Binding ApuFailed}" Value="True">
                 <Setter Property="Background" Value="{StaticResource Brush.FailedBg}" />
@@ -282,7 +293,7 @@
             </MultiDataTrigger>
         </Style.Triggers>
     </Style>
-    <Style x:Key="TestResultWinnerCellGpu" TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+    <Style x:Key="TestResultWinnerCellGpu" TargetType="DataGridCell" BasedOn="{StaticResource TestResultsCell}">
         <Style.Triggers>
             <DataTrigger Binding="{Binding GpuFailed}" Value="True">
                 <Setter Property="Background" Value="{StaticResource Brush.FailedBg}" />
@@ -296,7 +307,7 @@
             </MultiDataTrigger>
         </Style.Triggers>
     </Style>
-    <Style x:Key="TestResultWinnerCellHybrid" TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+    <Style x:Key="TestResultWinnerCellHybrid" TargetType="DataGridCell" BasedOn="{StaticResource TestResultsCell}">
         <Style.Triggers>
             <DataTrigger Binding="{Binding HybridFailed}" Value="True">
                 <Setter Property="Background" Value="{StaticResource Brush.FailedBg}" />

@@ -299,6 +299,7 @@
                     </StackPanel>
                     <DataGrid x:Name="TestResultsGrid" Grid.Row="1" Style="{StaticResource ToolkitDataGrid}"
                               RowStyle="{StaticResource TestResultsRow}"
+                              CellStyle="{StaticResource TestResultsCell}"
                               AutoGenerateColumns="False" IsReadOnly="True"
                               EnableRowVirtualization="False"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
