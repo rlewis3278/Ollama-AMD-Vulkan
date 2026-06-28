@@ -7,17 +7,32 @@ public partial class App : Application
 {
     public static AppServices Services { get; } = new();
 
+    private string? _lastUnhandledMessage;
+    private DateTimeOffset _lastUnhandledAt;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         DispatcherUnhandledException += (_, args) =>
         {
-            Services.Diagnostics.Write("Error", $"Unhandled UI exception: {args.Exception.Message}");
-            Services.ActivityLog.Write("Error", args.Exception.Message);
-            MessageBox.Show(
-                args.Exception.Message,
-                "Unexpected Error",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
+            var message = args.Exception.Message;
+            Services.Diagnostics.Write("Error", $"Unhandled UI exception: {message}");
+            Services.ActivityLog.Write("Error", message);
+
+            var now = DateTimeOffset.UtcNow;
+            var isRepeat = string.Equals(_lastUnhandledMessage, message, StringComparison.Ordinal)
+                && (now - _lastUnhandledAt).TotalSeconds < 2;
+            _lastUnhandledMessage = message;
+            _lastUnhandledAt = now;
+
+            if (!isRepeat)
+            {
+                MessageBox.Show(
+                    message,
+                    "Unexpected Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+
             args.Handled = true;
         };
 

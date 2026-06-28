@@ -161,10 +161,13 @@ public sealed class ModelRegistryService
                 var libName = s.Model.Split(':')[0];
                 if (categoryDoc.Models.TryGetValue(libName, out var cat))
                 {
-                    category = cat.Category;
+                    category = cat.Category ?? string.Empty;
                 }
 
-                var isEmbed = s.BenchmarkKind.Equals(BenchmarkKinds.Embed, StringComparison.OrdinalIgnoreCase);
+                var benchmarkKind = string.IsNullOrWhiteSpace(s.BenchmarkKind)
+                    ? BenchmarkKinds.Generate
+                    : s.BenchmarkKind;
+                var isEmbed = benchmarkKind.Equals(BenchmarkKinds.Embed, StringComparison.OrdinalIgnoreCase);
                 var allFailed = BenchmarkCompletion.IsAllModesFailed(s.Results);
                 var statusDisplay = BenchmarkCompletion.FormatModeStatusSummary(s.Results);
                 if (!installed.Contains(s.Model))
@@ -176,8 +179,8 @@ public sealed class ModelRegistryService
                 {
                     Model = s.Model,
                     Category = category,
-                    BenchmarkKind = s.BenchmarkKind,
-                    BestMode = allFailed ? "FAILED" : s.BestMode,
+                    BenchmarkKind = benchmarkKind,
+                    BestMode = allFailed ? "FAILED" : (s.BestMode ?? string.Empty),
                     BestTps = s.BestTps,
                     BestEmbedMs = s.BestEmbedMs,
                     CpuResult = FormatModeResult(s.Results, "CPU", isEmbed),

@@ -345,7 +345,14 @@ public static class DataGridColumnHelper
                 return null;
             }
 
-            current = prop.GetValue(current);
+            try
+            {
+                current = prop.GetValue(current);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         return current?.ToString();

@@ -8,7 +8,7 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>OllamaToolkit.App</AssemblyName>
     <ApplicationIcon>Assets\ollama_gui_manager_icon.ico</ApplicationIcon>
-    <Version>1.1.5</Version>
+    <Version>1.1.6</Version>
   </PropertyGroup>
 
   <Target Name="SetSourceRevisionId" BeforeTargets="GetAssemblyVersion;GenerateAssemblyInfo"

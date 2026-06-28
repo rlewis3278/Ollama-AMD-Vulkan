@@ -20,6 +20,8 @@ public static class UiDispatcher
     public static void Invoke(Action action) =>
         Dispatcher.Invoke(action);
 
+    public static bool CheckAccess() => Dispatcher.CheckAccess();
+
     public static void InvokeFireAndForget(Action action)
     {
         _ = Dispatcher.InvokeAsync(action).Task.ContinueWith(

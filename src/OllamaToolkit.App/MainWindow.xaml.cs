@@ -3019,13 +3019,21 @@ public partial class MainWindow : Window
     {
         if (ReferenceEquals(grid, TestResultsGrid))
         {
-            var insightIndex = DataGridColumnHelper.IndexOfStarColumn(grid, "Insight");
-            if (insightIndex < 0)
+            try
             {
-                insightIndex = 0;
+                var insightIndex = DataGridColumnHelper.IndexOfStarColumn(grid, "Insight");
+                if (insightIndex < 0)
+                {
+                    insightIndex = 0;
+                }
+
+                DataGridColumnHelper.AutoFitColumns(grid, insightIndex);
+            }
+            catch (Exception ex)
+            {
+                _svc.Diagnostics.Write("TestResults", $"Column auto-fit failed: {ex.Message}");
             }
 
-            DataGridColumnHelper.AutoFitColumns(grid, insightIndex);
             return;
         }
 
@@ -4643,24 +4651,26 @@ public partial class MainWindow : Window
             enriched.Add(new TestResultRowViewModel
             {
                 Model = row.Model,
-                Category = row.Category,
-                BenchmarkKind = row.BenchmarkKind,
-                BestMode = row.BestMode,
+                Category = row.Category ?? string.Empty,
+                BenchmarkKind = string.IsNullOrWhiteSpace(row.BenchmarkKind)
+                    ? BenchmarkKinds.Generate
+                    : row.BenchmarkKind,
+                BestMode = row.BestMode ?? string.Empty,
                 BestTps = row.BestTps,
                 BestEmbedMs = row.BestEmbedMs,
-                CpuResult = row.CpuResult,
-                ApuResult = row.ApuResult,
-                GpuResult = row.GpuResult,
-                HybridResult = row.HybridResult,
+                CpuResult = row.CpuResult ?? "-",
+                ApuResult = row.ApuResult ?? "-",
+                GpuResult = row.GpuResult ?? "-",
+                HybridResult = row.HybridResult ?? "-",
                 CpuFailed = row.CpuFailed,
                 ApuFailed = row.ApuFailed,
                 GpuFailed = row.GpuFailed,
                 HybridFailed = row.HybridFailed,
                 IsInstalledLocally = row.IsInstalledLocally,
-                StatusDisplay = row.StatusDisplay,
+                StatusDisplay = row.StatusDisplay ?? string.Empty,
                 IsAllModesFailed = row.IsAllModesFailed,
-                Insight = insightText,
-                LastTested = row.LastTested,
+                Insight = insightText ?? string.Empty,
+                LastTested = row.LastTested ?? string.Empty,
                 ReportPath = row.ReportPath
             });
         }
@@ -4710,6 +4720,20 @@ public partial class MainWindow : Window
 
     private void ApplyTestResultsFilter()
     {
+        if (!UiDispatcher.CheckAccess())
+        {
+            UiDispatcher.Invoke(ApplyTestResultsFilterCore);
+            return;
+        }
+
+        ApplyTestResultsFilterCore();
+    }
+
+    private static bool TestResultFieldMatches(string? value, string search) =>
+        (value ?? string.Empty).Contains(search, StringComparison.OrdinalIgnoreCase);
+
+    private void ApplyTestResultsFilterCore()
+    {
         var selectedModel = TestResultsGrid.SelectedItem is TestResultRowViewModel selected
             ? selected.Model
             : null;
@@ -4720,20 +4744,21 @@ public partial class MainWindow : Window
         if (!string.IsNullOrWhiteSpace(search))
         {
             filtered = filtered.Where(r =>
-                r.Model.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.Category.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.Insight.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.BestMode.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.CpuResult.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.ApuResult.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.GpuResult.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.HybridResult.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.StatusDisplay.Contains(search, StringComparison.OrdinalIgnoreCase));
+                TestResultFieldMatches(r.Model, search)
+                || TestResultFieldMatches(r.Category, search)
+                || TestResultFieldMatches(r.Insight, search)
+                || TestResultFieldMatches(r.BestMode, search)
+                || TestResultFieldMatches(r.CpuResult, search)
+                || TestResultFieldMatches(r.ApuResult, search)
+                || TestResultFieldMatches(r.GpuResult, search)
+                || TestResultFieldMatches(r.HybridResult, search)
+                || TestResultFieldMatches(r.StatusDisplay, search));
         }
 
         if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            filtered = filtered.Where(r => r.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
+            filtered = filtered.Where(r =>
+                (r.Category ?? string.Empty).Equals(category, StringComparison.OrdinalIgnoreCase));
         }
 
         var rows = filtered.ToList();
@@ -4756,8 +4781,20 @@ public partial class MainWindow : Window
             _suppressTestResultsSelectionEvents = false;
         }
 
-        UpdateTestResultsActionButtons();
+        SafeUpdateTestResultsActionButtons();
         ScheduleFitGridColumns(TestResultsGrid);
+    }
+
+    private void SafeUpdateTestResultsActionButtons()
+    {
+        try
+        {
+            UpdateTestResultsActionButtons();
+        }
+        catch (Exception ex)
+        {
+            _svc.Diagnostics.Write("TestResults", $"Action button update failed: {ex.Message}");
+        }
     }
 
     private void UpdateTestResultsActionButtons()
@@ -4825,7 +4862,7 @@ public partial class MainWindow : Window
         if (TestResultsGrid.SelectedItem is TestResultRowViewModel selected)
         {
             TestResultsGrid.ScrollIntoView(selected);
-            UpdateTestResultsActionButtons();
+            SafeUpdateTestResultsActionButtons();
         }
     }
 
@@ -4874,7 +4911,7 @@ public partial class MainWindow : Window
 
         var libraryName = row.Model.Split(':')[0];
         _testResultsDownloadInProgress = true;
-        UpdateTestResultsActionButtons();
+        SafeUpdateTestResultsActionButtons();
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
@@ -4933,7 +4970,7 @@ public partial class MainWindow : Window
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     _testResultsDownloadInProgress = false;
-                    UpdateTestResultsActionButtons();
+                    SafeUpdateTestResultsActionButtons();
                 }).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
@@ -5093,11 +5130,11 @@ public partial class MainWindow : Window
         {
             _testResultsDetailCts?.Cancel();
             TestResultDetail.Text = string.Empty;
-            UpdateTestResultsActionButtons();
+            SafeUpdateTestResultsActionButtons();
             return;
         }
 
-        UpdateTestResultsActionButtons();
+        SafeUpdateTestResultsActionButtons();
         TestResultDetail.Text = string.IsNullOrWhiteSpace(row.Insight)
             ? $"No AI insight for {row.Model} yet."
             : row.Insight;
