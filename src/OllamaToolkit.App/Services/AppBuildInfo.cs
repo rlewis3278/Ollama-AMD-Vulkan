@@ -8,9 +8,10 @@ public static class AppBuildInfo
     public static string GetDisplayRevision()
     {
         var (version, hash) = ParseInformationalVersion();
+        var versionLabel = $"v{version}";
         return string.IsNullOrWhiteSpace(hash) || hash.Equals("unknown", StringComparison.OrdinalIgnoreCase)
-            ? version
-            : $"{version} · {hash}";
+            ? versionLabel
+            : $"{versionLabel} · {hash}";
     }
 
     public static string GetShortFooterLabel()
@@ -37,7 +38,7 @@ public static class AppBuildInfo
     {
         var informational = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-            ?? "1.1.0";
+            ?? "1.1.4";
 
         var plus = informational.IndexOf('+');
         if (plus < 0)
