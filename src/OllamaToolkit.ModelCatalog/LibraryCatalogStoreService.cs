@@ -1,4 +1,5 @@
 using OllamaToolkit.Core;
+using OllamaToolkit.Core.Ollama;
 using OllamaToolkit.ModelCatalog.Models;
 
 namespace OllamaToolkit.ModelCatalog;
@@ -335,6 +336,87 @@ public sealed class LibraryCatalogStoreService
         }
 
         return _cache.Items.Count(e => string.IsNullOrWhiteSpace(e.FileSize) || e.FileSize == "-");
+    }
+
+    public async Task<int> ProbeMissingFileSizesAsync(
+        OllamaApiClient apiClient,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        CancelFileSizeEnrichment();
+        _enrichCts?.Dispose();
+        _enrichCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var enrichToken = _enrichCts.Token;
+
+        if (!await _enrichGate.WaitAsync(0, enrichToken).ConfigureAwait(false))
+        {
+            return 0;
+        }
+
+        try
+        {
+            var store = await LoadAsync(enrichToken).ConfigureAwait(false);
+            var missing = store.Items
+                .Where(e => string.IsNullOrWhiteSpace(e.FileSize) || e.FileSize == "-")
+                .Where(e => !e.IsCloudOnly)
+                .ToList();
+            if (missing.Count == 0)
+            {
+                return 0;
+            }
+
+            var probed = 0;
+            for (var i = 0; i < missing.Count; i++)
+            {
+                enrichToken.ThrowIfCancellationRequested();
+                var entry = missing[i];
+                progress?.Report($"Probing file size ({i + 1}/{missing.Count}): {entry.Name}");
+
+                try
+                {
+                    var resolution = !string.IsNullOrWhiteSpace(entry.DefaultPullTag)
+                        ? CatalogPullTagResolver.ResolveFromEntry(entry)
+                        : CatalogPullTagResolver.Resolve(entry.Name, await FetchTagsAsync(entry.Name, enrichToken).ConfigureAwait(false));
+
+                    if (!resolution.Resolved)
+                    {
+                        continue;
+                    }
+
+                    if (resolution.IsCloudOnly)
+                    {
+                        entry.FileSize = "Cloud";
+                        probed++;
+                        await SaveAsync(store, enrichToken).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    var totalBytes = await apiClient.ProbePullSizeAsync(resolution.PullTag, enrichToken)
+                        .ConfigureAwait(false);
+                    if (totalBytes is > 0)
+                    {
+                        entry.FileSize = ModelSizeFormatter.FormatBytes(totalBytes.Value);
+                        entry.DefaultPullTag = resolution.PullTag;
+                        probed++;
+                        await SaveAsync(store, enrichToken).ConfigureAwait(false);
+                    }
+                }
+                catch (OperationCanceledException) when (enrichToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch
+                {
+                    // Best-effort per model.
+                }
+            }
+
+            return probed;
+        }
+        finally
+        {
+            _enrichGate.Release();
+        }
     }
 
     public async Task ProcessCatalogEntriesUiPassAsync(

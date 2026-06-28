@@ -439,6 +439,61 @@ public sealed class OllamaApiClient : IDisposable
         return tags.Any(t => t.Name.Equals(model, StringComparison.OrdinalIgnoreCase));
     }
 
+    public async Task<long?> ProbePullSizeAsync(string model, CancellationToken cancellationToken = default)
+    {
+        using var response = await SendPullRequestAsync(model, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using var reader = new StreamReader(stream);
+        long? totalBytes = null;
+
+        while (!reader.EndOfStream)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var line = await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            PullChunk? chunk;
+            try
+            {
+                chunk = JsonSerializer.Deserialize<PullChunk>(line, JsonFileHelper.Options);
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(chunk?.Error))
+            {
+                throw new InvalidOperationException(chunk.Error);
+            }
+
+            if (chunk?.Total is > 0)
+            {
+                totalBytes = Math.Max(totalBytes ?? 0, chunk.Total.Value);
+                break;
+            }
+        }
+
+        if (totalBytes is > 0)
+        {
+            try
+            {
+                await DeleteAsync(model, cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Probe may not have created a local tag yet.
+            }
+        }
+
+        return totalBytes;
+    }
+
     public async Task PullAsync(
         string model,
         IProgress<ModelPullProgress>? progress = null,

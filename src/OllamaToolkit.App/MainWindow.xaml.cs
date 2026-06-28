@@ -44,6 +44,7 @@ public partial class MainWindow : Window
     private readonly List<ChatMessage> _chatMessages = new();
     private readonly DispatcherTimer _activityTimer;
     private readonly DispatcherTimer _catalogSearchTimer;
+    private readonly DispatcherTimer _testResultsSearchTimer;
     private readonly DispatcherTimer _testSettingsTimer;
     private readonly ThrottledUpdater _chatUpdater;
     private readonly StringBuilder _testLogBuilder = new();
@@ -72,8 +73,13 @@ public partial class MainWindow : Window
     private Dictionary<string, CatalogRowViewModel> _catalogRowByName = new(StringComparer.OrdinalIgnoreCase);
     private bool _suppressCatalogUiEvents;
     private bool _suppressTestResultsSelectionEvents;
+    private bool _suppressTestResultsUiEvents;
     private CancellationTokenSource? _testResultsDetailCts;
+    private List<TestResultRowViewModel> _testResultsAllRows = new();
+    private bool _testResultsDownloadInProgress;
     private bool _catalogDownloadInProgress;
+    private bool _catalogFileSizesInProgress;
+    private CancellationTokenSource? _catalogFileSizesCts;
     private CancellationTokenSource? _catalogDownloadCts;
     private readonly CatalogOperationCoordinator _catalogOps = new();
     private int _catalogBulkUiCounter;
@@ -115,7 +121,11 @@ public partial class MainWindow : Window
             _catalogSearchTimer.Stop();
             try
             {
-                if (!IsCatalogUiLocked)
+                if (_catalogDownloadInProgress)
+                {
+                    ApplyCatalogFilterInMemory();
+                }
+                else if (!_catalogOps.IsToolbarBusy)
                 {
                     await RefreshCatalogUiAsync().ConfigureAwait(true);
                 }
@@ -125,6 +135,21 @@ public partial class MainWindow : Window
                 _svc.Diagnostics.Write("Catalog", $"Search refresh failed: {ex.Message}");
                 CatalogStatusLabel.Text = ex.Message;
             }
+        };
+        _testResultsSearchTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        _testResultsSearchTimer.Tick += async (_, _) =>
+        {
+            _testResultsSearchTimer.Stop();
+            try
+            {
+                ApplyTestResultsFilter();
+            }
+            catch (Exception ex)
+            {
+                _svc.Diagnostics.Write("TestResults", $"Search refresh failed: {ex.Message}");
+            }
+
+            await Task.CompletedTask.ConfigureAwait(true);
         };
         _testSettingsTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _testSettingsTimer.Tick += async (_, _) =>
@@ -153,6 +178,7 @@ public partial class MainWindow : Window
         {
             _activityTimer.Stop();
             _catalogSearchTimer.Stop();
+            _testResultsSearchTimer.Stop();
             _testSettingsTimer.Stop();
             _modeCardPresenter.Stop();
             _flashButtons.StopAll();
@@ -183,6 +209,7 @@ public partial class MainWindow : Window
             InitModeCards();
             InitAiFeatureToggles();
             InitCategoryFilter();
+            InitTestResultsCategoryFilter();
             BindSummarizerComboImmediate();
 
             var loadTask = RefreshAllAsync();
@@ -211,6 +238,12 @@ public partial class MainWindow : Window
     {
         CategoryFilterCombo.ItemsSource = new[] { "All" }.Concat(CategoryNormalizer.AllCategories).ToList();
         CategoryFilterCombo.SelectedIndex = 0;
+    }
+
+    private void InitTestResultsCategoryFilter()
+    {
+        TestResultsCategoryFilterCombo.ItemsSource = new List<string> { "All" };
+        TestResultsCategoryFilterCombo.SelectedIndex = 0;
     }
 
     private static Button? TaskButton(object? sender) => sender as Button;
@@ -994,7 +1027,7 @@ public partial class MainWindow : Window
 
     private void UpdateCatalogStopButtonUi()
     {
-        if (_catalogToolbarOperations > 0)
+        if (IsCatalogStopActive)
         {
             var accent = ThemeBrush("Brush.Accent", Brushes.Red);
             CatalogStopBtn.Background = accent;
@@ -1026,7 +1059,12 @@ public partial class MainWindow : Window
         }
     }
 
+    private bool IsCatalogToolbarLocked => _catalogOps.IsToolbarBusy;
+
     private bool IsCatalogUiLocked => _catalogOps.IsToolbarBusy || _catalogDownloadInProgress;
+
+    private bool IsCatalogStopActive =>
+        _catalogToolbarOperations > 0 || _catalogDownloadInProgress || _catalogFileSizesInProgress;
 
     private bool TryBeginCatalogToolbarOperation(
         CatalogToolbarOperationType type,
@@ -1413,6 +1451,63 @@ public partial class MainWindow : Window
 
         ShowTestSpinUpUi();
         await RunUntestedBenchmarkQueueAsync(sender).ConfigureAwait(true);
+    }
+
+    private async void RetestFailed_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryBlockWorkloadIfDownloadActive("running tests"))
+        {
+            return;
+        }
+
+        if (!BeginTestOperation(sender))
+        {
+            if (IsBenchmarkQueueRunning())
+            {
+                TestStatusLabel.Text = "Benchmark already running — click Stop Test first.";
+                AppendTestLog("Benchmark already running — click Stop Test first.");
+            }
+
+            return;
+        }
+
+        ShowTestSpinUpUi();
+        var ct = _testCts?.Token ?? CancellationToken.None;
+
+        try
+        {
+            await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Building failed-mode retest queue…"))
+                .ConfigureAwait(true);
+            ct.ThrowIfCancellationRequested();
+
+            var summaries = await _svc.Profiles.GetAllSummariesAsync(ct).ConfigureAwait(true);
+            var failed = summaries
+                .Where(BenchmarkCompletion.HasFailedModeResults)
+                .Select(s => s.Model)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (failed.Count == 0)
+            {
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    TestStatusLabel.Text = "No models with failed benchmark modes to retest.";
+                    FinishTestOperation(sender, success: false, cancelled: false);
+                }).ConfigureAwait(true);
+                return;
+            }
+
+            _svc.Diagnostics.Write("Testing", $"Retest Failed queue ({failed.Count} model(s)): {string.Join(", ", failed)}");
+            await RunBenchmarkQueueAsync(failed, sender).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+            await UiDispatcher.InvokeAsync(() =>
+            {
+                TestStatusLabel.Text = "Test stopped";
+                FinishTestOperation(sender, success: false, cancelled: true);
+            }).ConfigureAwait(true);
+        }
     }
 
     private async void TestUndownload_Click(object sender, RoutedEventArgs e)
@@ -2010,11 +2105,13 @@ public partial class MainWindow : Window
 
         if (string.IsNullOrWhiteSpace(update.Mode) || !_testModeProgress.TryGetValue(update.Mode, out var row))
         {
-            if (update.Phase == BenchmarkProgressPhase.ModelCompleted && update.BestMode is not null)
+            if (update.Phase == BenchmarkProgressPhase.ModelCompleted)
             {
-                TestStatusLabel.Text = isEmbed
-                    ? $"{update.Model} complete — winner: {update.BestMode} @ {update.BestEmbedMs:F1} ms/embed"
-                    : $"{update.Model} complete — winner: {update.BestMode} @ {update.BestTps:F2} tok/s";
+                TestStatusLabel.Text = update.BestMode is not null
+                    ? isEmbed
+                        ? $"{update.Model} complete — winner: {update.BestMode} @ {update.BestEmbedMs:F1} ms/embed"
+                        : $"{update.Model} complete — winner: {update.BestMode} @ {update.BestTps:F2} tok/s"
+                    : $"{update.Model} complete — all modes failed";
             }
 
             return;
@@ -2035,9 +2132,14 @@ public partial class MainWindow : Window
             case BenchmarkProgressPhase.ModeBenchmarking:
                 _testProgressAnimator.SetActiveModeBar(row.Bar);
                 _testProgressAnimator.SetAuthoritative(row.Bar, modeBarValue);
+                row.Bar.Foreground = (Brush)FindResource("Brush.Accent");
                 row.Status.Text = statusDetail ?? update.Phase switch
                 {
                     BenchmarkProgressPhase.ModeApplying => "Applying mode…",
+                    BenchmarkProgressPhase.ModeBenchmarking when isEmbed && update.EmbedLatencyMs is > 0 =>
+                        $"{update.EmbedLatencyMs:F1} ms/embed",
+                    BenchmarkProgressPhase.ModeBenchmarking when update.GenerationTps is > 0 =>
+                        $"{update.GenerationTps:F1} tok/s",
                     _ => isEmbed ? "Embedding…" : "Benchmarking…"
                 };
                 row.Status.Foreground = (Brush)FindResource("Brush.Warning");
@@ -2055,9 +2157,10 @@ public partial class MainWindow : Window
                 _testProgressAnimator.SetAuthoritative(row.Bar, modeBarValue);
                 _testProgressAnimator.FreezeBar(row.Bar, modeBarValue);
                 _testProgressAnimator.SetActiveModeBar(null);
-                row.Bar.Foreground = (Brush)FindResource("Brush.Accent");
+                row.Bar.Foreground = (Brush)FindResource("Brush.FailedBg");
                 row.Status.Text = statusDetail ?? "Failed";
-                row.Status.Foreground = (Brush)FindResource("Brush.Accent");
+                row.Status.Foreground = (Brush)FindResource("Brush.FailedBg");
+                _ = RunIncrementalFailureDiagnosisAsync(update.Model);
                 break;
             default:
                 _testProgressAnimator.SetAuthoritative(row.Bar, modeBarValue);
@@ -2084,8 +2187,43 @@ public partial class MainWindow : Window
                     $"{update.Model} complete — winner: {update.BestMode} @ {update.BestEmbedMs:F1} ms/embed",
                 BenchmarkProgressPhase.ModelCompleted when update.BestMode is not null =>
                     $"{update.Model} complete — winner: {update.BestMode} @ {update.BestTps:F2} tok/s",
+                BenchmarkProgressPhase.ModelCompleted when update.BestMode is null =>
+                    $"{update.Model} complete — all modes failed",
                 _ => TestStatusLabel.Text
             };
+        }
+    }
+
+    private async Task RunIncrementalFailureDiagnosisAsync(string? model)
+    {
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            return;
+        }
+
+        try
+        {
+            _svc.Profiles.ClearCache();
+            var summary = (await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true))
+                .FirstOrDefault(s => s.Model.Equals(model, StringComparison.OrdinalIgnoreCase));
+            if (summary is null || !BenchmarkCompletion.HasFailedModeResults(summary))
+            {
+                return;
+            }
+
+            EnterAiActivity();
+            try
+            {
+                await _svc.BenchmarkInsights.DiagnoseFailuresAsync(summary).ConfigureAwait(true);
+            }
+            finally
+            {
+                ExitAiActivity();
+            }
+        }
+        catch (Exception ex)
+        {
+            _svc.Diagnostics.Write("Testing", $"Incremental failure diagnosis skipped: {ex.Message}");
         }
     }
 
@@ -2223,10 +2361,13 @@ public partial class MainWindow : Window
         var candidates = (await _svc.Registry.GetUndownloadTestQueueAsync(ct).ConfigureAwait(true)).ToList();
         if (candidates.Count == 0)
         {
+            var cancelled = ct.IsCancellationRequested;
             await UiDispatcher.InvokeAsync(() =>
             {
-                TestStatusLabel.Text = "No undownloaded models need testing.";
-                FinishTestOperation(flashSender, success: false, cancelled: false);
+                TestStatusLabel.Text = cancelled
+                    ? "Test stopped"
+                    : "No undownloaded models need testing.";
+                FinishTestOperation(flashSender, success: false, cancelled);
             }).ConfigureAwait(true);
             return;
         }
@@ -2954,7 +3095,7 @@ public partial class MainWindow : Window
 
     private async void DownloadDescriptionsMode_Click(object sender, RoutedEventArgs e)
     {
-        if (IsCatalogUiLocked)
+        if (IsCatalogToolbarLocked)
         {
             CatalogStatusLabel.Text = "Wait for the active catalog operation to finish.";
             return;
@@ -2976,7 +3117,7 @@ public partial class MainWindow : Window
 
     private async void AiDescriptionsMode_Click(object sender, RoutedEventArgs e)
     {
-        if (IsCatalogUiLocked)
+        if (IsCatalogToolbarLocked)
         {
             CatalogStatusLabel.Text = "Wait for the active catalog operation to finish.";
             return;
@@ -3315,7 +3456,7 @@ public partial class MainWindow : Window
 
     private async Task LoadCatalogTabAsync()
     {
-        if (IsCatalogUiLocked)
+        if (IsCatalogToolbarLocked && !_catalogDownloadInProgress)
         {
             return;
         }
@@ -3352,18 +3493,56 @@ public partial class MainWindow : Window
 
     private async void CatalogStop_Click(object sender, RoutedEventArgs e)
     {
-        if (_catalogToolbarOperations == 0)
+        if (!IsCatalogStopActive)
         {
             return;
         }
 
+        _catalogDownloadCts?.Cancel();
+        _catalogFileSizesCts?.Cancel();
+        CancelCatalogFileSizeEnrichment();
         await CancelActiveCatalogOperationsAsync().ConfigureAwait(true);
         CatalogStatusLabel.Text = "Stopping catalog operation...";
     }
 
+    private void ApplyCatalogFilterInMemory()
+    {
+        var search = CatalogSearchBox.Text?.Trim() ?? string.Empty;
+        var category = CategoryFilterCombo.SelectedItem as string ?? "All";
+        var rows = _catalogRows.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            rows = rows.Where(r =>
+                r.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.Category.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.DisplayDescription.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.BestMode.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.BestTps.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            rows = rows.Where(r => r.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var filtered = rows.ToList();
+        CatalogGrid.ItemsSource = filtered;
+        CatalogStatusLabel.Text = _catalogDownloadInProgress
+            ? $"Downloading — showing {filtered.Count} filtered model(s)."
+            : $"Showing {filtered.Count} catalog model(s).";
+        ScheduleFitGridColumns(CatalogGrid);
+    }
+
     private async Task RefreshCatalogUiAsync(bool force = false)
     {
-        if (!force && IsCatalogUiLocked)
+        if (!force && _catalogDownloadInProgress)
+        {
+            ApplyCatalogFilterInMemory();
+            return;
+        }
+
+        if (!force && IsCatalogToolbarLocked)
         {
             return;
         }
@@ -3426,14 +3605,21 @@ public partial class MainWindow : Window
 
     private async void CategoryFilterCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_suppressCatalogUiEvents || IsCatalogUiLocked)
+        if (_suppressCatalogUiEvents)
         {
             return;
         }
 
         try
         {
-            await RefreshCatalogUiAsync().ConfigureAwait(true);
+            if (_catalogDownloadInProgress)
+            {
+                ApplyCatalogFilterInMemory();
+            }
+            else if (!IsCatalogToolbarLocked)
+            {
+                await RefreshCatalogUiAsync().ConfigureAwait(true);
+            }
         }
         catch (Exception ex)
         {
@@ -3530,6 +3716,86 @@ public partial class MainWindow : Window
             finally
             {
                 await EndCatalogToolbarOperationScopeAsync(generation).ConfigureAwait(false);
+            }
+        }).ConfigureAwait(true);
+    }
+
+    private async void GetFileSizes_Click(object sender, RoutedEventArgs e)
+    {
+        if (TaskButton(sender) is not { } flashButton
+            || !_flashButtons.TryBegin(flashButton, FlashColorScheme.YellowBlack))
+        {
+            return;
+        }
+
+        if (_catalogFileSizesInProgress)
+        {
+            EndTaskFlashIdle(sender);
+            CatalogStatusLabel.Text = "Get File Sizes is already running.";
+            return;
+        }
+
+        _catalogFileSizesCts?.Cancel();
+        _catalogFileSizesCts = new CancellationTokenSource();
+        var ct = _catalogFileSizesCts.Token;
+        _catalogFileSizesInProgress = true;
+        UpdateCatalogStopButtonUi();
+        CatalogStatusLabel.Text = "Probing file sizes from Ollama pull metadata…";
+
+        await _svc.WorkQueue.EnqueueAsync(async workCt =>
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(workCt, ct);
+            var token = linked.Token;
+            try
+            {
+                var startup = await EnsureOllamaApiReadyAsync(token, "Get File Sizes requires Ollama API", timeoutSec: 90)
+                    .ConfigureAwait(false);
+                if (!startup.Success)
+                {
+                    throw new InvalidOperationException(startup.Message);
+                }
+
+                var progress = new Progress<string>(msg =>
+                    _ = UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
+                var count = await _svc.CatalogStore.ProbeMissingFileSizesAsync(_svc.ApiClient, progress, token)
+                    .ConfigureAwait(false);
+                _svc.CatalogStore.ClearCache();
+
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    await ApplyCatalogFileSizesToRowsAsync(token).ConfigureAwait(true);
+                    await RefreshCatalogUiAsync(force: true).ConfigureAwait(true);
+                    CatalogStatusLabel.Text = count > 0
+                        ? $"Updated file sizes for {count} catalog model(s)."
+                        : "No missing file sizes found to probe.";
+                    EndTaskFlashSuccess(sender, count > 0 ? "Sized" : "Done", 10);
+                }).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    CatalogStatusLabel.Text = "Get File Sizes cancelled.";
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _svc.Diagnostics.Write("Catalog", $"Get File Sizes failed: {ex.Message}");
+                var msg = await ExplainErrorAsync(ex.Message, token).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    CatalogStatusLabel.Text = msg;
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    _catalogFileSizesInProgress = false;
+                    UpdateCatalogStopButtonUi();
+                }).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }
@@ -3908,8 +4174,20 @@ public partial class MainWindow : Window
 
     private void CatalogGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (IsCatalogUiLocked)
+        if (IsCatalogToolbarLocked)
         {
+            return;
+        }
+
+        if (e.ClickCount == 2
+            && FindVisualParent<DataGridCell>(e.OriginalSource as DependencyObject) is { Column: { Header: var header } }
+            && header is string headerText
+            && (headerText.Equals("Fastest Mode", StringComparison.OrdinalIgnoreCase)
+                || headerText.Equals("Best Metric", StringComparison.OrdinalIgnoreCase))
+            && CatalogGrid.SelectedItem is CatalogRowViewModel catalogRow)
+        {
+            NavigateToTestResultRow(catalogRow.Name);
+            e.Handled = true;
             return;
         }
 
@@ -4297,8 +4575,37 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task<string> FormatInsightColumnAsync(string? insight)
+    private async Task<string> FormatInsightColumnAsync(string? insight, TestResultRowViewModel? row = null)
     {
+        if (row is not null)
+        {
+            var failedModes = new List<string>();
+            if (row.CpuFailed)
+            {
+                failedModes.Add("CPU");
+            }
+
+            if (row.ApuFailed)
+            {
+                failedModes.Add("APU");
+            }
+
+            if (row.GpuFailed)
+            {
+                failedModes.Add("GPU");
+            }
+
+            if (row.HybridFailed)
+            {
+                failedModes.Add("Hybrid");
+            }
+
+            if (failedModes.Count > 0 && string.IsNullOrWhiteSpace(insight))
+            {
+                return $"{failedModes.Count}/4 failed — {string.Join(", ", failedModes)}";
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(insight))
         {
             return insight.Trim();
@@ -4326,17 +4633,13 @@ public partial class MainWindow : Window
 
     private async Task RefreshTestResultsUiAsync()
     {
-        var selectedModel = TestResultsGrid.SelectedItem is TestResultRowViewModel selected
-            ? selected.Model
-            : null;
-
         _svc.Profiles.ClearCache();
         var rows = await _svc.Registry.GetTestResultRowsAsync().ConfigureAwait(true);
         var enriched = new List<TestResultRowViewModel>();
         foreach (var row in rows)
         {
             var insight = await _svc.BenchmarkInsights.GetInsightAsync(row.Model).ConfigureAwait(true);
-            var insightText = await FormatInsightColumnAsync(insight).ConfigureAwait(true);
+            var insightText = await FormatInsightColumnAsync(insight, row).ConfigureAwait(true);
             enriched.Add(new TestResultRowViewModel
             {
                 Model = row.Model,
@@ -4354,20 +4657,93 @@ public partial class MainWindow : Window
                 GpuFailed = row.GpuFailed,
                 HybridFailed = row.HybridFailed,
                 IsInstalledLocally = row.IsInstalledLocally,
+                StatusDisplay = row.StatusDisplay,
+                IsAllModesFailed = row.IsAllModesFailed,
                 Insight = insightText,
                 LastTested = row.LastTested,
                 ReportPath = row.ReportPath
             });
         }
 
+        _testResultsAllRows = enriched;
+        await RefreshTestResultsCategoryFilterComboAsync().ConfigureAwait(true);
+        ApplyTestResultsFilter();
+    }
+
+    private async Task RefreshTestResultsCategoryFilterComboAsync()
+    {
+        var present = _testResultsAllRows
+            .Select(r => r.Category)
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Select(CategoryNormalizer.Normalize)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(CategoryNormalizer.GetSortOrder)
+            .ThenBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var items = new List<string> { "All" };
+        items.AddRange(present);
+
+        await UiDispatcher.InvokeAsync(() =>
+        {
+            var previous = TestResultsCategoryFilterCombo.SelectedItem as string;
+            _suppressTestResultsUiEvents = true;
+            try
+            {
+                TestResultsCategoryFilterCombo.ItemsSource = items;
+                if (!string.IsNullOrWhiteSpace(previous)
+                    && items.Contains(previous, StringComparer.OrdinalIgnoreCase))
+                {
+                    TestResultsCategoryFilterCombo.SelectedItem = previous;
+                }
+                else
+                {
+                    TestResultsCategoryFilterCombo.SelectedIndex = 0;
+                }
+            }
+            finally
+            {
+                _suppressTestResultsUiEvents = false;
+            }
+        }).ConfigureAwait(true);
+    }
+
+    private void ApplyTestResultsFilter()
+    {
+        var selectedModel = TestResultsGrid.SelectedItem is TestResultRowViewModel selected
+            ? selected.Model
+            : null;
+        var search = TestResultsSearchBox.Text?.Trim() ?? string.Empty;
+        var category = TestResultsCategoryFilterCombo.SelectedItem as string ?? "All";
+
+        var filtered = _testResultsAllRows.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            filtered = filtered.Where(r =>
+                r.Model.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.Category.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.Insight.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.BestMode.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.CpuResult.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.ApuResult.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.GpuResult.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.HybridResult.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || r.StatusDisplay.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            filtered = filtered.Where(r => r.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var rows = filtered.ToList();
         _suppressTestResultsSelectionEvents = true;
         try
         {
-            TestResultsGrid.ItemsSource = enriched;
-
+            TestResultsGrid.ItemsSource = rows;
             if (!string.IsNullOrEmpty(selectedModel))
             {
-                var match = enriched.FirstOrDefault(r =>
+                var match = rows.FirstOrDefault(r =>
                     r.Model.Equals(selectedModel, StringComparison.OrdinalIgnoreCase));
                 if (match is not null)
                 {
@@ -4380,7 +4756,243 @@ public partial class MainWindow : Window
             _suppressTestResultsSelectionEvents = false;
         }
 
+        UpdateTestResultsActionButtons();
         ScheduleFitGridColumns(TestResultsGrid);
+    }
+
+    private void UpdateTestResultsActionButtons()
+    {
+        if (TestResultsGrid.SelectedItem is not TestResultRowViewModel row)
+        {
+            DownloadFromResultsBtn.IsEnabled = false;
+            LaunchFromResultsBtn.IsEnabled = false;
+            ClearSelectedTestResultBtn.IsEnabled = false;
+            return;
+        }
+
+        ClearSelectedTestResultBtn.IsEnabled = true;
+        var downloadBlocked = _testResultsDownloadInProgress
+            || IsBenchmarkQueueRunning()
+            || IsCatalogDownloadActive;
+        if (row.IsInstalledLocally)
+        {
+            DownloadFromResultsBtn.IsEnabled = false;
+            LaunchFromResultsBtn.IsEnabled = !row.IsAllModesFailed
+                && !string.IsNullOrWhiteSpace(row.BestMode)
+                && !row.BestMode.Equals("FAILED", StringComparison.OrdinalIgnoreCase)
+                && !downloadBlocked;
+        }
+        else
+        {
+            LaunchFromResultsBtn.IsEnabled = false;
+            DownloadFromResultsBtn.IsEnabled = !downloadBlocked && !IsBenchmarkQueueRunning();
+        }
+    }
+
+    private void TestResultsSearchBox_KeyUp(object sender, KeyEventArgs e)
+    {
+        _testResultsSearchTimer.Stop();
+        _testResultsSearchTimer.Start();
+    }
+
+    private void TestResultsCategoryFilterCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressTestResultsUiEvents)
+        {
+            return;
+        }
+
+        ApplyTestResultsFilter();
+    }
+
+    private void NavigateToTestResultRow(string libraryOrModelName)
+    {
+        MainTabs.SelectedItem = TestResultsTab;
+        var match = _testResultsAllRows.FirstOrDefault(r =>
+            r.Model.Equals(libraryOrModelName, StringComparison.OrdinalIgnoreCase)
+            || r.Model.StartsWith($"{libraryOrModelName}:", StringComparison.OrdinalIgnoreCase));
+        if (match is null)
+        {
+            return;
+        }
+
+        TestResultsSearchBox.Text = libraryOrModelName.Split(':')[0];
+        ApplyTestResultsFilter();
+        TestResultsGrid.SelectedItem = TestResultsGrid.Items
+            .Cast<object>()
+            .OfType<TestResultRowViewModel>()
+            .FirstOrDefault(r => r.Model.Equals(match.Model, StringComparison.OrdinalIgnoreCase));
+        if (TestResultsGrid.SelectedItem is TestResultRowViewModel selected)
+        {
+            TestResultsGrid.ScrollIntoView(selected);
+            UpdateTestResultsActionButtons();
+        }
+    }
+
+    private async void DownloadFromResults_Click(object sender, RoutedEventArgs e)
+    {
+        if (TestResultsGrid.SelectedItem is not TestResultRowViewModel row)
+        {
+            MessageBox.Show("Select a test result row first.", "Download Selected",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (row.IsInstalledLocally)
+        {
+            MessageBox.Show($"{row.Model} is already installed locally.", "Download Selected",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (!TryBlockDownloadIfTestActive())
+        {
+            return;
+        }
+
+        if (_testResultsDownloadInProgress)
+        {
+            MessageBox.Show("Another Test Results download is already in progress.", "Download Selected",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (IsCatalogDownloadActive)
+        {
+            MessageBox.Show(
+                "A Model Library download is in progress. Wait or click Stop Download before downloading from Test Results.",
+                "Download Selected",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        var libraryName = row.Model.Split(':')[0];
+        _testResultsDownloadInProgress = true;
+        UpdateTestResultsActionButtons();
+
+        await _svc.WorkQueue.EnqueueAsync(async ct =>
+        {
+            try
+            {
+                var startup = await EnsureOllamaApiReadyAsync(ct, "Cannot download — Ollama API not ready", timeoutSec: 90)
+                    .ConfigureAwait(false);
+                if (!startup.Success)
+                {
+                    throw new InvalidOperationException(startup.Message);
+                }
+
+                var resolution = await _svc.CatalogStore.ResolvePullTagAsync(libraryName, ct).ConfigureAwait(false);
+                if (!resolution.Resolved)
+                {
+                    throw new InvalidOperationException(
+                        $"{libraryName} has no downloadable tag on ollama.com. Try Refresh Catalog.");
+                }
+
+                var pullTag = resolution.PullTag;
+                var progress = new Progress<ModelPullProgress>(update =>
+                    _ = UiDispatcher.InvokeAsync(() => TestResultDetail.Text = $"Downloading {pullTag}: {update.Status}"));
+
+                await _svc.ApiClient.PullAsync(pullTag, progress, ct).ConfigureAwait(false);
+                _svc.ApiClient.InvalidateCaches();
+                _svc.Profiles.ClearCache();
+
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    TestResultDetail.Text = $"Downloaded {pullTag}.";
+                    await RefreshModelsUiAsync().ConfigureAwait(true);
+                    await RefreshTestResultsUiAsync().ConfigureAwait(true);
+                    await RefreshCatalogUiAsync(force: true).ConfigureAwait(true);
+                    EndTaskFlashSuccess(sender, "Downloaded", 10);
+                }).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    TestResultDetail.Text = "Download cancelled.";
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    TestResultDetail.Text = msg;
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    _testResultsDownloadInProgress = false;
+                    UpdateTestResultsActionButtons();
+                }).ConfigureAwait(false);
+            }
+        }).ConfigureAwait(true);
+    }
+
+    private async void ClearSelectedTestResult_Click(object sender, RoutedEventArgs e)
+    {
+        if (TestResultsGrid.SelectedItem is not TestResultRowViewModel row)
+        {
+            MessageBox.Show("Select a test result row first.", "Clear Selected",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var message =
+            $"Clear all test data for '{row.Model}'? Benchmark results, AI insights, and report files "
+            + "for this model will be removed and cannot be restored.";
+
+        if (!ToolkitConfirmDialog.ShowAccept(this, message, "Clear Test Data"))
+        {
+            return;
+        }
+
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        try
+        {
+            var cleared = await _svc.Profiles.ClearTestDataForModelAsync(row.Model).ConfigureAwait(true);
+            await _svc.BenchmarkInsights.ClearForModelAsync(row.Model).ConfigureAwait(true);
+            await _svc.BenchmarkSettingsAdvisor.ClearForModelAsync(row.Model).ConfigureAwait(true);
+            _svc.Profiles.ClearCache();
+            _svc.BenchmarkInsights.ClearCache();
+            _svc.BenchmarkSettingsAdvisor.ClearCache();
+
+            await UiDispatcher.InvokeAsync(async () =>
+            {
+                TestResultDetail.Text = string.Empty;
+                await RefreshModelsUiAsync().ConfigureAwait(true);
+                await RefreshTestResultsUiAsync().ConfigureAwait(true);
+                await RefreshCatalogUiAsync(force: true).ConfigureAwait(true);
+                EndTaskFlashSuccess(sender, "Cleared", 8);
+            }).ConfigureAwait(true);
+
+            _svc.ActivityLog.Write(
+                "Benchmark",
+                $"Cleared test data for {row.Model} ({cleared.ReportDirsRemoved} report dir(s))");
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Failed to clear test data for {row.Model}: {ex.Message}",
+                "Clear Test Data",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            EndTaskFlashIdle(sender);
+        }
     }
 
     private async void ClearTestResultRow_Click(object sender, RoutedEventArgs e)
@@ -4481,9 +5093,11 @@ public partial class MainWindow : Window
         {
             _testResultsDetailCts?.Cancel();
             TestResultDetail.Text = string.Empty;
+            UpdateTestResultsActionButtons();
             return;
         }
 
+        UpdateTestResultsActionButtons();
         TestResultDetail.Text = string.IsNullOrWhiteSpace(row.Insight)
             ? $"No AI insight for {row.Model} yet."
             : row.Insight;
@@ -4597,6 +5211,15 @@ public partial class MainWindow : Window
                 MessageBox.Show("No model selected.", "Launch Selected", MessageBoxButton.OK, MessageBoxImage.Information);
             }
 
+            return;
+        }
+
+        if (TestResultsGrid.SelectedItem is TestResultRowViewModel selectedRow
+            && (selectedRow.IsAllModesFailed
+                || string.Equals(selectedRow.BestMode, "FAILED", StringComparison.OrdinalIgnoreCase)))
+        {
+            MessageBox.Show($"Model '{model.Model}' failed all benchmark modes. Retest before launching.", "Launch Selected",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 

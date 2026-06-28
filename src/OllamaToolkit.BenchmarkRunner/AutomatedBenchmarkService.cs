@@ -375,14 +375,44 @@ public sealed class AutomatedBenchmarkService
                     : BenchmarkProgressFormatter.ModelWinner(winner.Mode!, winner.GenerationTps)
             });
         }
+        else
+        {
+            BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+            {
+                Phase = BenchmarkProgressPhase.ModelCompleted,
+                BenchmarkKind = benchmarkKind,
+                Model = modelName,
+                ModelIndex = modelIndex,
+                ModelCount = modelCount,
+                ModeCount = modes.Count,
+                LogLine = $"{modelName} complete — all modes failed"
+            });
+        }
 
         report.CompletedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         var reportPath = Path.Combine(outputDir, "report.json");
         await JsonFileHelper.WriteAsync(reportPath, report, cancellationToken).ConfigureAwait(false);
         try
         {
-            await _profiles.UpdateFromReportAsync(reportPath, cancellationToken: cancellationToken)
+            var savedProfile = await _profiles.UpdateFromReportAsync(reportPath, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
+            if (savedProfile is not null)
+            {
+                var mismatches = ReportProfileValidator.FindMismatches(report, savedProfile);
+                foreach (var mismatch in mismatches)
+                {
+                    BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+                    {
+                        Phase = BenchmarkProgressPhase.ModelCompleted,
+                        BenchmarkKind = benchmarkKind,
+                        Model = modelName,
+                        ModelIndex = modelIndex,
+                        ModelCount = modelCount,
+                        ModeCount = modes.Count,
+                        LogLine = $"PROFILE_MISMATCH: {modelName} {mismatch}"
+                    });
+                }
+            }
         }
         catch (Exception ex)
         {

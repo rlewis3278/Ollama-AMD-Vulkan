@@ -189,6 +189,12 @@ public sealed class ProfileStoreService
                 {
                     status = "Updated - retest needed";
                 }
+                else if (BenchmarkCompletion.IsAllModesFailed(profile.Results))
+                {
+                    status = "Failed";
+                    lastTested = profile.LastTested ?? string.Empty;
+                    needsRetest = true;
+                }
                 else if (ProfileSanitizer.IsSupportedMode(profile.BestMode))
                 {
                     status = "Tested";
@@ -203,7 +209,8 @@ public sealed class ProfileStoreService
                 }
                 else
                 {
-                    status = "Test failed";
+                    status = "Failed";
+                    needsRetest = true;
                 }
             }
 
@@ -269,7 +276,13 @@ public sealed class ProfileStoreService
                 : profile.BenchmarkKind;
             bestEmbedMs = profile.BestEmbedMs;
 
-            if (ProfileSanitizer.IsSupportedMode(profile.BestMode))
+            if (BenchmarkCompletion.IsAllModesFailed(profile.Results))
+            {
+                status = "Failed";
+                lastTested = profile.LastTested ?? string.Empty;
+                needsRetest = true;
+            }
+            else if (ProfileSanitizer.IsSupportedMode(profile.BestMode))
             {
                 status = "Tested";
                 bestMode = profile.BestMode!;
@@ -283,7 +296,8 @@ public sealed class ProfileStoreService
             }
             else
             {
-                status = "Test failed";
+                status = "Failed";
+                needsRetest = true;
             }
         }
 
@@ -416,6 +430,13 @@ public sealed class ProfileStoreService
             {
                 status = "Updated - retest needed";
             }
+            else if (BenchmarkCompletion.IsAllModesFailed(profile.Results))
+            {
+                status = "Failed";
+                bestMode = string.Empty;
+                lastTested = profile.LastTested ?? string.Empty;
+                needsRetest = true;
+            }
             else if (ProfileSanitizer.IsSupportedMode(profile.BestMode))
             {
                 status = "Tested";
@@ -430,7 +451,8 @@ public sealed class ProfileStoreService
             }
             else
             {
-                status = "Test failed";
+                status = "Failed";
+                needsRetest = true;
             }
         }
 

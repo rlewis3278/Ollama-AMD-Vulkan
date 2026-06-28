@@ -154,7 +154,7 @@ public sealed class ModelRegistryService
         var (_, installed) = await GetInstalledNameSetAsync(cancellationToken).ConfigureAwait(false);
 
         return summaries
-            .Where(s => !s.NeedsRetest && !string.IsNullOrEmpty(s.BestMode))
+            .Where(s => s.Results is { Count: > 0 })
             .Select(s =>
             {
                 var category = string.Empty;
@@ -165,12 +165,19 @@ public sealed class ModelRegistryService
                 }
 
                 var isEmbed = s.BenchmarkKind.Equals(BenchmarkKinds.Embed, StringComparison.OrdinalIgnoreCase);
+                var allFailed = BenchmarkCompletion.IsAllModesFailed(s.Results);
+                var statusDisplay = BenchmarkCompletion.FormatModeStatusSummary(s.Results);
+                if (!installed.Contains(s.Model))
+                {
+                    statusDisplay = $"{statusDisplay} · not installed";
+                }
+
                 return new TestResultRowViewModel
                 {
                     Model = s.Model,
                     Category = category,
                     BenchmarkKind = s.BenchmarkKind,
-                    BestMode = s.BestMode,
+                    BestMode = allFailed ? "FAILED" : s.BestMode,
                     BestTps = s.BestTps,
                     BestEmbedMs = s.BestEmbedMs,
                     CpuResult = FormatModeResult(s.Results, "CPU", isEmbed),
@@ -182,6 +189,8 @@ public sealed class ModelRegistryService
                     GpuFailed = IsModeFailed(s.Results, "GPU"),
                     HybridFailed = IsModeFailed(s.Results, "Hybrid"),
                     IsInstalledLocally = installed.Contains(s.Model),
+                    StatusDisplay = statusDisplay,
+                    IsAllModesFailed = allFailed,
                     Insight = string.Empty,
                     LastTested = s.LastTested
                 };

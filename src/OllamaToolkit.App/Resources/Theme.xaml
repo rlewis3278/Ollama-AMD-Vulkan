@@ -330,6 +330,9 @@
         <Setter Property="Background" Value="{StaticResource Brush.InfoBg}" />
         <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
         <Style.Triggers>
+            <DataTrigger Binding="{Binding IsAllModesFailed}" Value="True">
+                <Setter Property="Foreground" Value="{StaticResource Brush.Accent}" />
+            </DataTrigger>
             <DataTrigger Binding="{Binding IsInstalledLocally}" Value="True">
                 <Setter Property="Background" Value="{StaticResource Brush.PurpleBg}" />
             </DataTrigger>
@@ -426,6 +429,10 @@
             </MultiDataTrigger>
             <DataTrigger Binding="{Binding RefreshHighlight}" Value="TestedUndownload">
                 <Setter Property="Background" Value="{StaticResource Brush.InfoBg}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsDownloading}" Value="True">
+                <Setter Property="Background" Value="{StaticResource Brush.Warning}" />
+                <Setter Property="Foreground" Value="Black" />
             </DataTrigger>
             <Trigger Property="IsSelected" Value="True">
                 <Setter Property="Background" Value="{StaticResource Brush.Accent}" />

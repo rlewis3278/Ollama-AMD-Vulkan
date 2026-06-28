@@ -153,8 +153,51 @@ public sealed class BenchmarkSettingsAdvisorService
         entry.NumPredict = Math.Clamp(entry.NumPredict, 8, 512);
         entry.NumParallelByMode = BenchmarkParallelSettings.NormalizeByMode(
             entry.NumParallelByMode, sizeGb, isEmbed: false);
+        ApplyOomFailureReduction(entry, summary, sizeGb);
         return entry;
     }
+
+    private static void ApplyOomFailureReduction(
+        BenchmarkSettingsEntry entry,
+        ModelProfileSummary summary,
+        double sizeGb)
+    {
+        if (summary.Results is null
+            || !summary.Results.Values.Any(r =>
+                (r.Status.Equals("Failed", StringComparison.OrdinalIgnoreCase)
+                 || r.Status.Equals("FAIL", StringComparison.OrdinalIgnoreCase))
+                && ContainsOomHint(r.Error)))
+        {
+            return;
+        }
+
+        var reducedCtx = sizeGb >= 18 ? 4096 : 6144;
+        if (entry.NumCtx > reducedCtx)
+        {
+            entry.NumCtx = reducedCtx;
+        }
+
+        entry.NumParallelByMode ??= BenchmarkParallelSettings.DefaultByMode(sizeGb);
+        foreach (var mode in new[] { "GPU", "Hybrid", "APU" })
+        {
+            if (entry.NumParallelByMode.TryGetValue(mode, out var parallel) && parallel > 1)
+            {
+                entry.NumParallelByMode[mode] = 1;
+            }
+        }
+
+        entry.Rationale = string.IsNullOrWhiteSpace(entry.Rationale)
+            ? "Reduced ctx/parallel after prior OOM failures."
+            : $"{entry.Rationale} Reduced ctx/parallel after prior OOM failures.";
+    }
+
+    private static bool ContainsOomHint(string? error) =>
+        !string.IsNullOrWhiteSpace(error)
+        && (error.Contains("out of memory", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("OOM", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("CUDA", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("Vulkan", StringComparison.OrdinalIgnoreCase)
+            || error.Contains("allocate", StringComparison.OrdinalIgnoreCase));
 
     private static BenchmarkSettingsEntry DefaultEntry(ModelProfileSummary summary)
     {

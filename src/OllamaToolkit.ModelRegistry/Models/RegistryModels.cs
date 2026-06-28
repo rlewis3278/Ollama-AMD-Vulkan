@@ -207,6 +207,8 @@ public sealed class TestResultRowViewModel
     public bool GpuFailed { get; init; }
     public bool HybridFailed { get; init; }
     public bool IsInstalledLocally { get; init; }
+    public string StatusDisplay { get; init; } = string.Empty;
+    public bool IsAllModesFailed { get; init; }
     public string Insight { get; init; } = string.Empty;
     public string LastTested { get; init; } = string.Empty;
     public string? ReportPath { get; init; }

@@ -11,6 +11,9 @@ public static class BenchmarkCompletion
         && ProfileSanitizer.SupportedModes.All(mode =>
             results.TryGetValue(mode, out var row) && !string.IsNullOrWhiteSpace(row.Status));
 
+    public static bool HasAnySuccessfulMode(Dictionary<string, ModeResultEntry>? results) =>
+        results?.Values.Any(IsSuccessfulStatus) == true;
+
     public static bool HasFailedModeResults(ModelProfileSummary summary) =>
         summary.Results?.Values.Any(IsFailedStatus) == true;
 
@@ -20,12 +23,34 @@ public static class BenchmarkCompletion
     public static bool IsFullyTested(ModelProfileSummary summary) =>
         !summary.NeedsRetest
         && ProfileSanitizer.IsSupportedMode(summary.BestMode)
-        && HasAllModeResults(summary.Results);
+        && HasAllModeResults(summary.Results)
+        && HasAnySuccessfulMode(summary.Results);
 
     public static bool IsFullyTested(ModelProfileEntry? profile) =>
         profile is not null
         && ProfileSanitizer.IsSupportedMode(profile.BestMode)
-        && HasAllModeResults(profile.Results);
+        && HasAllModeResults(profile.Results)
+        && HasAnySuccessfulMode(profile.Results);
+
+    public static bool IsAllModesFailed(Dictionary<string, ModeResultEntry>? results) =>
+        HasAllModeResults(results) && !HasAnySuccessfulMode(results);
+
+    public static string FormatModeStatusSummary(Dictionary<string, ModeResultEntry>? results)
+    {
+        if (results is null || results.Count == 0)
+        {
+            return "Untested";
+        }
+
+        if (IsAllModesFailed(results))
+        {
+            return "FAILED";
+        }
+
+        var success = ProfileSanitizer.SupportedModes.Count(mode =>
+            results.TryGetValue(mode, out var row) && IsSuccessfulStatus(row));
+        return $"{success}/{RequiredModeCount} OK";
+    }
 
     public static bool ShouldRetest(ModelProfileSummary summary)
     {
@@ -68,6 +93,9 @@ public static class BenchmarkCompletion
         var resultCount = profile.Results?.Count ?? 0;
         return resultCount > 0 && resultCount < RequiredModeCount;
     }
+
+    private static bool IsSuccessfulStatus(ModeResultEntry row) =>
+        row.Status.Equals("Success", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsFailedStatus(ModeResultEntry row) =>
         row.Status.Equals("Failed", StringComparison.OrdinalIgnoreCase)

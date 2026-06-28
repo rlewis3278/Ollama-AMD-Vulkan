@@ -160,7 +160,9 @@
                                 Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="RefreshCatalog_Click" />
                         <Button x:Name="ClearCatalogBtn" Grid.Row="0" Grid.Column="10" Content="Clear Catalog"
                                 Style="{StaticResource ToolkitButton}" Click="ClearCatalog_Click" />
-                        <Button x:Name="CatalogStopBtn" Grid.Row="1" Grid.Column="7" Grid.ColumnSpan="4"
+                        <Button x:Name="GetFileSizesBtn" Grid.Row="0" Grid.Column="11" Content="Get File Sizes"
+                                Style="{StaticResource ToolkitButton}" Margin="4,0,0,0" Click="GetFileSizes_Click" />
+                        <Button x:Name="CatalogStopBtn" Grid.Row="1" Grid.Column="7" Grid.ColumnSpan="5"
                                 Content="STOP" Style="{StaticResource ToolkitButton}"
                                 Margin="0,4,0,0" Click="CatalogStop_Click" />
                         <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="12"
@@ -191,6 +193,8 @@
                         </StackPanel>
                     </Grid>
                     <StackPanel Grid.Row="1" Margin="0,0,0,8">
+                        <TextBlock Margin="0,0,0,4" TextWrapping="Wrap" Foreground="{StaticResource Brush.Muted}" FontSize="12"
+                                   Text="Green = installed · Blue = tested (not installed) · Yellow = downloading/processing · Red = selected row" />
                         <TextBlock x:Name="CatalogStatusLabel" Foreground="{StaticResource Brush.Muted}" />
                         <Grid x:Name="CatalogDownloadProgressPanel" Margin="0,6,0,0" Visibility="Collapsed">
                             <Grid.ColumnDefinitions>
@@ -279,6 +283,7 @@
                         <TextBox x:Name="TestNumPredictBox" Width="48" Margin="0,0,8,8" Text="32" />
                         <Button Content="Test Selected" Style="{StaticResource ToolkitButton}" Click="TestSelected_Click" />
                         <Button Content="Test Local Untested" Style="{StaticResource ToolkitButton}" Click="TestUntested_Click" />
+                        <Button Content="Retest Failed" Style="{StaticResource ToolkitButton}" Click="RetestFailed_Click" />
                         <Button x:Name="TestUndownloadBtn" Content="Test Undownload" Style="{StaticResource ToolkitButton}" Click="TestUndownload_Click" />
                         <Button x:Name="StopTestBtn" Content="Stop Test" Style="{StaticResource ToolkitButton}" Click="StopTest_Click" />
                         <Button Content="Clear All Test Results" Style="{StaticResource ToolkitButton}" Click="ClearAllTestResults_Click" />
@@ -301,15 +306,53 @@
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <TextBlock Grid.Row="0" Margin="0,0,0,6" TextWrapping="Wrap" Foreground="{StaticResource Brush.Muted}" FontSize="12"
+                               Text="Purple = installed locally · Blue row = not installed · Status shows modes passed · Red cells = mode failed · Green highlight = best mode" />
+                    <Grid Grid.Row="1" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="160" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid Grid.Column="0">
+                            <TextBox x:Name="TestResultsSearchBox" Padding="6,4" KeyUp="TestResultsSearchBox_KeyUp" />
+                            <TextBlock Text="Search" IsHitTestVisible="False"
+                                       Foreground="{StaticResource Brush.Muted}"
+                                       Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Text, ElementName=TestResultsSearchBox}" Value="">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                        <TextBlock Grid.Column="1" Text="Category:" VerticalAlignment="Center"
+                                   Foreground="{StaticResource Brush.Text}" Margin="8,0,4,0" />
+                        <ComboBox x:Name="TestResultsCategoryFilterCombo" Grid.Column="2"
+                                  SelectionChanged="TestResultsCategoryFilterCombo_SelectionChanged" />
+                    </Grid>
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshTestResults_Click" />
-                        <Button Content="Launch Selected" Style="{StaticResource ToolkitButton}" Click="LaunchFromResults_Click" />
+                        <Button x:Name="DownloadFromResultsBtn" Content="Download Selected" Style="{StaticResource ToolkitButton}"
+                                Click="DownloadFromResults_Click" IsEnabled="False" />
+                        <Button x:Name="LaunchFromResultsBtn" Content="Launch Selected" Style="{StaticResource ToolkitButton}"
+                                Click="LaunchFromResults_Click" IsEnabled="False" />
+                        <Button x:Name="ClearSelectedTestResultBtn" Content="Clear Selected" Style="{StaticResource ToolkitButton}"
+                                Click="ClearSelectedTestResult_Click" IsEnabled="False" />
                         <Button Content="Clear All Test Results" Style="{StaticResource ToolkitButton}" Click="ClearAllTestResults_Click" />
                     </StackPanel>
-                    <DataGrid x:Name="TestResultsGrid" Grid.Row="1" Style="{StaticResource ToolkitDataGrid}"
+                    <DataGrid x:Name="TestResultsGrid" Grid.Row="3" Style="{StaticResource ToolkitDataGrid}"
                               RowStyle="{StaticResource TestResultsRow}"
                               CellStyle="{StaticResource TestResultsCell}"
                               AutoGenerateColumns="False" IsReadOnly="True"
@@ -337,19 +380,11 @@
                                     <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridWrapCell}" />
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
+                            <DataGridTextColumn Header="Status" Binding="{Binding StatusDisplay}" Width="110" />
                             <DataGridTextColumn Header="Tested" Binding="{Binding LastTested}" Width="130" />
-                            <DataGridTemplateColumn Header="Clear" Width="80">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Button Content="Clear" Style="{StaticResource ToolkitButton}"
-                                                Padding="6,2" Margin="0" FontSize="12"
-                                                Click="ClearTestResultRow_Click" />
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
-                    <TextBlock x:Name="TestResultDetail" Grid.Row="2" Margin="0,8,0,0" TextWrapping="Wrap"
+                    <TextBlock x:Name="TestResultDetail" Grid.Row="4" Margin="0,8,0,0" TextWrapping="Wrap"
                                Foreground="{StaticResource Brush.Muted}" />
                 </Grid>
             </TabItem>
