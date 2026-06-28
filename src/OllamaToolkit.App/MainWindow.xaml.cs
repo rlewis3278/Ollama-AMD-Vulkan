@@ -1,6 +1,4 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Windows.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -74,12 +72,10 @@ public partial class MainWindow : Window
     private readonly TestingRowHighlightCoordinator _testingHighlight;
     private Dictionary<string, CatalogRowViewModel> _catalogRowByName = new(StringComparer.OrdinalIgnoreCase);
     private bool _suppressCatalogUiEvents;
+    private bool _suppressTestResultsSelectionEvents;
     private bool _suppressTestResultsUiEvents;
     private CancellationTokenSource? _testResultsDetailCts;
-    private readonly ObservableCollection<TestResultRowViewModel> _testResultsRows = new();
-    private readonly ICollectionView _testResultsView;
-    private string _testResultsSearchFilter = string.Empty;
-    private string _testResultsCategoryFilter = "All";
+    private List<TestResultRowViewModel> _testResultsRows = new();
     private bool _testResultsDownloadInProgress;
     private bool _catalogDownloadInProgress;
     private bool _catalogFileSizesInProgress;
@@ -106,9 +102,6 @@ public partial class MainWindow : Window
             () => _catalogRows,
             () => ModelsGrid.ItemsSource as IEnumerable<ModelLaunchRowViewModel> ?? []);
         CatalogGrid.ItemsSource = _catalogRows;
-        _testResultsView = CollectionViewSource.GetDefaultView(_testResultsRows);
-        _testResultsView.Filter = TestResultsViewFilter;
-        TestResultsGrid.ItemsSource = _testResultsView;
         _modeCardPresenter = new ModeCardPresenter(this, _svc.FlashClock);
         _modeCards["CPU"] = CpuCard;
         _modeCards["APU"] = ApuCard;
@@ -4660,11 +4653,7 @@ public partial class MainWindow : Window
             });
         }
 
-        _testResultsRows.Clear();
-        foreach (var row in enriched)
-        {
-            _testResultsRows.Add(row);
-        }
+        _testResultsRows = enriched;
 
         await RefreshTestResultsCategoryFilterComboAsync().ConfigureAwait(true);
         ApplyTestResultsFilter();
@@ -4724,44 +4713,55 @@ public partial class MainWindow : Window
 
     private void ApplyTestResultsFilterCore()
     {
-        _testResultsSearchFilter = TestResultsSearchBox.Text?.Trim() ?? string.Empty;
-        _testResultsCategoryFilter = TestResultsCategoryFilterCombo.SelectedItem as string ?? "All";
-        _testResultsView.Refresh();
-        SafeUpdateTestResultsActionButtons();
-    }
+        var selectedModel = TestResultsGrid.SelectedItem is TestResultRowViewModel selected
+            ? selected.Model
+            : null;
+        var search = TestResultsSearchBox.Text?.Trim() ?? string.Empty;
+        var category = TestResultsCategoryFilterCombo.SelectedItem as string ?? "All";
 
-    private bool TestResultsViewFilter(object obj)
-    {
-        if (obj is not TestResultRowViewModel row)
+        var filtered = _testResultsRows.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(search))
         {
-            return false;
+            filtered = filtered.Where(r =>
+                TestResultFieldMatches(r.Model, search)
+                || TestResultFieldMatches(r.Category, search)
+                || TestResultFieldMatches(r.Insight, search)
+                || TestResultFieldMatches(r.BestMode, search)
+                || TestResultFieldMatches(r.CpuResult, search)
+                || TestResultFieldMatches(r.ApuResult, search)
+                || TestResultFieldMatches(r.GpuResult, search)
+                || TestResultFieldMatches(r.HybridResult, search)
+                || TestResultFieldMatches(r.StatusDisplay, search));
         }
 
-        if (!string.IsNullOrWhiteSpace(_testResultsSearchFilter))
+        if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            var search = _testResultsSearchFilter;
-            if (!TestResultFieldMatches(row.Model, search)
-                && !TestResultFieldMatches(row.Category, search)
-                && !TestResultFieldMatches(row.Insight, search)
-                && !TestResultFieldMatches(row.BestMode, search)
-                && !TestResultFieldMatches(row.CpuResult, search)
-                && !TestResultFieldMatches(row.ApuResult, search)
-                && !TestResultFieldMatches(row.GpuResult, search)
-                && !TestResultFieldMatches(row.HybridResult, search)
-                && !TestResultFieldMatches(row.StatusDisplay, search))
+            filtered = filtered.Where(r =>
+                (r.Category ?? string.Empty).Equals(category, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var rows = filtered.ToList();
+        _suppressTestResultsSelectionEvents = true;
+        try
+        {
+            TestResultsGrid.ItemsSource = rows;
+            if (!string.IsNullOrEmpty(selectedModel))
             {
-                return false;
+                var match = rows.FirstOrDefault(r =>
+                    r.Model.Equals(selectedModel, StringComparison.OrdinalIgnoreCase));
+                if (match is not null)
+                {
+                    TestResultsGrid.SelectedItem = match;
+                    TestResultsGrid.CurrentItem = match;
+                }
             }
         }
-
-        if (!string.IsNullOrWhiteSpace(_testResultsCategoryFilter)
-            && !_testResultsCategoryFilter.Equals("All", StringComparison.OrdinalIgnoreCase)
-            && !(row.Category ?? string.Empty).Equals(_testResultsCategoryFilter, StringComparison.OrdinalIgnoreCase))
+        finally
         {
-            return false;
+            _suppressTestResultsSelectionEvents = false;
         }
 
-        return true;
+        SafeUpdateTestResultsActionButtons();
     }
 
     private void SafeUpdateTestResultsActionButtons()
@@ -4835,6 +4835,7 @@ public partial class MainWindow : Window
         TestResultsSearchBox.Text = libraryOrModelName.Split(':')[0];
         ApplyTestResultsFilter();
         TestResultsGrid.SelectedItem = match;
+        TestResultsGrid.CurrentItem = match;
         if (TestResultsGrid.SelectedItem is TestResultRowViewModel selected)
         {
             TestResultsGrid.ScrollIntoView(selected);
@@ -5074,8 +5075,35 @@ public partial class MainWindow : Window
         }
     }
 
+    private void TestResultsGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (FindVisualParent<Button>(e.OriginalSource as DependencyObject) is not null)
+        {
+            return;
+        }
+
+        if (FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject) is not { } gridRow
+            || gridRow.Item is not TestResultRowViewModel item)
+        {
+            return;
+        }
+
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control) || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+        {
+            return;
+        }
+
+        TestResultsGrid.SelectedItem = item;
+        TestResultsGrid.CurrentItem = item;
+    }
+
     private void TestResultsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_suppressTestResultsSelectionEvents)
+        {
+            return;
+        }
+
         if (TestResultsGrid.SelectedItem is not TestResultRowViewModel row)
         {
             _testResultsDetailCts?.Cancel();
