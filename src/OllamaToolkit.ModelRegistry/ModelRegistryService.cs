@@ -5,6 +5,7 @@ using OllamaToolkit.Core.Ollama;
 using OllamaToolkit.ModelCatalog;
 using OllamaToolkit.ModelCatalog.Models;
 using OllamaToolkit.ModelCategory;
+using OllamaToolkit.ModelCategory.Models;
 using OllamaToolkit.ModelRegistry.Models;
 
 namespace OllamaToolkit.ModelRegistry;
@@ -151,6 +152,7 @@ public sealed class ModelRegistryService
     {
         var summaries = await _profiles.GetAllSummariesAsync(cancellationToken).ConfigureAwait(false);
         var categoryDoc = await _categories.LoadAsync(cancellationToken).ConfigureAwait(false);
+        categoryDoc.Models ??= new Dictionary<string, UsageCategoryEntry>(StringComparer.OrdinalIgnoreCase);
         var (_, installed) = await GetInstalledNameSetAsync(cancellationToken).ConfigureAwait(false);
 
         return summaries

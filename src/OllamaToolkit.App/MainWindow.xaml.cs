@@ -75,7 +75,7 @@ public partial class MainWindow : Window
     private bool _suppressTestResultsSelectionEvents;
     private bool _suppressTestResultsUiEvents;
     private CancellationTokenSource? _testResultsDetailCts;
-    private List<TestResultRowViewModel> _testResultsRows = new();
+    private readonly ObservableCollection<TestResultRowViewModel> _testResultsRows = new();
     private bool _testResultsDownloadInProgress;
     private bool _catalogDownloadInProgress;
     private bool _catalogFileSizesInProgress;
@@ -2999,7 +2999,7 @@ public partial class MainWindow : Window
         }
         else if (MainTabs.SelectedItem == TestResultsTab)
         {
-            await RefreshTestResultsUiAsync().ConfigureAwait(true);
+            await LoadTestResultsTabAsync().ConfigureAwait(true);
         }
         else if (MainTabs.SelectedItem == AiSettingsTab)
         {
@@ -4617,46 +4617,82 @@ public partial class MainWindow : Window
         return string.Empty;
     }
 
-    private async Task RefreshTestResultsUiAsync()
+    private async Task LoadTestResultsTabAsync()
     {
-        _svc.Profiles.ClearCache();
-        var rows = await _svc.Registry.GetTestResultRowsAsync().ConfigureAwait(true);
-        var enriched = new List<TestResultRowViewModel>();
-        foreach (var row in rows)
+        try
         {
-            var insight = await _svc.BenchmarkInsights.GetInsightAsync(row.Model).ConfigureAwait(true);
-            var insightText = await FormatInsightColumnAsync(insight, row).ConfigureAwait(true);
-            enriched.Add(new TestResultRowViewModel
+            if (_testResultsRows.Count == 0)
             {
-                Model = row.Model,
-                Category = row.Category ?? string.Empty,
-                BenchmarkKind = string.IsNullOrWhiteSpace(row.BenchmarkKind)
-                    ? BenchmarkKinds.Generate
-                    : row.BenchmarkKind,
-                BestMode = row.BestMode ?? string.Empty,
-                BestTps = row.BestTps,
-                BestEmbedMs = row.BestEmbedMs,
-                CpuResult = row.CpuResult ?? "-",
-                ApuResult = row.ApuResult ?? "-",
-                GpuResult = row.GpuResult ?? "-",
-                HybridResult = row.HybridResult ?? "-",
-                CpuFailed = row.CpuFailed,
-                ApuFailed = row.ApuFailed,
-                GpuFailed = row.GpuFailed,
-                HybridFailed = row.HybridFailed,
-                IsInstalledLocally = row.IsInstalledLocally,
-                StatusDisplay = row.StatusDisplay ?? string.Empty,
-                IsAllModesFailed = row.IsAllModesFailed,
-                Insight = insightText ?? string.Empty,
-                LastTested = row.LastTested ?? string.Empty,
-                ReportPath = row.ReportPath
-            });
+                await RefreshTestResultsUiAsync().ConfigureAwait(true);
+            }
+            else
+            {
+                ApplyTestResultsFilter();
+            }
+        }
+        catch (Exception ex)
+        {
+            _svc.Diagnostics.Write("TestResults", $"Load tab failed: {ex.Message}");
+        }
+    }
+
+    private async Task RefreshTestResultsUiAsync(bool forceReload = false)
+    {
+        if (forceReload)
+        {
+            _svc.Profiles.ClearCache();
+            _svc.BenchmarkInsights.ClearCache();
         }
 
-        _testResultsRows = enriched;
+        try
+        {
+            var rows = await _svc.Registry.GetTestResultRowsAsync().ConfigureAwait(true);
+            var enriched = new List<TestResultRowViewModel>();
+            foreach (var row in rows)
+            {
+                var insight = await _svc.BenchmarkInsights.GetInsightAsync(row.Model).ConfigureAwait(true);
+                var insightText = await FormatInsightColumnAsync(insight, row).ConfigureAwait(true);
+                enriched.Add(new TestResultRowViewModel
+                {
+                    Model = row.Model,
+                    Category = row.Category ?? string.Empty,
+                    BenchmarkKind = string.IsNullOrWhiteSpace(row.BenchmarkKind)
+                        ? BenchmarkKinds.Generate
+                        : row.BenchmarkKind,
+                    BestMode = row.BestMode ?? string.Empty,
+                    BestTps = row.BestTps,
+                    BestEmbedMs = row.BestEmbedMs,
+                    CpuResult = row.CpuResult ?? "-",
+                    ApuResult = row.ApuResult ?? "-",
+                    GpuResult = row.GpuResult ?? "-",
+                    HybridResult = row.HybridResult ?? "-",
+                    CpuFailed = row.CpuFailed,
+                    ApuFailed = row.ApuFailed,
+                    GpuFailed = row.GpuFailed,
+                    HybridFailed = row.HybridFailed,
+                    IsInstalledLocally = row.IsInstalledLocally,
+                    StatusDisplay = row.StatusDisplay ?? string.Empty,
+                    IsAllModesFailed = row.IsAllModesFailed,
+                    Insight = insightText ?? string.Empty,
+                    LastTested = row.LastTested ?? string.Empty,
+                    ReportPath = row.ReportPath
+                });
+            }
 
-        await RefreshTestResultsCategoryFilterComboAsync().ConfigureAwait(true);
-        ApplyTestResultsFilter();
+            _testResultsRows.Clear();
+            foreach (var row in enriched)
+            {
+                _testResultsRows.Add(row);
+            }
+
+            await RefreshTestResultsCategoryFilterComboAsync().ConfigureAwait(true);
+            ApplyTestResultsFilter();
+        }
+        catch (Exception ex)
+        {
+            _svc.Diagnostics.Write("TestResults", $"Refresh failed: {ex.Message}");
+            throw;
+        }
     }
 
     private async Task RefreshTestResultsCategoryFilterComboAsync()
@@ -4710,6 +4746,8 @@ public partial class MainWindow : Window
 
     private static bool TestResultFieldMatches(string? value, string search) =>
         (value ?? string.Empty).Contains(search, StringComparison.OrdinalIgnoreCase);
+
+    private void ApplyTestResultsFilterInMemory() => ApplyTestResultsFilterCore();
 
     private void ApplyTestResultsFilterCore()
     {
@@ -5065,13 +5103,14 @@ public partial class MainWindow : Window
 
         try
         {
-            await RefreshTestResultsUiAsync().ConfigureAwait(true);
+            await RefreshTestResultsUiAsync(forceReload: true).ConfigureAwait(true);
             EndTaskFlashSuccess(sender, "Refreshed");
         }
-        catch
+        catch (Exception ex)
         {
             EndTaskFlashIdle(sender);
-            throw;
+            _svc.Diagnostics.Write("TestResults", $"Manual refresh failed: {ex.Message}");
+            MessageBox.Show(ex.Message, "Refresh Test Results", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 

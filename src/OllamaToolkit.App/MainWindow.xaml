@@ -354,13 +354,21 @@
                     </StackPanel>
                     <DataGrid x:Name="TestResultsGrid" Grid.Row="3" Style="{StaticResource ToolkitDataGrid}"
                               RowStyle="{StaticResource TestResultsRow}"
-                              CellStyle="{StaticResource TestResultsCell}"
                               AutoGenerateColumns="False" IsReadOnly="True"
                               SelectionMode="Single" SelectionUnit="FullRow"
-                              EnableRowVirtualization="False"
-                              ScrollViewer.CanContentScroll="False"
+                              EnableRowVirtualization="True" VirtualizingPanel.IsVirtualizing="True"
                               PreviewMouseLeftButtonDown="TestResultsGrid_PreviewMouseLeftButtonDown"
                               SelectionChanged="TestResultsGrid_SelectionChanged">
+                        <DataGrid.CellStyle>
+                            <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+                                <Style.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter Property="Background" Value="Transparent" />
+                                        <Setter Property="Foreground" Value="White" />
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.CellStyle>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="120" />
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />

@@ -7,6 +7,7 @@ namespace OllamaToolkit.BenchmarkStore;
 public sealed class ProfileStoreService
 {
     private readonly OllamaApiClient _apiClient;
+    private readonly SemaphoreSlim _loadGate = new(1, 1);
     private ModelProfileStoreDocument? _cache;
 
     public ProfileStoreService(OllamaApiClient? apiClient = null)
@@ -117,23 +118,38 @@ public sealed class ProfileStoreService
 
     public async Task<ModelProfileStoreDocument> LoadAsync(CancellationToken cancellationToken = default)
     {
-        if (_cache is not null)
+        if (_cache is { Models: not null })
         {
             return _cache;
         }
 
-        ConfigPaths.EnsureConfigDirectory();
-        _cache = await JsonFileHelper.ReadAsync<ModelProfileStoreDocument>(
-            ToolkitPaths.ModelProfilesFile, cancellationToken).ConfigureAwait(false)
-            ?? new ModelProfileStoreDocument();
-
-        _cache.Models ??= new Dictionary<string, ModelProfileEntry>(StringComparer.OrdinalIgnoreCase);
-        if (ProfileSanitizer.SanitizeDocument(_cache))
+        await _loadGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            await SaveAsync(_cache, cancellationToken).ConfigureAwait(false);
-        }
+            if (_cache is not null)
+            {
+                _cache.Models ??= new Dictionary<string, ModelProfileEntry>(StringComparer.OrdinalIgnoreCase);
+                return _cache;
+            }
 
-        return _cache;
+            ConfigPaths.EnsureConfigDirectory();
+            var doc = await JsonFileHelper.ReadAsync<ModelProfileStoreDocument>(
+                ToolkitPaths.ModelProfilesFile, cancellationToken).ConfigureAwait(false)
+                ?? new ModelProfileStoreDocument();
+
+            doc.Models ??= new Dictionary<string, ModelProfileEntry>(StringComparer.OrdinalIgnoreCase);
+            if (ProfileSanitizer.SanitizeDocument(doc))
+            {
+                await SaveAsync(doc, cancellationToken).ConfigureAwait(false);
+            }
+
+            _cache = doc;
+            return _cache;
+        }
+        finally
+        {
+            _loadGate.Release();
+        }
     }
 
     public async Task SaveAsync(ModelProfileStoreDocument store, CancellationToken cancellationToken = default)
@@ -158,12 +174,18 @@ public sealed class ProfileStoreService
         CancellationToken cancellationToken = default)
     {
         var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        store.Models ??= new Dictionary<string, ModelProfileEntry>(StringComparer.OrdinalIgnoreCase);
         var local = await GetLocalModelsAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         var summaries = new List<ModelProfileSummary>();
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var model in local)
         {
+            if (model is null || string.IsNullOrWhiteSpace(model.Name))
+            {
+                continue;
+            }
+
             seen.Add(model.Name);
             store.Models.TryGetValue(model.Name, out var profile);
             var sizeGb = Math.Round(model.Size / 1_073_741_824.0, 2);
