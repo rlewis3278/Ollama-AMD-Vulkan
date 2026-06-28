@@ -103,6 +103,8 @@ public sealed class AutomatedBenchmarkService
         {
             var mode = modes[modeIndex];
             cancellationToken.ThrowIfCancellationRequested();
+            await EnsureApiReadyForModeAsync(modelName, mode, modeIndex, modes.Count, log, cancellationToken)
+                .ConfigureAwait(false);
 
             var modePhase = BenchmarkProgressPhase.ModeApplying;
             var modeTemplate = () => new BenchmarkProgressUpdate
@@ -299,10 +301,11 @@ public sealed class AutomatedBenchmarkService
                         bench.GenerationTps);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                var errorMessage = OllamaOutputSanitizer.FormatException(ex);
                 modeResult.Status = "Failed";
-                modeResult.Error = ex.Message;
+                modeResult.Error = errorMessage;
                 modeResult.Notes = isEmbed
                     ? $"Embed benchmark failed for mode {mode}."
                     : $"Benchmark failed for mode {mode}.";
@@ -316,9 +319,12 @@ public sealed class AutomatedBenchmarkService
                     ModeMilestone = "Failed",
                     ModeStatusDetail = "Failed",
                     DurationSec = modeResult.DurationSec,
-                    Error = ex.Message,
-                    LogLine = BenchmarkProgressFormatter.ModeFailed(modeIndex, modes.Count, mode, ex.Message)
+                    Error = errorMessage,
+                    LogLine = BenchmarkProgressFormatter.ModeFailed(modeIndex, modes.Count, mode, errorMessage)
                 });
+
+                await RecoverAfterModeFailureAsync(
+                    modelName, mode, modeIndex, modes.Count, log, cancellationToken).ConfigureAwait(false);
             }
 
             report.Results!.Add(modeResult);
@@ -373,8 +379,24 @@ public sealed class AutomatedBenchmarkService
         report.CompletedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
         var reportPath = Path.Combine(outputDir, "report.json");
         await JsonFileHelper.WriteAsync(reportPath, report, cancellationToken).ConfigureAwait(false);
-        await _profiles.UpdateFromReportAsync(reportPath, cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
+        try
+        {
+            await _profiles.UpdateFromReportAsync(reportPath, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
+            {
+                Phase = BenchmarkProgressPhase.ModelCompleted,
+                BenchmarkKind = benchmarkKind,
+                Model = modelName,
+                ModelIndex = modelIndex,
+                ModelCount = modelCount,
+                ModeCount = modes.Count,
+                LogLine = $"Profile update warning for {modelName}: {OllamaOutputSanitizer.FormatException(ex)}"
+            });
+        }
 
         BenchmarkProgress.ReportAndLog(progress, log, new BenchmarkProgressUpdate
         {
@@ -472,4 +494,70 @@ public sealed class AutomatedBenchmarkService
 
     private static string BuildModeNotes(string metrics, string? envSummary) =>
         string.IsNullOrWhiteSpace(envSummary) ? metrics : $"{metrics}; env={envSummary}";
+
+    private async Task EnsureApiReadyForModeAsync(
+        string modelName,
+        ComputeMode mode,
+        int modeIndex,
+        int modeCount,
+        IProgress<string>? log,
+        CancellationToken cancellationToken)
+    {
+        if (await _apiClient.IsReadyAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return;
+        }
+
+        log?.Report(
+            $"[{modeIndex + 1}/{modeCount}] {mode} — Ollama API not ready before benchmark; attempting recovery…");
+        await RecoverAfterModeFailureAsync(modelName, mode, modeIndex, modeCount, log, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private async Task RecoverAfterModeFailureAsync(
+        string modelName,
+        ComputeMode failedMode,
+        int modeIndex,
+        int modeCount,
+        IProgress<string>? log,
+        CancellationToken cancellationToken)
+    {
+        _lastBenchmarkMode = null;
+
+        try
+        {
+            await _modelSessions.StopModelAsync(modelName, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Model may not be loaded or Ollama may already be down.
+        }
+
+        try
+        {
+            await _modeService.Processes.StopAsync(quick: true, timeoutSec: 15, cancellationToken)
+                .ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
+            var startup = await _modeService.Processes
+                .EnsureApiReadyAsync(90, cancellationToken, autoStart: true)
+                .ConfigureAwait(false);
+            _apiClient.InvalidateCaches();
+
+            if (startup.Success)
+            {
+                log?.Report(
+                    $"[{modeIndex + 1}/{modeCount}] {failedMode} — recovery: Ollama restarted; continuing with remaining modes…");
+            }
+            else
+            {
+                log?.Report(
+                    $"[{modeIndex + 1}/{modeCount}] {failedMode} — recovery warning: {startup.Message}");
+            }
+        }
+        catch (Exception recoverEx)
+        {
+            log?.Report(
+                $"[{modeIndex + 1}/{modeCount}] {failedMode} — recovery warning: {OllamaOutputSanitizer.FormatException(recoverEx)}");
+        }
+    }
 }

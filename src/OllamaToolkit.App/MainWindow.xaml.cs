@@ -2630,6 +2630,13 @@ public partial class MainWindow : Window
                         await _svc.BenchmarkInsights.InterpretProfileAsync(summary, ct).ConfigureAwait(false);
                         await _svc.BenchmarkInsights.DiagnoseFailuresAsync(summary, ct).ConfigureAwait(false);
                     }
+                    catch (Exception aiEx) when (aiEx is not OperationCanceledException)
+                    {
+                        await UiDispatcher.InvokeAsync(() =>
+                            AppendTestLog(
+                                $"AI insight warning ({model}): {OllamaOutputSanitizer.FormatException(aiEx)}"))
+                            .ConfigureAwait(false);
+                    }
                     finally
                     {
                         ExitAiActivity();
@@ -2645,11 +2652,44 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
+                var connectionLost = OllamaConnectionHelper.IsConnectionError(ex);
+                var userMessage = OllamaConnectionHelper.FormatUserMessage(ex);
                 await UiDispatcher.InvokeAsync(() =>
                 {
-                    AppendTestLog($"FAIL ({model}): {ex.Message}");
-                    TestStatusLabel.Text = $"Benchmark failed for {model}: {ex.Message}";
+                    AppendTestLog($"FAIL ({model}): {userMessage}");
+                    TestStatusLabel.Text = connectionLost
+                        ? $"Benchmark hit Ollama connection loss on {model} — attempting recovery and continuing queue…"
+                        : $"Benchmark error on {model}: {userMessage} — continuing queue…";
                 }).ConfigureAwait(false);
+
+                if (connectionLost)
+                {
+                    try
+                    {
+                        var recovery = await _svc.ModeService.Processes
+                            .EnsureApiReadyAsync(90, ct, autoStart: true)
+                            .ConfigureAwait(false);
+                        _svc.ApiClient.InvalidateCaches();
+                        await UiDispatcher.InvokeAsync(() =>
+                        {
+                            if (recovery.Success)
+                            {
+                                AppendTestLog("Recovery: Ollama API is ready again; continuing benchmark queue.");
+                            }
+                            else
+                            {
+                                AppendTestLog($"Recovery warning: {recovery.Message}");
+                            }
+                        }).ConfigureAwait(false);
+                    }
+                    catch (Exception recoverEx)
+                    {
+                        await UiDispatcher.InvokeAsync(() =>
+                            AppendTestLog(
+                                $"Recovery warning: {OllamaOutputSanitizer.FormatException(recoverEx)}"))
+                            .ConfigureAwait(false);
+                    }
+                }
             }
             finally
             {

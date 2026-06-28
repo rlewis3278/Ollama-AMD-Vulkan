@@ -9,4 +9,6 @@ public sealed class OllamaCliResult
 
     public string CombinedOutput =>
         string.IsNullOrWhiteSpace(StandardError) ? StandardOutput : $"{StandardOutput}\n{StandardError}".Trim();
+
+    public string SanitizedCombinedOutput => OllamaOutputSanitizer.SanitizeCliOutput(CombinedOutput);
 }

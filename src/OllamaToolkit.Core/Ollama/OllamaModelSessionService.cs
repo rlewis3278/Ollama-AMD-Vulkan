@@ -5,6 +5,8 @@ namespace OllamaToolkit.Core.Ollama;
 /// </summary>
 public sealed class OllamaModelSessionService
 {
+    private static readonly TimeSpan WarmLoadTimeout = TimeSpan.FromMinutes(3);
+
     private readonly OllamaCliService _cli;
     private string? _activeModel;
 
@@ -33,12 +35,22 @@ public sealed class OllamaModelSessionService
         if (warmLoad)
         {
             using var activity = LoadActivity?.Begin();
-            var result = await _cli.RunAsync(model, prompt: "ok", cancellationToken: cancellationToken)
-                .ConfigureAwait(false);
-            if (!result.Success)
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(WarmLoadTimeout);
+            try
             {
-                throw new InvalidOperationException(
-                    $"Failed to load {model} via ollama run: {result.CombinedOutput}");
+                var result = await _cli.RunAsync(model, prompt: "ok", cancellationToken: timeoutCts.Token)
+                    .ConfigureAwait(false);
+                if (!result.Success)
+                {
+                    throw new InvalidOperationException(
+                        $"Failed to load {model} via ollama run: {result.SanitizedCombinedOutput}");
+                }
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new TimeoutException(
+                    $"Timed out after {WarmLoadTimeout.TotalMinutes:F0} minutes loading {model} via ollama run.");
             }
         }
     }
@@ -62,7 +74,7 @@ public sealed class OllamaModelSessionService
             && !result.CombinedOutput.Contains("not running", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
-                $"Failed to stop {model} via ollama stop: {result.CombinedOutput}");
+                $"Failed to stop {model} via ollama stop: {result.SanitizedCombinedOutput}");
         }
 
         if (_activeModel?.Equals(model, StringComparison.OrdinalIgnoreCase) == true)
@@ -78,7 +90,7 @@ public sealed class OllamaModelSessionService
         if (!result.Success)
         {
             throw new InvalidOperationException(
-                $"Failed to remove {model} via ollama rm: {result.CombinedOutput}");
+                $"Failed to remove {model} via ollama rm: {result.SanitizedCombinedOutput}");
         }
 
         if (_activeModel?.Equals(model, StringComparison.OrdinalIgnoreCase) == true)
