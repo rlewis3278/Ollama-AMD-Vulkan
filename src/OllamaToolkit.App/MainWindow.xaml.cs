@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -72,10 +74,12 @@ public partial class MainWindow : Window
     private readonly TestingRowHighlightCoordinator _testingHighlight;
     private Dictionary<string, CatalogRowViewModel> _catalogRowByName = new(StringComparer.OrdinalIgnoreCase);
     private bool _suppressCatalogUiEvents;
-    private bool _suppressTestResultsSelectionEvents;
     private bool _suppressTestResultsUiEvents;
     private CancellationTokenSource? _testResultsDetailCts;
-    private List<TestResultRowViewModel> _testResultsAllRows = new();
+    private readonly ObservableCollection<TestResultRowViewModel> _testResultsRows = new();
+    private readonly ICollectionView _testResultsView;
+    private string _testResultsSearchFilter = string.Empty;
+    private string _testResultsCategoryFilter = "All";
     private bool _testResultsDownloadInProgress;
     private bool _catalogDownloadInProgress;
     private bool _catalogFileSizesInProgress;
@@ -102,6 +106,9 @@ public partial class MainWindow : Window
             () => _catalogRows,
             () => ModelsGrid.ItemsSource as IEnumerable<ModelLaunchRowViewModel> ?? []);
         CatalogGrid.ItemsSource = _catalogRows;
+        _testResultsView = CollectionViewSource.GetDefaultView(_testResultsRows);
+        _testResultsView.Filter = TestResultsViewFilter;
+        TestResultsGrid.ItemsSource = _testResultsView;
         _modeCardPresenter = new ModeCardPresenter(this, _svc.FlashClock);
         _modeCards["CPU"] = CpuCard;
         _modeCards["APU"] = ApuCard;
@@ -170,7 +177,6 @@ public partial class MainWindow : Window
         };
         DataGridColumnHelper.AttachAutoFit(ModelsGrid, FitGridColumns);
         DataGridColumnHelper.AttachAutoFit(CatalogGrid, FitGridColumns);
-        DataGridColumnHelper.AttachAutoFit(TestResultsGrid, FitGridColumns);
         SummarizerCombo.DropDownOpened += (_, _) => _summarizerDropdownOpen = true;
         SummarizerCombo.DropDownClosed += (_, _) => _summarizerDropdownOpen = false;
         Loaded += OnLoadedAsync;
@@ -3001,7 +3007,6 @@ public partial class MainWindow : Window
         else if (MainTabs.SelectedItem == TestResultsTab)
         {
             await RefreshTestResultsUiAsync().ConfigureAwait(true);
-            DataGridColumnHelper.ScheduleAutoFit(TestResultsGrid);
         }
         else if (MainTabs.SelectedItem == AiSettingsTab)
         {
@@ -3017,26 +3022,6 @@ public partial class MainWindow : Window
 
     private void FitGridColumns(DataGrid grid)
     {
-        if (ReferenceEquals(grid, TestResultsGrid))
-        {
-            try
-            {
-                var insightIndex = DataGridColumnHelper.IndexOfStarColumn(grid, "Insight");
-                if (insightIndex < 0)
-                {
-                    insightIndex = 0;
-                }
-
-                DataGridColumnHelper.AutoFitColumns(grid, insightIndex);
-            }
-            catch (Exception ex)
-            {
-                _svc.Diagnostics.Write("TestResults", $"Column auto-fit failed: {ex.Message}");
-            }
-
-            return;
-        }
-
         if (ReferenceEquals(grid, ModelsGrid))
         {
             var modelsStar = DataGridColumnHelper.IndexOfStarColumn(grid, "Description");
@@ -4675,14 +4660,19 @@ public partial class MainWindow : Window
             });
         }
 
-        _testResultsAllRows = enriched;
+        _testResultsRows.Clear();
+        foreach (var row in enriched)
+        {
+            _testResultsRows.Add(row);
+        }
+
         await RefreshTestResultsCategoryFilterComboAsync().ConfigureAwait(true);
         ApplyTestResultsFilter();
     }
 
     private async Task RefreshTestResultsCategoryFilterComboAsync()
     {
-        var present = _testResultsAllRows
+        var present = _testResultsRows
             .Select(r => r.Category)
             .Where(c => !string.IsNullOrWhiteSpace(c))
             .Select(CategoryNormalizer.Normalize)
@@ -4734,55 +4724,44 @@ public partial class MainWindow : Window
 
     private void ApplyTestResultsFilterCore()
     {
-        var selectedModel = TestResultsGrid.SelectedItem is TestResultRowViewModel selected
-            ? selected.Model
-            : null;
-        var search = TestResultsSearchBox.Text?.Trim() ?? string.Empty;
-        var category = TestResultsCategoryFilterCombo.SelectedItem as string ?? "All";
+        _testResultsSearchFilter = TestResultsSearchBox.Text?.Trim() ?? string.Empty;
+        _testResultsCategoryFilter = TestResultsCategoryFilterCombo.SelectedItem as string ?? "All";
+        _testResultsView.Refresh();
+        SafeUpdateTestResultsActionButtons();
+    }
 
-        var filtered = _testResultsAllRows.AsEnumerable();
-        if (!string.IsNullOrWhiteSpace(search))
+    private bool TestResultsViewFilter(object obj)
+    {
+        if (obj is not TestResultRowViewModel row)
         {
-            filtered = filtered.Where(r =>
-                TestResultFieldMatches(r.Model, search)
-                || TestResultFieldMatches(r.Category, search)
-                || TestResultFieldMatches(r.Insight, search)
-                || TestResultFieldMatches(r.BestMode, search)
-                || TestResultFieldMatches(r.CpuResult, search)
-                || TestResultFieldMatches(r.ApuResult, search)
-                || TestResultFieldMatches(r.GpuResult, search)
-                || TestResultFieldMatches(r.HybridResult, search)
-                || TestResultFieldMatches(r.StatusDisplay, search));
+            return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(_testResultsSearchFilter))
         {
-            filtered = filtered.Where(r =>
-                (r.Category ?? string.Empty).Equals(category, StringComparison.OrdinalIgnoreCase));
-        }
-
-        var rows = filtered.ToList();
-        _suppressTestResultsSelectionEvents = true;
-        try
-        {
-            TestResultsGrid.ItemsSource = rows;
-            if (!string.IsNullOrEmpty(selectedModel))
+            var search = _testResultsSearchFilter;
+            if (!TestResultFieldMatches(row.Model, search)
+                && !TestResultFieldMatches(row.Category, search)
+                && !TestResultFieldMatches(row.Insight, search)
+                && !TestResultFieldMatches(row.BestMode, search)
+                && !TestResultFieldMatches(row.CpuResult, search)
+                && !TestResultFieldMatches(row.ApuResult, search)
+                && !TestResultFieldMatches(row.GpuResult, search)
+                && !TestResultFieldMatches(row.HybridResult, search)
+                && !TestResultFieldMatches(row.StatusDisplay, search))
             {
-                var match = rows.FirstOrDefault(r =>
-                    r.Model.Equals(selectedModel, StringComparison.OrdinalIgnoreCase));
-                if (match is not null)
-                {
-                    TestResultsGrid.SelectedItem = match;
-                }
+                return false;
             }
         }
-        finally
+
+        if (!string.IsNullOrWhiteSpace(_testResultsCategoryFilter)
+            && !_testResultsCategoryFilter.Equals("All", StringComparison.OrdinalIgnoreCase)
+            && !(row.Category ?? string.Empty).Equals(_testResultsCategoryFilter, StringComparison.OrdinalIgnoreCase))
         {
-            _suppressTestResultsSelectionEvents = false;
+            return false;
         }
 
-        SafeUpdateTestResultsActionButtons();
-        ScheduleFitGridColumns(TestResultsGrid);
+        return true;
     }
 
     private void SafeUpdateTestResultsActionButtons()
@@ -4845,7 +4824,7 @@ public partial class MainWindow : Window
     private void NavigateToTestResultRow(string libraryOrModelName)
     {
         MainTabs.SelectedItem = TestResultsTab;
-        var match = _testResultsAllRows.FirstOrDefault(r =>
+        var match = _testResultsRows.FirstOrDefault(r =>
             r.Model.Equals(libraryOrModelName, StringComparison.OrdinalIgnoreCase)
             || r.Model.StartsWith($"{libraryOrModelName}:", StringComparison.OrdinalIgnoreCase));
         if (match is null)
@@ -4855,10 +4834,7 @@ public partial class MainWindow : Window
 
         TestResultsSearchBox.Text = libraryOrModelName.Split(':')[0];
         ApplyTestResultsFilter();
-        TestResultsGrid.SelectedItem = TestResultsGrid.Items
-            .Cast<object>()
-            .OfType<TestResultRowViewModel>()
-            .FirstOrDefault(r => r.Model.Equals(match.Model, StringComparison.OrdinalIgnoreCase));
+        TestResultsGrid.SelectedItem = match;
         if (TestResultsGrid.SelectedItem is TestResultRowViewModel selected)
         {
             TestResultsGrid.ScrollIntoView(selected);
@@ -5098,34 +5074,8 @@ public partial class MainWindow : Window
         }
     }
 
-    private void TestResultsGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (FindVisualParent<Button>(e.OriginalSource as DependencyObject) is not null)
-        {
-            return;
-        }
-
-        if (FindVisualParent<DataGridRow>(e.OriginalSource as DependencyObject) is not { } gridRow
-            || gridRow.Item is not TestResultRowViewModel item)
-        {
-            return;
-        }
-
-        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control) || Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
-        {
-            return;
-        }
-
-        TestResultsGrid.SelectedItem = item;
-    }
-
     private void TestResultsGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_suppressTestResultsSelectionEvents)
-        {
-            return;
-        }
-
         if (TestResultsGrid.SelectedItem is not TestResultRowViewModel row)
         {
             _testResultsDetailCts?.Cancel();
@@ -5151,73 +5101,62 @@ public partial class MainWindow : Window
 
         try
         {
-            var entry = await _svc.BenchmarkInsights.GetEntryAsync(model, token).ConfigureAwait(true);
+            var entry = await _svc.BenchmarkInsights.GetEntryAsync(model, token).ConfigureAwait(false);
             if (token.IsCancellationRequested)
             {
                 return;
             }
 
-            if (TestResultsGrid.SelectedItem is not TestResultRowViewModel selected
-                || !selected.Model.Equals(model, StringComparison.OrdinalIgnoreCase))
+            await UiDispatcher.InvokeAsync(() =>
             {
-                return;
-            }
-
-            if (entry is null)
-            {
-                var placeholder = await FormatInsightColumnAsync(null).ConfigureAwait(true);
                 if (token.IsCancellationRequested)
                 {
                     return;
                 }
 
-                TestResultDetail.Text = string.IsNullOrWhiteSpace(placeholder)
-                    ? $"No AI insight for {model} yet."
-                    : placeholder;
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(entry.Interpretation)
-                && entry.FailureDiagnosis is not { Count: > 0 })
-            {
-                TestResultDetail.Text = await FormatInsightColumnAsync(entry.Interpretation).ConfigureAwait(true);
-                if (token.IsCancellationRequested)
+                if (TestResultsGrid.SelectedItem is not TestResultRowViewModel selected
+                    || !selected.Model.Equals(model, StringComparison.OrdinalIgnoreCase))
                 {
                     return;
                 }
 
-                if (string.IsNullOrWhiteSpace(TestResultDetail.Text))
+                if (entry is null)
                 {
                     TestResultDetail.Text = $"No AI insight for {model} yet.";
+                    return;
                 }
 
-                return;
-            }
-
-            var detail = new System.Text.StringBuilder();
-            if (!string.IsNullOrWhiteSpace(entry.Interpretation))
-            {
-                detail.Append(entry.Interpretation);
-            }
-
-            if (entry.FailureDiagnosis is { Count: > 0 })
-            {
-                if (detail.Length > 0)
+                if (string.IsNullOrWhiteSpace(entry.Interpretation)
+                    && entry.FailureDiagnosis is not { Count: > 0 })
                 {
-                    detail.AppendLine().AppendLine();
+                    TestResultDetail.Text = string.IsNullOrWhiteSpace(entry.Interpretation)
+                        ? $"No AI insight for {model} yet."
+                        : entry.Interpretation;
+                    return;
                 }
 
-                detail.AppendLine("Failure diagnosis:");
-                foreach (var diagnosis in entry.FailureDiagnosis)
+                var detail = new System.Text.StringBuilder();
+                if (!string.IsNullOrWhiteSpace(entry.Interpretation))
                 {
-                    detail.AppendLine($"  {diagnosis.Key}: {diagnosis.Value}");
+                    detail.Append(entry.Interpretation);
                 }
-            }
 
-            if (!token.IsCancellationRequested)
-            {
+                if (entry.FailureDiagnosis is { Count: > 0 })
+                {
+                    if (detail.Length > 0)
+                    {
+                        detail.AppendLine().AppendLine();
+                    }
+
+                    detail.AppendLine("Failure diagnosis:");
+                    foreach (var diagnosis in entry.FailureDiagnosis)
+                    {
+                        detail.AppendLine($"  {diagnosis.Key}: {diagnosis.Value}");
+                    }
+                }
+
                 TestResultDetail.Text = detail.ToString().TrimEnd();
-            }
+            }).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -5227,7 +5166,7 @@ public partial class MainWindow : Window
             if (!token.IsCancellationRequested)
             {
                 _svc.Diagnostics.Write("TestResults", $"Detail load failed: {ex}");
-                TestResultDetail.Text = ex.Message;
+                await UiDispatcher.InvokeAsync(() => TestResultDetail.Text = ex.Message).ConfigureAwait(false);
             }
         }
     }
@@ -6558,26 +6497,35 @@ public partial class MainWindow : Window
 
         await _svc.WorkQueue.EnqueueAsync(async ct =>
         {
-            if (!await _svc.ApiClient.IsReadyAsync(ct).ConfigureAwait(false))
-            {
-                return;
-            }
-
-            EnterAiActivity();
-            LogAnomaliesDocument doc;
             try
             {
-                doc = await _svc.LogAnomalies.ScanAsync(ct).ConfigureAwait(false);
+                if (!await _svc.ApiClient.IsReadyAsync(ct).ConfigureAwait(false))
+                {
+                    return;
+                }
+
+                EnterAiActivity();
+                LogAnomaliesDocument doc;
+                try
+                {
+                    doc = await _svc.LogAnomalies.ScanAsync(ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    ExitAiActivity();
+                }
+
+                if (doc.Anomalies.Count > 0)
+                {
+                    await UiDispatcher.InvokeAsync(() =>
+                        AnomalySummary.Text =
+                            $"{doc.Anomalies.Count} anomaly pattern(s) detected — see AI Activity.")
+                        .ConfigureAwait(false);
+                }
             }
-            finally
+            catch (Exception ex)
             {
-                ExitAiActivity();
-            }
-            if (doc.Anomalies.Count > 0)
-            {
-                await UiDispatcher.InvokeAsync(() =>
-                    AnomalySummary.Text = $"{doc.Anomalies.Count} anomaly pattern(s) detected — see AI Activity.")
-                    .ConfigureAwait(false);
+                _svc.Diagnostics.Write("LogScan", $"Background log scan failed: {ex.Message}");
             }
         }).ConfigureAwait(true);
     }

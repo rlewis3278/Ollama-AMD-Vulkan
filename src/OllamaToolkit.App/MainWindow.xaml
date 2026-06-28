@@ -359,7 +359,6 @@
                               SelectionMode="Single" SelectionUnit="FullRow"
                               EnableRowVirtualization="False"
                               ScrollViewer.CanContentScroll="False"
-                              PreviewMouseLeftButtonDown="TestResultsGrid_PreviewMouseLeftButtonDown"
                               SelectionChanged="TestResultsGrid_SelectionChanged">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="120" />

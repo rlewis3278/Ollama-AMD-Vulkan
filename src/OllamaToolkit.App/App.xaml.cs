@@ -14,8 +14,16 @@ public partial class App : Application
     {
         DispatcherUnhandledException += (_, args) =>
         {
-            var message = args.Exception.Message;
+            var ex = args.Exception;
+            var message = ex.Message;
             Services.Diagnostics.Write("Error", $"Unhandled UI exception: {message}");
+            Services.Diagnostics.Write("Error", $"Stack: {ex.StackTrace}");
+            if (ex.InnerException is not null)
+            {
+                Services.Diagnostics.Write("Error", $"Inner: {ex.InnerException.Message}");
+                Services.Diagnostics.Write("Error", $"Inner stack: {ex.InnerException.StackTrace}");
+            }
+
             Services.ActivityLog.Write("Error", message);
 
             var now = DateTimeOffset.UtcNow;
