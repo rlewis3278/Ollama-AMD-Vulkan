@@ -83,12 +83,8 @@ public sealed class ModelRegistryService
                 ? (string.IsNullOrWhiteSpace(aiDescription) ? "(not summarized)" : aiDescription)
                 : downloadDescription;
 
-            var fileSize = e.FileSize;
-            if ((fileSize == "-" || string.IsNullOrWhiteSpace(fileSize)) && e.IsCloudOnly)
-            {
-                fileSize = "Cloud";
-            }
-            else if ((fileSize == "-" || string.IsNullOrWhiteSpace(fileSize))
+            var fileSize = CatalogFileSizeDisplay.GetDisplayLabel(e);
+            if ((fileSize == "-" || string.IsNullOrWhiteSpace(fileSize))
                 && installedSizes.TryGetValue(e.Name, out var installedSize))
             {
                 fileSize = installedSize;
@@ -306,11 +302,8 @@ public sealed class ModelRegistryService
                 continue;
             }
 
-            var hasKnownFileSize = ModelSizeFormatter.TryParseSizeLabelToBytes(entry.FileSize, out var bytes);
-            if (!hasKnownFileSize)
-            {
-                bytes = long.MaxValue;
-            }
+            var hasKnownFileSize = entry.FileSizeConfirmed && entry.FileSizeBytes > 0;
+            var bytes = hasKnownFileSize ? entry.FileSizeBytes : long.MaxValue;
 
             var pullTag = !string.IsNullOrWhiteSpace(entry.DefaultPullTag)
                 ? entry.DefaultPullTag

@@ -17,6 +17,10 @@ public sealed class LibraryCatalogEntry
     public string Tags { get; set; } = string.Empty;
     public string ParameterSize { get; set; } = "-";
     public string FileSize { get; set; } = "-";
+    public string EstimatedFileSize { get; set; } = "-";
+    public long FileSizeBytes { get; set; }
+    public bool FileSizeConfirmed { get; set; }
+    public string? FileSizeConfirmedAt { get; set; }
     public string DefaultPullTag { get; set; } = string.Empty;
     public bool IsCloudOnly { get; set; }
     public string Category { get; set; } = string.Empty;

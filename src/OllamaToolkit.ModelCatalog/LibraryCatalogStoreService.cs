@@ -52,7 +52,33 @@ public sealed class LibraryCatalogStoreService
             ?? new LibraryCatalogStoreDocument();
 
         _cache.Items ??= new List<LibraryCatalogEntry>();
+        MigrateFileSizeFields(_cache);
         return _cache;
+    }
+
+    private static void MigrateFileSizeFields(LibraryCatalogStoreDocument store)
+    {
+        foreach (var entry in store.Items)
+        {
+            if (entry.FileSizeConfirmed)
+            {
+                if (entry.FileSizeBytes <= 0
+                    && ModelSizeFormatter.TryParseSizeLabelToBytes(entry.FileSize, out var parsed))
+                {
+                    entry.FileSizeBytes = parsed;
+                }
+
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(entry.FileSize) && entry.FileSize != "-")
+            {
+                if (string.IsNullOrWhiteSpace(entry.EstimatedFileSize) || entry.EstimatedFileSize == "-")
+                {
+                    entry.EstimatedFileSize = entry.FileSize;
+                }
+            }
+        }
     }
 
     public async Task SaveAsync(LibraryCatalogStoreDocument store, CancellationToken cancellationToken = default)
@@ -107,9 +133,22 @@ public sealed class LibraryCatalogStoreService
                     continue;
                 }
 
-                if (!string.IsNullOrWhiteSpace(previous.FileSize) && previous.FileSize != "-")
+                item.EstimatedFileSize = previous.EstimatedFileSize;
+                item.FileSizeBytes = previous.FileSizeBytes;
+                item.FileSizeConfirmed = previous.FileSizeConfirmed;
+                item.FileSizeConfirmedAt = previous.FileSizeConfirmedAt;
+                if (previous.FileSizeConfirmed)
                 {
                     item.FileSize = previous.FileSize;
+                }
+                else if (!string.IsNullOrWhiteSpace(previous.EstimatedFileSize) && previous.EstimatedFileSize != "-")
+                {
+                    item.FileSize = previous.EstimatedFileSize;
+                }
+                else if (!string.IsNullOrWhiteSpace(previous.FileSize) && previous.FileSize != "-")
+                {
+                    item.FileSize = previous.FileSize;
+                    item.EstimatedFileSize = previous.FileSize;
                 }
 
                 if (!string.IsNullOrWhiteSpace(previous.Category))
@@ -300,8 +339,8 @@ public sealed class LibraryCatalogStoreService
 
     private static bool NeedsTagMetadataEnrichment(LibraryCatalogEntry entry) =>
         string.IsNullOrWhiteSpace(entry.DefaultPullTag)
-        || string.IsNullOrWhiteSpace(entry.FileSize)
-        || entry.FileSize == "-"
+        || string.IsNullOrWhiteSpace(entry.EstimatedFileSize)
+        || entry.EstimatedFileSize == "-"
         || string.IsNullOrWhiteSpace(entry.ParameterSize)
         || entry.ParameterSize == "-";
 
@@ -318,14 +357,62 @@ public sealed class LibraryCatalogStoreService
             entry.ParameterSize = OllamaLibraryTagsParser.TryParseParamsFromDescription(entry.Description);
         }
 
+        if (resolution.IsCloudOnly)
+        {
+            entry.EstimatedFileSize = "Cloud";
+            if (!entry.FileSizeConfirmed)
+            {
+                entry.FileSize = "Cloud";
+            }
+
+            return;
+        }
+
         if (!string.IsNullOrWhiteSpace(resolution.FileSize) && resolution.FileSize != "-")
         {
-            entry.FileSize = resolution.FileSize;
+            entry.EstimatedFileSize = resolution.FileSize;
+            if (!entry.FileSizeConfirmed)
+            {
+                entry.FileSize = resolution.FileSize;
+            }
         }
-        else if (resolution.IsCloudOnly)
+    }
+
+    public static void ApplyConfirmedFileSize(LibraryCatalogEntry entry, long bytes, string source)
+    {
+        if (bytes <= 0)
         {
-            entry.FileSize = "Cloud";
+            return;
         }
+
+        entry.FileSizeBytes = bytes;
+        entry.FileSizeConfirmed = true;
+        entry.FileSizeConfirmedAt = DateTimeOffset.UtcNow.ToString("o");
+        entry.FileSize = ModelSizeFormatter.FormatBytes(bytes);
+        _ = source;
+    }
+
+    public async Task<bool> ApplyConfirmedFileSizeForLibraryAsync(
+        string libraryName,
+        long bytes,
+        string source,
+        CancellationToken cancellationToken = default)
+    {
+        if (bytes <= 0 || string.IsNullOrWhiteSpace(libraryName))
+        {
+            return false;
+        }
+
+        var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        var entry = store.Items.FirstOrDefault(e => e.Name.Equals(libraryName, StringComparison.OrdinalIgnoreCase));
+        if (entry is null)
+        {
+            return false;
+        }
+
+        ApplyConfirmedFileSize(entry, bytes, source);
+        await SaveAsync(store, cancellationToken).ConfigureAwait(false);
+        return true;
     }
 
     public int CountMissingFileSizes()
@@ -338,10 +425,18 @@ public sealed class LibraryCatalogStoreService
         return _cache.Items.Count(e => string.IsNullOrWhiteSpace(e.FileSize) || e.FileSize == "-");
     }
 
-    public async Task<int> ProbeMissingFileSizesAsync(
+    public Task<FileSizeProbeResult> ProbeAllDownloadableFileSizesAsync(
         OllamaApiClient apiClient,
         IProgress<string>? progress = null,
-        CancellationToken cancellationToken = default)
+        Func<FileSizeProbeResult, CancellationToken, Task>? onModelProbed = null,
+        CancellationToken cancellationToken = default) =>
+        ProbeAllDownloadableFileSizesCoreAsync(apiClient, progress, onModelProbed, cancellationToken);
+
+    private async Task<FileSizeProbeResult> ProbeAllDownloadableFileSizesCoreAsync(
+        OllamaApiClient apiClient,
+        IProgress<string>? progress,
+        Func<FileSizeProbeResult, CancellationToken, Task>? onModelProbed,
+        CancellationToken cancellationToken)
     {
         CancelFileSizeEnrichment();
         _enrichCts?.Dispose();
@@ -350,55 +445,85 @@ public sealed class LibraryCatalogStoreService
 
         if (!await _enrichGate.WaitAsync(0, enrichToken).ConfigureAwait(false))
         {
-            return 0;
+            return new FileSizeProbeResult();
         }
 
         try
         {
             var store = await LoadAsync(enrichToken).ConfigureAwait(false);
-            var missing = store.Items
-                .Where(e => string.IsNullOrWhiteSpace(e.FileSize) || e.FileSize == "-")
+            var targets = store.Items
                 .Where(e => !e.IsCloudOnly)
+                .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            if (missing.Count == 0)
-            {
-                return 0;
-            }
 
             var probed = 0;
-            for (var i = 0; i < missing.Count; i++)
+            var failed = 0;
+            var skippedCloud = store.Items.Count(e => e.IsCloudOnly);
+            var skippedUnresolved = 0;
+
+            for (var i = 0; i < targets.Count; i++)
             {
                 enrichToken.ThrowIfCancellationRequested();
-                var entry = missing[i];
-                progress?.Report($"Probing file size ({i + 1}/{missing.Count}): {entry.Name}");
+                var entry = targets[i];
+                progress?.Report($"Downloading {entry.Name} ({i + 1}/{targets.Count}) to read size…");
 
                 try
                 {
                     var resolution = !string.IsNullOrWhiteSpace(entry.DefaultPullTag)
                         ? CatalogPullTagResolver.ResolveFromEntry(entry)
-                        : CatalogPullTagResolver.Resolve(entry.Name, await FetchTagsAsync(entry.Name, enrichToken).ConfigureAwait(false));
+                        : CatalogPullTagResolver.Resolve(
+                            entry.Name,
+                            await FetchTagsAsync(entry.Name, enrichToken).ConfigureAwait(false));
 
                     if (!resolution.Resolved)
                     {
+                        skippedUnresolved++;
+                        failed++;
                         continue;
                     }
 
                     if (resolution.IsCloudOnly)
                     {
-                        entry.FileSize = "Cloud";
-                        probed++;
+                        entry.IsCloudOnly = true;
+                        entry.EstimatedFileSize = "Cloud";
+                        if (!entry.FileSizeConfirmed)
+                        {
+                            entry.FileSize = "Cloud";
+                        }
+
+                        skippedCloud++;
                         await SaveAsync(store, enrichToken).ConfigureAwait(false);
                         continue;
                     }
+
+                    entry.DefaultPullTag = resolution.PullTag;
+                    ApplyResolution(entry, resolution);
 
                     var totalBytes = await apiClient.ProbePullSizeAsync(resolution.PullTag, enrichToken)
                         .ConfigureAwait(false);
                     if (totalBytes is > 0)
                     {
-                        entry.FileSize = ModelSizeFormatter.FormatBytes(totalBytes.Value);
-                        entry.DefaultPullTag = resolution.PullTag;
+                        ApplyConfirmedFileSize(entry, totalBytes.Value, "pull-probe");
                         probed++;
+                        progress?.Report(
+                            $"Captured {ModelSizeFormatter.FormatBytes(totalBytes.Value)} for {entry.Name} — stopping");
                         await SaveAsync(store, enrichToken).ConfigureAwait(false);
+                        if (onModelProbed is not null)
+                        {
+                            await onModelProbed(
+                                new FileSizeProbeResult
+                                {
+                                    Probed = probed,
+                                    Failed = failed,
+                                    SkippedCloud = skippedCloud,
+                                    SkippedUnresolved = skippedUnresolved
+                                },
+                                enrichToken).ConfigureAwait(false);
+                        }
+                    }
+                    else
+                    {
+                        failed++;
                     }
                 }
                 catch (OperationCanceledException) when (enrichToken.IsCancellationRequested)
@@ -407,11 +532,17 @@ public sealed class LibraryCatalogStoreService
                 }
                 catch
                 {
-                    // Best-effort per model.
+                    failed++;
                 }
             }
 
-            return probed;
+            return new FileSizeProbeResult
+            {
+                Probed = probed,
+                Failed = failed,
+                SkippedCloud = skippedCloud,
+                SkippedUnresolved = skippedUnresolved
+            };
         }
         finally
         {
@@ -448,7 +579,7 @@ public sealed class LibraryCatalogStoreService
                 ModelName = entry.Name,
                 Phase = CatalogRefreshPhase.Completed,
                 IsInstalled = isInstalled,
-                FileSize = entry.FileSize,
+                FileSize = CatalogFileSizeDisplay.GetDisplayLabel(entry),
                 Description = entry.Description,
                 ParameterSize = entry.ParameterSize
             }, cancellationToken).ConfigureAwait(false);

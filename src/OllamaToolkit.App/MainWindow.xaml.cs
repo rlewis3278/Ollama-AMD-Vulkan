@@ -2497,8 +2497,14 @@ public partial class MainWindow : Window
                         }
 
                         var lastPullLogPercent = -1;
+                        long peakPullBytes = 0;
                         var pullProgress = new Progress<ModelPullProgress>(update =>
                         {
+                            if (update.TotalBytes is > 0)
+                            {
+                                peakPullBytes = Math.Max(peakPullBytes, update.TotalBytes.Value);
+                            }
+
                             UiDispatcher.InvokeAsync(() =>
                             {
                                 ApplyDownloadProgressUpdate(update);
@@ -2518,6 +2524,18 @@ public partial class MainWindow : Window
                         });
 
                         await _svc.ApiClient.PullAsync(pullTag, pullProgress, workCt).ConfigureAwait(false);
+                        if (peakPullBytes > 0)
+                        {
+                            await _svc.CatalogStore
+                                .ApplyConfirmedFileSizeForLibraryAsync(
+                                    candidate.LibraryName,
+                                    peakPullBytes,
+                                    "undownload-pull",
+                                    workCt)
+                                .ConfigureAwait(false);
+                            _svc.CatalogStore.ClearCache();
+                        }
+
                         _svc.Profiles.ClearCache();
 
                         if (!await _svc.ApiClient.IsModelInstalledAsync(pullTag, workCt).ConfigureAwait(false))
@@ -3246,14 +3264,18 @@ public partial class MainWindow : Window
         {
             foreach (var entry in entries)
             {
-                if (!_catalogRowByName.TryGetValue(entry.Name, out var row)
-                    || string.IsNullOrWhiteSpace(entry.FileSize)
-                    || entry.FileSize == "-")
+                if (!_catalogRowByName.TryGetValue(entry.Name, out var row))
                 {
                     continue;
                 }
 
-                row.FileSize = OllamaToolkit.Core.ModelSizeFormatter.FormatSizeLabel(entry.FileSize);
+                var label = CatalogFileSizeDisplay.GetDisplayLabel(entry);
+                if (label == "-")
+                {
+                    continue;
+                }
+
+                row.FileSize = OllamaToolkit.Core.ModelSizeFormatter.FormatSizeLabel(label);
             }
         }).ConfigureAwait(false);
     }
@@ -3743,18 +3765,28 @@ public partial class MainWindow : Window
 
                 var progress = new Progress<string>(msg =>
                     _ = UiDispatcher.InvokeAsync(() => CatalogStatusLabel.Text = msg));
-                var count = await _svc.CatalogStore.ProbeMissingFileSizesAsync(_svc.ApiClient, progress, token)
-                    .ConfigureAwait(false);
+                var result = await _svc.CatalogStore.ProbeAllDownloadableFileSizesAsync(
+                    _svc.ApiClient,
+                    progress,
+                    async (_, probeToken) =>
+                    {
+                        _svc.CatalogStore.ClearCache();
+                        await UiDispatcher.InvokeAsync(async () =>
+                            await ApplyCatalogFileSizesToRowsAsync(probeToken).ConfigureAwait(true))
+                            .ConfigureAwait(false);
+                    },
+                    token).ConfigureAwait(false);
                 _svc.CatalogStore.ClearCache();
 
                 await UiDispatcher.InvokeAsync(async () =>
                 {
                     await ApplyCatalogFileSizesToRowsAsync(token).ConfigureAwait(true);
                     await RefreshCatalogUiAsync(force: true).ConfigureAwait(true);
-                    CatalogStatusLabel.Text = count > 0
-                        ? $"Updated file sizes for {count} catalog model(s)."
-                        : "No missing file sizes found to probe.";
-                    EndTaskFlashSuccess(sender, count > 0 ? "Sized" : "Done", 10);
+                    CatalogStatusLabel.Text = result.Probed > 0
+                        ? $"Confirmed file sizes for {result.Probed} model(s) "
+                          + $"(failed {result.Failed}, cloud {result.SkippedCloud})."
+                        : "No downloadable models were probed.";
+                    EndTaskFlashSuccess(sender, result.Probed > 0 ? "Sized" : "Done", 10);
                 }).ConfigureAwait(false);
             }
             catch (OperationCanceledException)

@@ -446,7 +446,10 @@ public sealed class OllamaApiClient : IDisposable
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var reader = new StreamReader(stream);
-        long? totalBytes = null;
+        var tracker = new PullProgressTracker();
+        long? lastAggregateTotal = null;
+        var stableAggregateReads = 0;
+        long? capturedTotal = null;
 
         while (!reader.EndOfStream)
         {
@@ -467,19 +470,39 @@ public sealed class OllamaApiClient : IDisposable
                 continue;
             }
 
-            if (!string.IsNullOrEmpty(chunk?.Error))
+            if (chunk is null)
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(chunk.Error))
             {
                 throw new InvalidOperationException(chunk.Error);
             }
 
-            if (chunk?.Total is > 0)
+            var progress = tracker.Update(chunk);
+            if (progress.TotalBytes is > 0)
             {
-                totalBytes = Math.Max(totalBytes ?? 0, chunk.Total.Value);
-                break;
+                var total = progress.TotalBytes.Value;
+                capturedTotal = total;
+                if (lastAggregateTotal == total)
+                {
+                    stableAggregateReads++;
+                }
+                else
+                {
+                    lastAggregateTotal = total;
+                    stableAggregateReads = 0;
+                }
+
+                if (progress.CompletedBytes is > 0 || stableAggregateReads >= 1)
+                {
+                    break;
+                }
             }
         }
 
-        if (totalBytes is > 0)
+        if (capturedTotal is > 0)
         {
             try
             {
@@ -491,7 +514,7 @@ public sealed class OllamaApiClient : IDisposable
             }
         }
 
-        return totalBytes;
+        return capturedTotal;
     }
 
     public async Task PullAsync(
