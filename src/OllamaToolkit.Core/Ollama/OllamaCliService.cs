@@ -20,6 +20,12 @@ public sealed class OllamaCliService
 
     public async Task<OllamaCliResult> ExecuteAsync(
         IReadOnlyList<string> args,
+        CancellationToken cancellationToken = default) =>
+        await ExecuteAsync(args, lineOutput: null, cancellationToken).ConfigureAwait(false);
+
+    public async Task<OllamaCliResult> ExecuteAsync(
+        IReadOnlyList<string> args,
+        IProgress<string>? lineOutput,
         CancellationToken cancellationToken = default)
     {
         var exe = ResolveOllamaExe()
@@ -45,6 +51,7 @@ public sealed class OllamaCliService
             if (e.Data is not null)
             {
                 stdout.AppendLine(e.Data);
+                lineOutput?.Report(e.Data);
             }
         };
         process.ErrorDataReceived += (_, e) =>
@@ -52,6 +59,7 @@ public sealed class OllamaCliService
             if (e.Data is not null)
             {
                 stderr.AppendLine(e.Data);
+                lineOutput?.Report(e.Data);
             }
         };
 

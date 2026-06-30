@@ -20,7 +20,12 @@ public sealed class AppServices : IDisposable
         ActivityHub = new AiActivityHub();
         ActivityLog = new ActivityLogService();
         Diagnostics = new ToolkitDiagnosticsService();
-        WorkQueue = new BackgroundWorkQueue(ActivityLog, Diagnostics);
+        AiSettings = new AiSettingsService();
+        var runtimeSettings = AiSettings.LoadAsync().GetAwaiter().GetResult();
+        WorkQueue = new BackgroundWorkQueue(
+            ActivityLog,
+            Diagnostics,
+            Math.Clamp(runtimeSettings.ConcurrentAiWorkers, 1, 8));
         ApiClient = new OllamaApiClient();
         var ollamaInference = new InferenceActivityCallbacks
         {
@@ -37,24 +42,24 @@ public sealed class AppServices : IDisposable
         ModeDefinitions = new ModeDefinitionService();
         ModeService = new ModeService(ModeDefinitions, new EnvBackupService(), new OllamaProcessService());
         EnvBackup = new EnvBackupService();
-        AiSettings = new AiSettingsService();
         Profiles = new ProfileStoreService(ApiClient);
         ReportImporter = new ReportImporter(Profiles);
         ServerTuning = new OllamaServerTuningService();
         BenchmarkRunner = new AutomatedBenchmarkService(ModeService, ServerTuning, ApiClient, Profiles, ModelSessions);
         PlainErrors = new PlainLanguageErrorService(AiSettings, ApiClient);
         CatalogStore = new LibraryCatalogStoreService();
+        Summarizer = new SummarizerModelResolver(AiSettings, ApiClient);
+        CatalogDiscovery = new CatalogDiscoveryService(CatalogStore, AiSettings, ApiClient, Summarizer);
         Descriptions = new DescriptionStoreService(AiSettings, ApiClient);
         CategoryStore = new UsageCategoryStoreService();
         Classification = new CatalogClassificationService(AiSettings, ApiClient, CategoryStore, CatalogStore);
         Registry = new ModelRegistryService(CatalogStore, Descriptions, CategoryStore, Profiles, ApiClient);
-        Summarizer = new SummarizerModelResolver(AiSettings, ApiClient);
         BenchmarkInsights = new BenchmarkInsightService(AiSettings, ApiClient, Summarizer);
         LogAnomalies = new LogAnomalyService(AiSettings, ApiClient, Summarizer);
         NlSearch = new NaturalLanguageSearchService(AiSettings, ApiClient, Summarizer);
         ModelAdvisor = new ModelAdvisorService(AiSettings, ApiClient, Summarizer);
         AiLlmRecommendations = new AiLlmRecommendationService(AiSettings, ApiClient, Summarizer);
-        SummarizerInference = new SummarizerInferenceService(Profiles, ModeService, Diagnostics);
+        SummarizerInference = new SummarizerInferenceService(Profiles, ModeService, Diagnostics, AiSettings);
         BenchmarkSettingsAdvisor = new BenchmarkSettingsAdvisorService(
             AiSettings, ApiClient, Summarizer, ModeDefinitions.DeviceMap);
         QueueAdvisor = new BenchmarkQueueAdvisorService(AiSettings, ApiClient, Summarizer);
@@ -83,6 +88,7 @@ public sealed class AppServices : IDisposable
     public ActivityLogService ActivityLog { get; }
     public ToolkitDiagnosticsService Diagnostics { get; }
     public LibraryCatalogStoreService CatalogStore { get; }
+    public CatalogDiscoveryService CatalogDiscovery { get; }
     public DescriptionStoreService Descriptions { get; }
     public UsageCategoryStoreService CategoryStore { get; }
     public CatalogClassificationService Classification { get; }

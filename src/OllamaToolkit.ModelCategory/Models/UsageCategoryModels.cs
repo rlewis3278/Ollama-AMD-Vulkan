@@ -11,6 +11,7 @@ public sealed class UsageCategoryStoreDocument
 public sealed class UsageCategoryEntry
 {
     public string Category { get; set; } = "Other";
+    public string? Subcategory { get; set; }
     public string? UsageSummary { get; set; }
     public string? LibraryName { get; set; }
     public string? FetchedAt { get; set; }

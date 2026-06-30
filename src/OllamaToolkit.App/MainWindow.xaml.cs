@@ -216,6 +216,8 @@ public partial class MainWindow : Window
             UpdateStopTestButtonUi();
             InitModeCards();
             InitAiFeatureToggles();
+            await InitAiRuntimeTogglesAsync().ConfigureAwait(true);
+            await InitCheckForUpdatesFromSettingsAsync().ConfigureAwait(true);
             InitCategoryFilter();
             InitTestResultsCategoryFilter();
             BindSummarizerComboImmediate();
@@ -734,6 +736,134 @@ public partial class MainWindow : Window
             : $"{label} disabled — saved instantly.";
     }
 
+    private bool _suppressAiRuntimeEvents;
+
+    private async Task InitAiRuntimeTogglesAsync()
+    {
+        var settings = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
+        AiRuntimePanel.Children.Clear();
+        var checkBoxStyle = (Style)FindResource("ToolkitAiFeatureCheckBox");
+        var muted = (Brush)FindResource("Brush.Muted");
+
+        var blockDuringTests = new CheckBox
+        {
+            Content = BuildFeatureContent(
+                "Block Program AI during tests",
+                "While a test suite is running, defer catalog/AI Settings work and hide the AI activity flash unless the operation is part of testing.",
+                muted),
+            IsChecked = settings.BlockProgramAiDuringTests,
+            Style = checkBoxStyle,
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+        blockDuringTests.Checked += async (_, _) => await SaveAiRuntimeToggleAsync(
+            doc => doc.BlockProgramAiDuringTests = true,
+            "Block Program AI during tests enabled — saved instantly.").ConfigureAwait(true);
+        blockDuringTests.Unchecked += async (_, _) => await SaveAiRuntimeToggleAsync(
+            doc => doc.BlockProgramAiDuringTests = false,
+            "Block Program AI during tests disabled — saved instantly.").ConfigureAwait(true);
+        AiRuntimePanel.Children.Add(blockDuringTests);
+
+        var restartForAi = new CheckBox
+        {
+            Content = BuildFeatureContent(
+                "Restart Ollama before AI operations",
+                "When enabled, the toolkit restarts Ollama before summarizer inference and other AI prep steps.",
+                muted),
+            IsChecked = settings.RestartOllamaForAiOperations,
+            Style = checkBoxStyle,
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+        restartForAi.Checked += async (_, _) => await SaveAiRuntimeToggleAsync(
+            doc => doc.RestartOllamaForAiOperations = true,
+            "Restart Ollama for AI operations enabled — saved instantly.").ConfigureAwait(true);
+        restartForAi.Unchecked += async (_, _) => await SaveAiRuntimeToggleAsync(
+            doc => doc.RestartOllamaForAiOperations = false,
+            "Restart Ollama for AI operations disabled — saved instantly.").ConfigureAwait(true);
+        AiRuntimePanel.Children.Add(restartForAi);
+
+        var workersPanel = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
+        workersPanel.Children.Add(new TextBlock
+        {
+            Text = "Concurrent AI workers:",
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = (Brush)FindResource("Brush.Text")
+        });
+        var workersCombo = new ComboBox
+        {
+            Width = 56,
+            Margin = new Thickness(8, 0, 0, 0),
+            ItemsSource = Enumerable.Range(1, 8).Select(i => i).ToList()
+        };
+        _suppressAiRuntimeEvents = true;
+        workersCombo.SelectedItem = Math.Clamp(settings.ConcurrentAiWorkers, 1, 8);
+        _suppressAiRuntimeEvents = false;
+        workersCombo.SelectionChanged += async (_, _) =>
+        {
+            if (_suppressAiRuntimeEvents || workersCombo.SelectedItem is not int count)
+            {
+                return;
+            }
+
+            await SaveAiRuntimeToggleAsync(
+                doc => doc.ConcurrentAiWorkers = count,
+                $"Concurrent AI workers set to {count} — takes effect after restart.").ConfigureAwait(true);
+        };
+        workersPanel.Children.Add(workersCombo);
+        workersPanel.Children.Add(new TextBlock
+        {
+            Text = "(restart required)",
+            Margin = new Thickness(8, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = muted,
+            FontSize = 13
+        });
+        AiRuntimePanel.Children.Add(workersPanel);
+    }
+
+    private async Task SaveAiRuntimeToggleAsync(Action<AiSettingsDocument> apply, string statusMessage)
+    {
+        if (_suppressAiRuntimeEvents)
+        {
+            return;
+        }
+
+        var s = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
+        apply(s);
+        await _svc.AiSettings.SaveAsync(s).ConfigureAwait(true);
+        AiFeatureToggleStatus.Text = statusMessage;
+    }
+
+    private bool _suppressCheckForUpdatesEvents;
+
+    private async Task InitCheckForUpdatesFromSettingsAsync()
+    {
+        var settings = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
+        _suppressCheckForUpdatesEvents = true;
+        try
+        {
+            CheckForUpdatesCheck.IsChecked = settings.CheckForUpdatesOnStartup;
+        }
+        finally
+        {
+            _suppressCheckForUpdatesEvents = false;
+        }
+
+        CheckForUpdatesCheck.Checked += async (_, _) => await SaveCheckForUpdatesOnStartupAsync(true).ConfigureAwait(true);
+        CheckForUpdatesCheck.Unchecked += async (_, _) => await SaveCheckForUpdatesOnStartupAsync(false).ConfigureAwait(true);
+    }
+
+    private async Task SaveCheckForUpdatesOnStartupAsync(bool enabled)
+    {
+        if (_suppressCheckForUpdatesEvents)
+        {
+            return;
+        }
+
+        var s = await _svc.AiSettings.LoadAsync().ConfigureAwait(true);
+        s.CheckForUpdatesOnStartup = enabled;
+        await _svc.AiSettings.SaveAsync(s).ConfigureAwait(true);
+    }
+
     private async Task RefreshAllAsync()
     {
         await _svc.WorkQueue.EnqueueAsync(async ct =>
@@ -993,7 +1123,17 @@ public partial class MainWindow : Window
         };
     }
 
-    private void EnterAiActivity() => _svc.ActivityHub.EnterToolkitAi();
+    private void EnterAiActivity(bool allowDuringTests = false)
+    {
+        if (!allowDuringTests
+            && _svc.WorkQueue.IsTestSuiteLocked
+            && _svc.AiSettings.LoadAsync().GetAwaiter().GetResult().BlockProgramAiDuringTests)
+        {
+            return;
+        }
+
+        _svc.ActivityHub.EnterToolkitAi();
+    }
 
     private void ExitAiActivity()
     {
@@ -1706,7 +1846,7 @@ public partial class MainWindow : Window
         await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Prioritizing queue with AI…")).ConfigureAwait(true);
         ct.ThrowIfCancellationRequested();
         var summaries = await _svc.Profiles.GetAllSummariesAsync(ct).ConfigureAwait(true);
-        EnterAiActivity();
+        EnterAiActivity(allowDuringTests: true);
         BenchmarkQueueAdvisorService.PrioritizedQueue queue;
         try
         {
@@ -1770,7 +1910,7 @@ public partial class MainWindow : Window
         var categories = await GetCategoryMapAsync().ConfigureAwait(true);
         var lib = model.Split(':')[0];
         var category = categories.TryGetValue(lib, out var c) ? c : string.Empty;
-        EnterAiActivity();
+        EnterAiActivity(allowDuringTests: true);
         BenchmarkSettingsEntry settings;
         try
         {
@@ -1874,7 +2014,7 @@ public partial class MainWindow : Window
             return embedSettings;
         }
 
-        EnterAiActivity();
+        EnterAiActivity(allowDuringTests: true);
         BenchmarkSettingsEntry settings;
         try
         {
@@ -2248,7 +2388,7 @@ public partial class MainWindow : Window
                 return;
             }
 
-            EnterAiActivity();
+            EnterAiActivity(allowDuringTests: true);
             try
             {
                 await _svc.BenchmarkInsights.DiagnoseFailuresAsync(summary).ConfigureAwait(true);
@@ -2362,7 +2502,7 @@ public partial class MainWindow : Window
                     workTcs.TrySetResult();
                 }
             }
-        }).ConfigureAwait(true);
+        }, WorkQueuePriority.AllowDuringTests).ConfigureAwait(true);
 
         await workTcs.Task.ConfigureAwait(true);
     }
@@ -2424,7 +2564,7 @@ public partial class MainWindow : Window
                 c.HasKnownFileSize))
             .ToList();
 
-        EnterAiActivity();
+        EnterAiActivity(allowDuringTests: true);
         BenchmarkQueueAdvisorService.PrioritizedUndownloadQueue queue;
         try
         {
@@ -2706,7 +2846,7 @@ public partial class MainWindow : Window
             {
                 workTcs.TrySetResult();
             }
-        }).ConfigureAwait(true);
+        }, WorkQueuePriority.AllowDuringTests).ConfigureAwait(true);
 
         await workTcs.Task.ConfigureAwait(true);
         }
@@ -2820,7 +2960,7 @@ public partial class MainWindow : Window
                     .FirstOrDefault(s => s.Model.Equals(model, StringComparison.OrdinalIgnoreCase));
                 if (summary is not null)
                 {
-                    EnterAiActivity();
+                    EnterAiActivity(allowDuringTests: true);
                     try
                     {
                         await _svc.BenchmarkInsights.InterpretProfileAsync(summary, ct).ConfigureAwait(false);
@@ -4930,7 +5070,7 @@ public partial class MainWindow : Window
         var present = _testResultsRows
             .Select(r => r.Category)
             .Where(c => !string.IsNullOrWhiteSpace(c))
-            .Select(CategoryNormalizer.Normalize)
+            .Select(CategoryNormalizer.ExtractMajorCategory)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(CategoryNormalizer.GetSortOrder)
             .ThenBy(c => c, StringComparer.OrdinalIgnoreCase)
@@ -5005,7 +5145,8 @@ public partial class MainWindow : Window
         if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
             filtered = filtered.Where(r =>
-                (r.Category ?? string.Empty).Equals(category, StringComparison.OrdinalIgnoreCase));
+                CategoryNormalizer.ExtractMajorCategory(r.Category)
+                    .Equals(category, StringComparison.OrdinalIgnoreCase));
         }
 
         var rows = filtered.ToList();
@@ -6877,21 +7018,26 @@ public partial class MainWindow : Window
         }
 
         CatalogStatusLabel.Text = "Discovering community models on ollama.com...";
+        var userQuery = CatalogDiscoverSearchBox.Text?.Trim();
         await _svc.WorkQueue.EnqueueAsync(async workCt =>
         {
             using var linked = _catalogOps.CreateLinkedTokenSource(workCt)!;
             var ct = linked.Token;
             try
             {
-                var queries = new[]
-                {
-                    "llm", "chat", "code", "embedding", "vision", "reasoning",
-                    "powershell", "codex", "tools", "mixture"
-                };
                 var progress = new Progress<string>(msg =>
                     UiDispatcher.InvokeFireAndForget(() => CatalogStatusLabel.Text = msg));
-                var merge = await _svc.CatalogStore.DiscoverFromSearchTermsAsync(queries, progress, ct)
-                    .ConfigureAwait(false);
+                EnterAiActivity();
+                CatalogMergeResult merge;
+                try
+                {
+                    merge = await _svc.CatalogDiscovery.DiscoverAsync(userQuery, runAiSweep: true, progress, ct)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    ExitAiActivity();
+                }
                 _svc.CatalogStore.ClearCache();
                 await UiDispatcher.InvokeAsync(async () =>
                 {
@@ -6968,27 +7114,45 @@ public partial class MainWindow : Window
         }
     }
 
-    private static readonly (string Label, string Tool)[] LaunchAiTools =
+    private static readonly (string Label, string Tool, string Icon)[] LaunchAiTools =
     [
-        ("Claude", "claude"),
-        ("Codex App", "codex-app"),
-        ("Hermes", "hermes"),
-        ("OpenClaw", "openclaw"),
-        ("OpenCode", "opencode"),
-        ("Codex", "codex"),
-        ("Copilot", "copilot"),
-        ("Droid", "droid"),
-        ("Pi", "pi")
+        ("Claude", "claude", "🟠"),
+        ("Codex App", "codex-app", "📱"),
+        ("Hermes", "hermes", "🦉"),
+        ("OpenClaw", "openclaw", "🦞"),
+        ("OpenCode", "opencode", "⌨"),
+        ("Codex", "codex", "💻"),
+        ("Copilot", "copilot", "🤖"),
+        ("Droid", "droid", "🤖"),
+        ("Pi", "pi", "π")
     ];
 
     private void InitLaunchAiToolsPanel()
     {
         LaunchAiToolsPanel.Children.Clear();
-        foreach (var (label, tool) in LaunchAiTools)
+        foreach (var (label, tool, icon) in LaunchAiTools)
         {
             var button = new Button
             {
-                Content = label,
+                Content = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = icon,
+                            Margin = new Thickness(0, 0, 6, 0),
+                            FontSize = 15,
+                            VerticalAlignment = VerticalAlignment.Center
+                        },
+                        new TextBlock
+                        {
+                            Text = label,
+                            VerticalAlignment = VerticalAlignment.Center
+                        }
+                    }
+                },
                 Margin = new Thickness(0, 0, 8, 8),
                 Tag = tool
             };
@@ -6996,6 +7160,18 @@ public partial class MainWindow : Window
             button.Click += LaunchAiTool_Click;
             LaunchAiToolsPanel.Children.Add(button);
         }
+    }
+
+    private void AppendLaunchAiTerminal(string line)
+    {
+        if (string.IsNullOrEmpty(line))
+        {
+            return;
+        }
+
+        LaunchAiTerminal.AppendText(line + Environment.NewLine);
+        LaunchAiTerminal.CaretIndex = LaunchAiTerminal.Text.Length;
+        LaunchAiTerminal.ScrollToEnd();
     }
 
     private async void RefreshLaunchAiModels_Click(object sender, RoutedEventArgs e)
@@ -7032,19 +7208,26 @@ public partial class MainWindow : Window
             args.Add(model);
         }
 
-        LaunchAiToolsStatus.Text = $"Running: ollama {string.Join(' ', args)}";
+        var commandLine = $"ollama {string.Join(' ', args)}";
+        LaunchAiToolsStatus.Text = $"Running: {commandLine}";
+        AppendLaunchAiTerminal($"$ {commandLine}");
         try
         {
-            var result = await _svc.OllamaCli.ExecuteAsync(args).ConfigureAwait(true);
-            var output = string.IsNullOrWhiteSpace(result.StandardOutput)
-                ? result.StandardError
-                : result.StandardOutput;
-            LaunchAiToolsStatus.Text = string.IsNullOrWhiteSpace(output)
-                ? $"Launched {tool} (exit {result.ExitCode})."
-                : output.Trim();
+            var progress = new Progress<string>(line =>
+                UiDispatcher.InvokeFireAndForget(() => AppendLaunchAiTerminal(line)));
+            var result = await _svc.OllamaCli.ExecuteAsync(args, progress).ConfigureAwait(true);
+            if (result.ExitCode != 0)
+            {
+                AppendLaunchAiTerminal($"[exit {result.ExitCode}]");
+            }
+
+            LaunchAiToolsStatus.Text = result.ExitCode == 0
+                ? $"Launched {tool} successfully."
+                : $"Launched {tool} finished with exit code {result.ExitCode}.";
         }
         catch (Exception ex)
         {
+            AppendLaunchAiTerminal(ex.Message);
             LaunchAiToolsStatus.Text = ex.Message;
         }
     }
@@ -7052,18 +7235,24 @@ public partial class MainWindow : Window
     private async void UpgradeOllama_Click(object sender, RoutedEventArgs e)
     {
         LaunchAiToolsStatus.Text = "Upgrading Ollama...";
+        AppendLaunchAiTerminal("$ ollama upgrade");
         try
         {
-            var result = await _svc.OllamaCli.ExecuteAsync(["upgrade"]).ConfigureAwait(true);
-            var output = string.IsNullOrWhiteSpace(result.StandardOutput)
-                ? result.StandardError
-                : result.StandardOutput;
-            LaunchAiToolsStatus.Text = string.IsNullOrWhiteSpace(output)
-                ? $"Ollama upgrade finished (exit {result.ExitCode})."
-                : output.Trim();
+            var progress = new Progress<string>(line =>
+                UiDispatcher.InvokeFireAndForget(() => AppendLaunchAiTerminal(line)));
+            var result = await _svc.OllamaCli.ExecuteAsync(["upgrade"], progress).ConfigureAwait(true);
+            if (result.ExitCode != 0)
+            {
+                AppendLaunchAiTerminal($"[exit {result.ExitCode}]");
+            }
+
+            LaunchAiToolsStatus.Text = result.ExitCode == 0
+                ? "Ollama upgrade finished."
+                : $"Ollama upgrade finished with exit code {result.ExitCode}.";
         }
         catch (Exception ex)
         {
+            AppendLaunchAiTerminal(ex.Message);
             LaunchAiToolsStatus.Text = ex.Message;
         }
     }

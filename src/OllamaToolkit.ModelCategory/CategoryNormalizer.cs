@@ -114,8 +114,38 @@ public static class CategoryNormalizer
         return "General Chat";
     }
 
-    public static int GetSortOrder(string category) =>
-        SortOrder.TryGetValue(category, out var order) ? order : 9;
+    public static int GetSortOrder(string category)
+    {
+        var major = ExtractMajorCategory(category);
+        return SortOrder.TryGetValue(major, out var order) ? order : 9;
+    }
+
+    public static string ExtractMajorCategory(string? category)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return "Other";
+        }
+
+        var trimmed = category.Trim();
+        var sep = trimmed.IndexOf('·');
+        if (sep < 0)
+        {
+            sep = trimmed.IndexOf('>');
+        }
+
+        var major = sep > 0 ? trimmed[..sep].Trim() : trimmed;
+        return Normalize(major);
+    }
+
+    public static string FormatDisplay(string majorCategory, string? subcategory = null)
+    {
+        var major = Normalize(majorCategory);
+        var sub = string.IsNullOrWhiteSpace(subcategory)
+            ? CategorySubcategoryCatalog.DefaultFor(major)
+            : CategorySubcategoryCatalog.NormalizeSubcategory(major, subcategory);
+        return $"{major} · {sub}";
+    }
 
     public static bool IsEmbeddingModel(string modelName, string? category = null)
     {

@@ -59,7 +59,7 @@ public sealed class ModelRegistryService
             if (categoryDoc.Models.TryGetValue(e.Name, out var catEntry)
                 && !string.IsNullOrWhiteSpace(catEntry.Category))
             {
-                category = catEntry.Category;
+                category = CategoryNormalizer.FormatDisplay(catEntry.Category, catEntry.Subcategory);
             }
             else if (!string.IsNullOrWhiteSpace(e.Category))
             {
@@ -139,7 +139,10 @@ public sealed class ModelRegistryService
 
         if (!string.IsNullOrWhiteSpace(categoryFilter) && categoryFilter != "All")
         {
-            rows = rows.Where(r => r.Category.Equals(categoryFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+            rows = rows.Where(r =>
+                    CategoryNormalizer.ExtractMajorCategory(r.Category)
+                        .Equals(categoryFilter, StringComparison.OrdinalIgnoreCase))
+                .ToList();
         }
 
         return rows.OrderBy(r => r.SortOrder).ThenBy(r => r.Name).ToList();
@@ -161,7 +164,9 @@ public sealed class ModelRegistryService
                 var libName = s.Model.Split(':')[0];
                 if (categoryDoc.Models.TryGetValue(libName, out var cat))
                 {
-                    category = cat.Category ?? string.Empty;
+                    category = string.IsNullOrWhiteSpace(cat.Category)
+                        ? string.Empty
+                        : CategoryNormalizer.FormatDisplay(cat.Category, cat.Subcategory);
                 }
 
                 var benchmarkKind = string.IsNullOrWhiteSpace(s.BenchmarkKind)

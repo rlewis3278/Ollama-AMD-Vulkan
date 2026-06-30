@@ -64,6 +64,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <TextBlock x:Name="LaunchAiToolsStatus" Grid.Row="0" Margin="0,0,0,8"
@@ -74,9 +75,13 @@
                         <Button Content="Refresh Models" Style="{StaticResource ToolkitButton}" Click="RefreshLaunchAiModels_Click" />
                         <Button Content="Upgrade Ollama" Style="{StaticResource ToolkitButton}" Click="UpgradeOllama_Click" />
                     </StackPanel>
-                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-                        <WrapPanel x:Name="LaunchAiToolsPanel" Margin="0,0,0,8" />
+                    <ScrollViewer Grid.Row="2" MaxHeight="120" VerticalScrollBarVisibility="Auto" Margin="0,0,0,8">
+                        <WrapPanel x:Name="LaunchAiToolsPanel" />
                     </ScrollViewer>
+                    <TextBox x:Name="LaunchAiTerminal" Grid.Row="3" IsReadOnly="True" AcceptsReturn="True"
+                             TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                             Background="{StaticResource Brush.LogBg}" Foreground="{StaticResource Brush.Text}"
+                             FontFamily="Consolas" FontSize="13" Padding="10" MinHeight="200" />
                 </Grid>
             </TabItem>
             <TabItem x:Name="ModelsLaunchTab" Header="Models &amp; Launch">
@@ -189,17 +194,20 @@
                                 Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="RefreshDescriptions_Click" />
                         <Button x:Name="RefreshCatalogBtn" Grid.Row="0" Grid.Column="10" Content="Refresh Catalog"
                                 Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="RefreshCatalog_Click" />
-                        <Button x:Name="DiscoverCatalogBtn" Grid.Row="0" Grid.Column="11" Content="Discover Models"
+                        <TextBox x:Name="CatalogDiscoverSearchBox" Grid.Row="0" Grid.Column="11" Width="140"
+                                 Padding="6,4" Margin="0,0,4,0"
+                                 ToolTip="Optional search term for Discover Models (e.g. powershell)" />
+                        <Button x:Name="DiscoverCatalogBtn" Grid.Row="0" Grid.Column="12" Content="Discover Models"
                                 Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="DiscoverCatalog_Click"
-                                ToolTip="Search ollama.com for community models and merge into catalog" />
-                        <Button x:Name="ClearCatalogBtn" Grid.Row="0" Grid.Column="12" Content="Clear Catalog"
+                                ToolTip="Search ollama.com + AI sweep for community models" />
+                        <Button x:Name="ClearCatalogBtn" Grid.Row="0" Grid.Column="13" Content="Clear Catalog"
                                 Style="{StaticResource ToolkitButton}" Click="ClearCatalog_Click" />
-                        <Button x:Name="GetFileSizesBtn" Grid.Row="0" Grid.Column="13" Content="Get File Sizes"
+                        <Button x:Name="GetFileSizesBtn" Grid.Row="0" Grid.Column="14" Content="Get File Sizes"
                                 Style="{StaticResource ToolkitButton}" Margin="4,0,0,0" Click="GetFileSizes_Click" />
-                        <Button x:Name="CatalogStopBtn" Grid.Row="1" Grid.Column="7" Grid.ColumnSpan="7"
+                        <Button x:Name="CatalogStopBtn" Grid.Row="1" Grid.Column="7" Grid.ColumnSpan="8"
                                 Content="STOP" Style="{StaticResource ToolkitButton}"
                                 Margin="0,4,0,0" Click="CatalogStop_Click" />
-                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="14"
+                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="15"
                                     Orientation="Horizontal" Margin="0,6,0,0">
                             <Button x:Name="DownloadCatalogModelBtn" Content="Download Selected LLM"
                                     Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
@@ -542,6 +550,9 @@
                                    Text="Each toggle saves instantly to ai-settings.json." />
                         <TextBlock x:Name="AiFeatureToggleStatus" Foreground="{StaticResource Brush.Muted}"
                                    Margin="0,0,0,8" TextWrapping="Wrap" />
+                        <TextBlock Text="Runtime" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
+                        <StackPanel x:Name="AiRuntimePanel" Margin="0,0,0,16" />
+                        <TextBlock Text="Program AI features" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
                         <StackPanel x:Name="AiFeaturesPanel" />
                     </StackPanel>
                 </ScrollViewer>

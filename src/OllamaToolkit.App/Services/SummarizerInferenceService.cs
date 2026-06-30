@@ -1,5 +1,6 @@
 using OllamaToolkit.BenchmarkStore;
 using OllamaToolkit.Core.Modes;
+using OllamaToolkit.Core.Settings;
 
 namespace OllamaToolkit.App.Services;
 
@@ -7,16 +8,19 @@ public sealed class SummarizerInferenceService
 {
     private readonly ProfileStoreService _profiles;
     private readonly ModeService _modeService;
+    private readonly AiSettingsService _aiSettings;
     private readonly ToolkitDiagnosticsService _diagnostics;
 
     public SummarizerInferenceService(
         ProfileStoreService profiles,
         ModeService modeService,
-        ToolkitDiagnosticsService diagnostics)
+        ToolkitDiagnosticsService diagnostics,
+        AiSettingsService? aiSettings = null)
     {
         _profiles = profiles;
         _modeService = modeService;
         _diagnostics = diagnostics;
+        _aiSettings = aiSettings ?? new AiSettingsService();
     }
 
     public async Task ApplySummarizerBestModeAsync(
@@ -55,9 +59,20 @@ public sealed class SummarizerInferenceService
             return;
         }
 
-        await _modeService.ApplyModeWithRestartAsync(mode, cancellationToken: cancellationToken)
-            .ConfigureAwait(false);
-        _diagnostics.Write("AI",
-            $"Summarizer inference: applied best mode {match.BestMode} for {summarizerModel}.");
+        var settings = await _aiSettings.LoadAsync(cancellationToken).ConfigureAwait(false);
+        if (settings.RestartOllamaForAiOperations)
+        {
+            await _modeService.ApplyModeWithRestartAsync(mode, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            _diagnostics.Write("AI",
+                $"Summarizer inference: applied best mode {match.BestMode} for {summarizerModel} (Ollama restarted).");
+        }
+        else
+        {
+            await _modeService.ApplyModeAsync(mode, restartOllama: false, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            _diagnostics.Write("AI",
+                $"Summarizer inference: saved best mode {match.BestMode} for {summarizerModel} (restart skipped — enable in AI Settings).");
+        }
     }
 }

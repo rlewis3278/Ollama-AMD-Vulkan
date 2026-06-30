@@ -8,7 +8,15 @@ namespace OllamaToolkit.ModelCategory;
 
 public sealed class CatalogClassificationService
 {
-    private const int BatchSize = 15;
+    private static int ComputeBatchSize(int totalCount) =>
+        totalCount switch
+        {
+            <= 15 => Math.Max(5, totalCount),
+            <= 60 => 15,
+            <= 200 => 12,
+            <= 600 => 10,
+            _ => 8
+        };
 
     private readonly AiSettingsService _settings;
     private readonly OllamaApiClient _apiClient;
@@ -81,32 +89,40 @@ public sealed class CatalogClassificationService
                 cancellationToken.ThrowIfCancellationRequested();
                 var entry = toClassify[i];
                 progress?.Report($"Heuristic classify {i + 1}/{toClassify.Count}: {entry.Name}");
-                var category = CategoryNormalizer.HeuristicCategory(entry.Name, entry.Description, entry.Tags);
-                ApplyCategory(categoryDoc, entry, category, null, heuristic: true);
-                MergeCatalogEntry(catalog, entry.Name, category);
+                var major = CategoryNormalizer.HeuristicCategory(entry.Name, entry.Description, entry.Tags);
+                var sub = CategorySubcategoryCatalog.HeuristicSubcategory(
+                    major, entry.Name, entry.Description, entry.Tags);
+                ApplyCategory(categoryDoc, entry, major, sub, null, heuristic: true);
+                MergeCatalogEntry(catalog, entry.Name, major, sub);
                 classified++;
             }
         }
         else
         {
-            for (var i = 0; i < toClassify.Count; i += BatchSize)
+            var batchSize = ComputeBatchSize(toClassify.Count);
+            for (var i = 0; i < toClassify.Count; i += batchSize)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var batch = toClassify.Skip(i).Take(BatchSize).ToList();
-                progress?.Report($"Classifying batch {(i / BatchSize) + 1} ({batch.Count} models)...");
+                var batch = toClassify.Skip(i).Take(batchSize).ToList();
+                progress?.Report(
+                    $"Classifying batch {(i / batchSize) + 1} ({batch.Count} models, batch size {batchSize})...");
 
                 var results = await ClassifyBatchAsync(batch, summarizer, cancellationToken)
                     .ConfigureAwait(false);
                 foreach (var entry in batch)
                 {
-                    if (!results.TryGetValue(entry.Name, out var category))
+                    if (!results.TryGetValue(entry.Name, out var result))
                     {
-                        category = CategoryNormalizer.HeuristicCategory(
+                        var major = CategoryNormalizer.HeuristicCategory(
                             entry.Name, entry.Description, entry.Tags);
+                        result = new ClassificationResult(
+                            major,
+                            CategorySubcategoryCatalog.HeuristicSubcategory(
+                                major, entry.Name, entry.Description, entry.Tags));
                     }
 
-                    ApplyCategory(categoryDoc, entry, category, summarizer, heuristic: false);
-                    MergeCatalogEntry(catalog, entry.Name, category);
+                    ApplyCategory(categoryDoc, entry, result.Major, result.Subcategory, summarizer, heuristic: false);
+                    MergeCatalogEntry(catalog, entry.Name, result.Major, result.Subcategory);
                     classified++;
                 }
             }
@@ -160,32 +176,40 @@ public sealed class CatalogClassificationService
                 cancellationToken.ThrowIfCancellationRequested();
                 var entry = toClassify[i];
                 progress?.Report($"Heuristic classify {i + 1}/{toClassify.Count}: {entry.Name}");
-                var category = CategoryNormalizer.HeuristicCategory(entry.Name, entry.Description, entry.Tags);
-                ApplyCategory(categoryDoc, entry, category, null, heuristic: true);
-                MergeCatalogEntry(catalog, entry.Name, category);
+                var major = CategoryNormalizer.HeuristicCategory(entry.Name, entry.Description, entry.Tags);
+                var sub = CategorySubcategoryCatalog.HeuristicSubcategory(
+                    major, entry.Name, entry.Description, entry.Tags);
+                ApplyCategory(categoryDoc, entry, major, sub, null, heuristic: true);
+                MergeCatalogEntry(catalog, entry.Name, major, sub);
                 classified++;
             }
         }
         else
         {
-            for (var i = 0; i < toClassify.Count; i += BatchSize)
+            var batchSize = ComputeBatchSize(toClassify.Count);
+            for (var i = 0; i < toClassify.Count; i += batchSize)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var batch = toClassify.Skip(i).Take(BatchSize).ToList();
-                progress?.Report($"Classifying batch {(i / BatchSize) + 1} ({batch.Count} models)...");
+                var batch = toClassify.Skip(i).Take(batchSize).ToList();
+                progress?.Report(
+                    $"Classifying batch {(i / batchSize) + 1} ({batch.Count} models, batch size {batchSize})...");
 
                 var results = await ClassifyBatchAsync(batch, summarizer, cancellationToken)
                     .ConfigureAwait(false);
                 foreach (var entry in batch)
                 {
-                    if (!results.TryGetValue(entry.Name, out var category))
+                    if (!results.TryGetValue(entry.Name, out var result))
                     {
-                        category = CategoryNormalizer.HeuristicCategory(
+                        var major = CategoryNormalizer.HeuristicCategory(
                             entry.Name, entry.Description, entry.Tags);
+                        result = new ClassificationResult(
+                            major,
+                            CategorySubcategoryCatalog.HeuristicSubcategory(
+                                major, entry.Name, entry.Description, entry.Tags));
                     }
 
-                    ApplyCategory(categoryDoc, entry, category, summarizer, heuristic: false);
-                    MergeCatalogEntry(catalog, entry.Name, category);
+                    ApplyCategory(categoryDoc, entry, result.Major, result.Subcategory, summarizer, heuristic: false);
+                    MergeCatalogEntry(catalog, entry.Name, result.Major, result.Subcategory);
                     classified++;
                 }
             }
@@ -196,7 +220,9 @@ public sealed class CatalogClassificationService
         return classified;
     }
 
-    private async Task<Dictionary<string, string>> ClassifyBatchAsync(
+    private sealed record ClassificationResult(string Major, string Subcategory);
+
+    private async Task<Dictionary<string, ClassificationResult>> ClassifyBatchAsync(
         IReadOnlyList<LibraryCatalogEntry> batch,
         string summarizer,
         CancellationToken cancellationToken)
@@ -204,10 +230,15 @@ public sealed class CatalogClassificationService
         var lines = batch.Select(e =>
             $"{e.Name}|{e.Description}|{e.Tags}");
         var prompt = $"""
-            Classify each Ollama model into exactly one category from this list:
+            Classify each Ollama model into a major category AND a specific subcategory.
+
+            Major categories:
             General Chat, Coding, Reasoning, Vision, Multimodal, Embedding, Tools, Domain Specific, Other
 
-            Reply with one line per model: modelname|Category
+            Subcategories by major:
+            {CategorySubcategoryCatalog.FormatListForPrompt()}
+
+            Reply with one line per model: modelname|MajorCategory|Subcategory
             Models:
             {string.Join(Environment.NewLine, lines)}
             """;
@@ -226,42 +257,58 @@ public sealed class CatalogClassificationService
         {
             return batch.ToDictionary(
                 e => e.Name,
-                e => CategoryNormalizer.HeuristicCategory(e.Name, e.Description, e.Tags),
+                e =>
+                {
+                    var major = CategoryNormalizer.HeuristicCategory(e.Name, e.Description, e.Tags);
+                    return new ClassificationResult(
+                        major,
+                        CategorySubcategoryCatalog.HeuristicSubcategory(
+                            major, e.Name, e.Description, e.Tags));
+                },
                 StringComparer.OrdinalIgnoreCase);
         }
     }
 
-    private static Dictionary<string, string> ParseBatchResponse(
+    private static Dictionary<string, ClassificationResult> ParseBatchResponse(
         string response,
         IReadOnlyList<LibraryCatalogEntry> batch)
     {
-        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var map = new Dictionary<string, ClassificationResult>(StringComparer.OrdinalIgnoreCase);
         foreach (var line in response.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
         {
-            var parts = line.Split('|', 2);
+            var parts = line.Split('|');
             if (parts.Length < 2)
             {
                 continue;
             }
 
             var name = parts[0].Trim().TrimStart('-', '*', ' ', '\t');
-            var category = CategoryNormalizer.Normalize(parts[1]);
             var entry = ResolveBatchEntry(name, batch);
             if (entry is null)
             {
                 continue;
             }
 
-            map[entry.Name] = category;
+            var major = CategoryNormalizer.Normalize(parts[1]);
+            var sub = parts.Length >= 3
+                ? CategorySubcategoryCatalog.NormalizeSubcategory(major, parts[2])
+                : CategorySubcategoryCatalog.HeuristicSubcategory(
+                    major, entry.Name, entry.Description, entry.Tags);
+            map[entry.Name] = new ClassificationResult(major, sub);
         }
 
         foreach (var entry in batch)
         {
-            if (!map.ContainsKey(entry.Name))
+            if (map.ContainsKey(entry.Name))
             {
-                map[entry.Name] = CategoryNormalizer.HeuristicCategory(
-                    entry.Name, entry.Description, entry.Tags);
+                continue;
             }
+
+            var major = CategoryNormalizer.HeuristicCategory(entry.Name, entry.Description, entry.Tags);
+            map[entry.Name] = new ClassificationResult(
+                major,
+                CategorySubcategoryCatalog.HeuristicSubcategory(
+                    major, entry.Name, entry.Description, entry.Tags));
         }
 
         return map;
@@ -300,13 +347,15 @@ public sealed class CatalogClassificationService
     private static void ApplyCategory(
         UsageCategoryStoreDocument doc,
         LibraryCatalogEntry entry,
-        string category,
+        string majorCategory,
+        string subcategory,
         string? summarizer,
         bool heuristic)
     {
         doc.Models[entry.Name] = new UsageCategoryEntry
         {
-            Category = category,
+            Category = majorCategory,
+            Subcategory = subcategory,
             UsageSummary = entry.Description,
             LibraryName = entry.Name,
             FetchedAt = DateTimeOffset.Now.ToString("o"),
@@ -315,7 +364,11 @@ public sealed class CatalogClassificationService
         };
     }
 
-    private static void MergeCatalogEntry(LibraryCatalogStoreDocument catalog, string name, string category)
+    private static void MergeCatalogEntry(
+        LibraryCatalogStoreDocument catalog,
+        string name,
+        string majorCategory,
+        string subcategory)
     {
         var item = catalog.Items.FirstOrDefault(i => i.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
         if (item is null)
@@ -323,7 +376,7 @@ public sealed class CatalogClassificationService
             return;
         }
 
-        item.Category = category;
-        item.SortOrder = CategoryNormalizer.GetSortOrder(category);
+        item.Category = CategoryNormalizer.FormatDisplay(majorCategory, subcategory);
+        item.SortOrder = CategoryNormalizer.GetSortOrder(majorCategory);
     }
 }
