@@ -4,6 +4,8 @@ public sealed class AiSettingsService
 {
     private AiSettingsDocument? _cache;
 
+    public void ClearCache() => _cache = null;
+
     public async Task<AiSettingsDocument> LoadAsync(CancellationToken cancellationToken = default)
     {
         if (_cache is not null)

@@ -181,6 +181,76 @@ public sealed class LibraryCatalogStoreService
         return items;
     }
 
+    public async Task<CatalogMergeResult> MergeSearchResultsAsync(
+        string query,
+        CancellationToken cancellationToken = default)
+    {
+        var url = OllamaSearchHtmlParser.BuildSearchUrl(query);
+        using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var discovered = OllamaSearchHtmlParser.ParseSearchHtml(html);
+        return await MergeDiscoveredEntriesAsync(discovered, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<CatalogMergeResult> DiscoverFromSearchTermsAsync(
+        IReadOnlyList<string> queries,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var allDiscovered = new List<LibraryCatalogEntry>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var query in queries.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report($"Searching ollama.com for \"{query}\"...");
+            var url = OllamaSearchHtmlParser.BuildSearchUrl(query);
+            using var response = await _httpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                continue;
+            }
+
+            var html = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var entry in OllamaSearchHtmlParser.ParseSearchHtml(html))
+            {
+                if (seen.Add(entry.Name))
+                {
+                    allDiscovered.Add(entry);
+                }
+            }
+        }
+
+        return await MergeDiscoveredEntriesAsync(allDiscovered, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<CatalogMergeResult> MergeDiscoveredEntriesAsync(
+        IReadOnlyList<LibraryCatalogEntry> discovered,
+        CancellationToken cancellationToken)
+    {
+        var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
+        var existing = store.Items.Select(i => i.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var added = new List<string>();
+        foreach (var entry in discovered)
+        {
+            if (!existing.Add(entry.Name))
+            {
+                continue;
+            }
+
+            store.Items.Add(entry);
+            added.Add(entry.Name);
+        }
+
+        if (added.Count > 0)
+        {
+            await SaveAsync(store, cancellationToken).ConfigureAwait(false);
+        }
+
+        ClearCache();
+        return new CatalogMergeResult(added, store.Items.Count);
+    }
+
     public async Task<IReadOnlyList<LibraryCatalogEntry>> GetEntriesAsync(
         bool refreshIfStale = false,
         CancellationToken cancellationToken = default)

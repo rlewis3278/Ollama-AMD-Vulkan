@@ -55,6 +55,15 @@ public partial class App : Application
 
     protected override async void OnExit(ExitEventArgs e)
     {
+        try
+        {
+            await Services.ModelSessions.StopActiveModelAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // Best effort — app is closing.
+        }
+
         await Services.WorkQueue.ShutdownAsync().ConfigureAwait(false);
         Services.Dispose();
         base.OnExit(e);

@@ -117,6 +117,85 @@ public sealed class CatalogClassificationService
         return classified;
     }
 
+    public async Task<int> ClassifySelectedAsync(
+        IReadOnlyList<string> libraryNames,
+        bool recategorize = false,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (libraryNames.Count == 0)
+        {
+            return 0;
+        }
+
+        if (!await _settings.IsFeatureEnabledAsync("CatalogCategorization", cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return 0;
+        }
+
+        var catalog = await _catalogStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var categoryDoc = await _categoryStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var nameSet = libraryNames.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var toClassify = catalog.Items
+            .Where(e => nameSet.Contains(e.Name))
+            .Where(e => recategorize
+                || !categoryDoc.Models.TryGetValue(e.Name, out var existing)
+                || !existing.AiClassified)
+            .ToList();
+
+        if (toClassify.Count == 0)
+        {
+            return 0;
+        }
+
+        var summarizer = await _summarizer.ResolveAsync(cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+        var classified = 0;
+        if (summarizer is null || !await _apiClient.IsReadyAsync(cancellationToken).ConfigureAwait(false))
+        {
+            progress?.Report("AI unavailable — applying heuristic categories...");
+            for (var i = 0; i < toClassify.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var entry = toClassify[i];
+                progress?.Report($"Heuristic classify {i + 1}/{toClassify.Count}: {entry.Name}");
+                var category = CategoryNormalizer.HeuristicCategory(entry.Name, entry.Description, entry.Tags);
+                ApplyCategory(categoryDoc, entry, category, null, heuristic: true);
+                MergeCatalogEntry(catalog, entry.Name, category);
+                classified++;
+            }
+        }
+        else
+        {
+            for (var i = 0; i < toClassify.Count; i += BatchSize)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var batch = toClassify.Skip(i).Take(BatchSize).ToList();
+                progress?.Report($"Classifying batch {(i / BatchSize) + 1} ({batch.Count} models)...");
+
+                var results = await ClassifyBatchAsync(batch, summarizer, cancellationToken)
+                    .ConfigureAwait(false);
+                foreach (var entry in batch)
+                {
+                    if (!results.TryGetValue(entry.Name, out var category))
+                    {
+                        category = CategoryNormalizer.HeuristicCategory(
+                            entry.Name, entry.Description, entry.Tags);
+                    }
+
+                    ApplyCategory(categoryDoc, entry, category, summarizer, heuristic: false);
+                    MergeCatalogEntry(catalog, entry.Name, category);
+                    classified++;
+                }
+            }
+        }
+
+        await _categoryStore.SaveAsync(categoryDoc, cancellationToken).ConfigureAwait(false);
+        await _catalogStore.SaveAsync(catalog, cancellationToken).ConfigureAwait(false);
+        return classified;
+    }
+
     private async Task<Dictionary<string, string>> ClassifyBatchAsync(
         IReadOnlyList<LibraryCatalogEntry> batch,
         string summarizer,

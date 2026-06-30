@@ -108,6 +108,8 @@ public sealed class ModelRegistryService
                 Category = category,
                 ParameterSize = e.ParameterSize,
                 FileSize = ModelSizeFormatter.FormatSizeLabel(fileSize),
+                FileSizeSortKey = CatalogFileSizeResolver.GetSortBytes(e),
+                ContextDisplay = ResolveContextDisplay(e.Name, profileDoc),
                 Tags = e.Tags,
                 Installed = isInstalled,
                 InstalledDisplay = tagsSnapshot.Reachable
@@ -173,10 +175,19 @@ public sealed class ModelRegistryService
                     statusDisplay = $"{statusDisplay} · not installed";
                 }
 
+                var context = s.RecommendedCtx > 0
+                    ? s.RecommendedCtx
+                    : ProfileStoreService.GetRecommendedBenchmarkNumCtx(s.SizeGB);
+
                 return new TestResultRowViewModel
                 {
                     Model = s.Model,
                     Category = category,
+                    RecommendedCtx = context,
+                    ContextDisplay = context > 0 ? context.ToString() : "-",
+                    FileSizeSortKey = s.SizeGB > 0
+                        ? (long)(s.SizeGB * 1_073_741_824.0)
+                        : long.MaxValue,
                     BenchmarkKind = benchmarkKind,
                     BestMode = allFailed ? "FAILED" : (s.BestMode ?? string.Empty),
                     BestTps = s.BestTps,
@@ -302,8 +313,7 @@ public sealed class ModelRegistryService
                 continue;
             }
 
-            var hasKnownFileSize = entry.FileSizeConfirmed && entry.FileSizeBytes > 0;
-            var bytes = hasKnownFileSize ? entry.FileSizeBytes : long.MaxValue;
+            var (bytes, hasKnownFileSize) = CatalogFileSizeResolver.GetSortBytesWithKnown(entry);
 
             var pullTag = !string.IsNullOrWhiteSpace(entry.DefaultPullTag)
                 ? entry.DefaultPullTag
@@ -366,4 +376,15 @@ public sealed class ModelRegistryService
             .ThenBy(c => c.FileSizeBytes)
             .ThenBy(c => c.LibraryName, StringComparer.OrdinalIgnoreCase)
             .ToList();
+
+    private static string ResolveContextDisplay(string libraryName, ModelProfileStoreDocument profileDoc)
+    {
+        if (ProfileResolver.ResolveForLibrary(libraryName, profileDoc) is { } profile
+            && profile.NumCtx > 0)
+        {
+            return profile.NumCtx.ToString();
+        }
+
+        return "-";
+    }
 }

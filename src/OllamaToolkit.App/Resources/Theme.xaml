@@ -430,6 +430,10 @@
             <DataTrigger Binding="{Binding RefreshHighlight}" Value="TestedUndownload">
                 <Setter Property="Background" Value="{StaticResource Brush.InfoBg}" />
             </DataTrigger>
+            <DataTrigger Binding="{Binding RefreshHighlight}" Value="NewModel">
+                <Setter Property="Background" Value="{StaticResource Brush.Warning}" />
+                <Setter Property="Foreground" Value="Black" />
+            </DataTrigger>
             <DataTrigger Binding="{Binding IsDownloading}" Value="True">
                 <Setter Property="Background" Value="{StaticResource Brush.Warning}" />
                 <Setter Property="Foreground" Value="Black" />

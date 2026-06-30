@@ -1,0 +1,5 @@
+﻿OllamaToolkit.App v1.3.0
+Built: 2026-06-30 05:36:48
+Git: 2b5fa74
+Runtime: .NET 8 Desktop Runtime required (framework-dependent build)
+Download: releases/OllamaToolkit.App-v1.3.0-win-x64.zip

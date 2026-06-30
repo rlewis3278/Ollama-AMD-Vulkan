@@ -59,6 +59,7 @@ public sealed class AppServices : IDisposable
             AiSettings, ApiClient, Summarizer, ModeDefinitions.DeviceMap);
         QueueAdvisor = new BenchmarkQueueAdvisorService(AiSettings, ApiClient, Summarizer);
         ModelComparison = new ModelComparisonService(AiSettings, ApiClient, Summarizer);
+        ReleaseCheck = new GitHubReleaseCheckService();
     }
 
     public MasterFlashClock FlashClock =>
@@ -96,6 +97,7 @@ public sealed class AppServices : IDisposable
     public BenchmarkSettingsAdvisorService BenchmarkSettingsAdvisor { get; }
     public BenchmarkQueueAdvisorService QueueAdvisor { get; }
     public ModelComparisonService ModelComparison { get; }
+    public GitHubReleaseCheckService ReleaseCheck { get; }
 
     public void Dispose() => ApiClient.Dispose();
 }

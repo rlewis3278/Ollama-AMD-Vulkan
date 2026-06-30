@@ -52,8 +52,31 @@
                         <CheckBox x:Name="RestartCheck" IsChecked="True" Style="{StaticResource ToolkitAiFeatureCheckBox}" Margin="0,0,12,0">
                             <TextBlock Text="Restart Ollama after applying mode" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" />
                         </CheckBox>
+                        <CheckBox x:Name="CheckForUpdatesCheck" IsChecked="True" Style="{StaticResource ToolkitAiFeatureCheckBox}" Margin="0,0,12,0">
+                            <TextBlock Text="Check for updates on startup" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" />
+                        </CheckBox>
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModes_Click" />
                     </StackPanel>
+                </Grid>
+            </TabItem>
+            <TabItem x:Name="LaunchAiToolsTab" Header="Launch AI Tools">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock x:Name="LaunchAiToolsStatus" Grid.Row="0" Margin="0,0,0,8"
+                               Foreground="{StaticResource Brush.Muted}" TextWrapping="Wrap" />
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="Model:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,0" />
+                        <ComboBox x:Name="LaunchAiModelCombo" Width="280" Margin="0,0,8,0" />
+                        <Button Content="Refresh Models" Style="{StaticResource ToolkitButton}" Click="RefreshLaunchAiModels_Click" />
+                        <Button Content="Upgrade Ollama" Style="{StaticResource ToolkitButton}" Click="UpgradeOllama_Click" />
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                        <WrapPanel x:Name="LaunchAiToolsPanel" Margin="0,0,0,8" />
+                    </ScrollViewer>
                 </Grid>
             </TabItem>
             <TabItem x:Name="ModelsLaunchTab" Header="Models &amp; Launch">
@@ -73,6 +96,8 @@
                                 Style="{StaticResource CatalogDescriptionModeActive}" Margin="0,0,4,0"
                                 Click="DownloadDescriptionsMode_Click" />
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModels_Click" />
+                        <Button x:Name="UninstallModelsBtn" Content="Uninstall Selected"
+                                Style="{StaticResource ToolkitButton}" Click="UninstallModels_Click" />
                         <Button Content="Import Reports" Style="{StaticResource ToolkitButton}" Click="ImportReports_Click" />
                     </StackPanel>
                     <DataGrid x:Name="ModelsGrid" Grid.Row="1" Style="{StaticResource ToolkitDataGrid}"
@@ -92,7 +117,9 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
                             <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
-                            <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="85" />
+                            <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="85"
+                                                SortMemberPath="FileSizeSortKey" />
+                            <DataGridTextColumn Header="Context" Binding="{Binding ContextDisplay}" Width="72" />
                             <DataGridTextColumn Header="Fastest Mode" Binding="{Binding BestMode, Mode=OneWay}" Width="90" />
                             <DataGridTextColumn Header="Best Metric" Binding="{Binding BestMetricDisplay, Mode=OneWay}" Width="85" />
                         </DataGrid.Columns>
@@ -124,7 +151,9 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <Grid Grid.Row="0" Grid.Column="0">
                             <TextBox x:Name="CatalogSearchBox" Padding="6,4" KeyUp="CatalogSearchBox_KeyUp" />
@@ -154,18 +183,23 @@
                                 Click="DownloadDescriptionsMode_Click" />
                         <Button x:Name="CatalogCategorizeAllBtn" Grid.Row="0" Grid.Column="7" Content="Categorize All"
                                 Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="CategorizeAll_Click" />
-                        <Button x:Name="RefreshDescriptionsBtn" Grid.Row="0" Grid.Column="8" Content="Refresh Descriptions"
+                        <Button x:Name="CatalogCategorizeSelectedBtn" Grid.Row="0" Grid.Column="8" Content="Categorize Selected"
+                                Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="CategorizeSelected_Click" />
+                        <Button x:Name="RefreshDescriptionsBtn" Grid.Row="0" Grid.Column="9" Content="Refresh Descriptions"
                                 Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="RefreshDescriptions_Click" />
-                        <Button x:Name="RefreshCatalogBtn" Grid.Row="0" Grid.Column="9" Content="Refresh Catalog"
+                        <Button x:Name="RefreshCatalogBtn" Grid.Row="0" Grid.Column="10" Content="Refresh Catalog"
                                 Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="RefreshCatalog_Click" />
-                        <Button x:Name="ClearCatalogBtn" Grid.Row="0" Grid.Column="10" Content="Clear Catalog"
+                        <Button x:Name="DiscoverCatalogBtn" Grid.Row="0" Grid.Column="11" Content="Discover Models"
+                                Style="{StaticResource ToolkitButton}" Margin="0,0,4,0" Click="DiscoverCatalog_Click"
+                                ToolTip="Search ollama.com for community models and merge into catalog" />
+                        <Button x:Name="ClearCatalogBtn" Grid.Row="0" Grid.Column="12" Content="Clear Catalog"
                                 Style="{StaticResource ToolkitButton}" Click="ClearCatalog_Click" />
-                        <Button x:Name="GetFileSizesBtn" Grid.Row="0" Grid.Column="11" Content="Get File Sizes"
+                        <Button x:Name="GetFileSizesBtn" Grid.Row="0" Grid.Column="13" Content="Get File Sizes"
                                 Style="{StaticResource ToolkitButton}" Margin="4,0,0,0" Click="GetFileSizes_Click" />
-                        <Button x:Name="CatalogStopBtn" Grid.Row="1" Grid.Column="7" Grid.ColumnSpan="5"
+                        <Button x:Name="CatalogStopBtn" Grid.Row="1" Grid.Column="7" Grid.ColumnSpan="7"
                                 Content="STOP" Style="{StaticResource ToolkitButton}"
                                 Margin="0,4,0,0" Click="CatalogStop_Click" />
-                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="12"
+                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="14"
                                     Orientation="Horizontal" Margin="0,6,0,0">
                             <Button x:Name="DownloadCatalogModelBtn" Content="Download Selected LLM"
                                     Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
@@ -182,6 +216,9 @@
                                     ToolTip="Select at least 2 LLM models to compare" />
                             <Button x:Name="ClearCatalogSelectionsBtn" Content="Clear Selections"
                                     Style="{StaticResource ToolkitButton}" Click="ClearCatalogSelections_Click" />
+                            <Button x:Name="ClearNewHighlightsBtn" Content="Clear New Highlights"
+                                    Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
+                                    Click="ClearNewHighlights_Click" />
                             <TextBlock Text="Hold CTRL to select more than one LLM"
                                        VerticalAlignment="Center"
                                        Foreground="{StaticResource Brush.Muted}"
@@ -234,7 +271,9 @@
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
                             <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
-                            <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="85" />
+                            <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="85"
+                                                SortMemberPath="FileSizeSortKey" />
+                            <DataGridTextColumn Header="Context" Binding="{Binding ContextDisplay}" Width="72" />
                             <DataGridTextColumn Header="Fastest Mode" Binding="{Binding BestMode}" Width="90" />
                             <DataGridTextColumn Header="Best Metric" Binding="{Binding BestTps}" Width="85" />
                             <DataGridTextColumn Header="Installed" Binding="{Binding InstalledDisplay}" Width="70" />
@@ -348,7 +387,9 @@
                                 Click="DownloadFromResults_Click" IsEnabled="False" />
                         <Button x:Name="LaunchFromResultsBtn" Content="Launch Selected" Style="{StaticResource ToolkitButton}"
                                 Click="LaunchFromResults_Click" IsEnabled="False" />
-                        <Button x:Name="ClearSelectedTestResultBtn" Content="Clear Selected" Style="{StaticResource ToolkitButton}"
+                        <Button x:Name="ClearTestResultSelectionBtn" Content="Clear Selection" Style="{StaticResource ToolkitButton}"
+                                Click="ClearTestResultSelection_Click" />
+                        <Button x:Name="ClearSelectedTestResultBtn" Content="Clear Test Data" Style="{StaticResource ToolkitButton}"
                                 Click="ClearSelectedTestResult_Click" IsEnabled="False" />
                         <Button Content="Clear All Test Results" Style="{StaticResource ToolkitButton}" Click="ClearAllTestResults_Click" />
                     </StackPanel>
@@ -374,6 +415,7 @@
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
                             <DataGridTextColumn Header="Best" Binding="{Binding BestMode}" Width="72" />
                             <DataGridTextColumn Header="Metric" Binding="{Binding BestMetricDisplay}" Width="80" />
+                            <DataGridTextColumn Header="Context" Binding="{Binding ContextDisplay}" Width="72" />
                             <DataGridTextColumn Header="CPU" Binding="{Binding CpuResult}" Width="55"
                                                 CellStyle="{StaticResource TestResultWinnerCellCpu}" />
                             <DataGridTextColumn Header="APU" Binding="{Binding ApuResult}" Width="55"
@@ -518,6 +560,26 @@
                              VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.LogBg}"
                              Foreground="{StaticResource Brush.Text}" />
                 </Grid>
+            </TabItem>
+            <TabItem x:Name="DataManagementTab" Header="Data Management">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12">
+                    <StackPanel MaxWidth="720">
+                        <TextBlock Text="Settings" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
+                        <TextBlock x:Name="DataManagementStatus" Foreground="{StaticResource Brush.Muted}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                            <Button Content="Export Settings" Style="{StaticResource ToolkitButton}" Click="ExportSettings_Click" />
+                            <Button Content="Import Settings" Style="{StaticResource ToolkitButton}" Click="ImportSettings_Click" />
+                            <Button Content="Reset Settings" Style="{StaticResource ToolkitButton}" Click="ResetSettings_Click" />
+                        </StackPanel>
+                        <TextBlock Text="Logs" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Export AI Activity Log" Style="{StaticResource ToolkitButton}" Click="ExportAiActivityLog_Click" />
+                            <Button Content="Export Diagnostics Log" Style="{StaticResource ToolkitButton}" Click="ExportDiagnosticsLog_Click" />
+                            <Button Content="Reset AI Activity Log" Style="{StaticResource ToolkitButton}" Click="ResetAiActivityLog_Click" />
+                            <Button Content="Reset Diagnostics Log" Style="{StaticResource ToolkitButton}" Click="ResetDiagnosticsLog_Click" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
             <TabItem Header="Diagnostics">
                 <Grid Margin="12">

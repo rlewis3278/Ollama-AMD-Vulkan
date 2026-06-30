@@ -173,8 +173,17 @@ public partial class MainWindow : Window
         SummarizerCombo.DropDownOpened += (_, _) => _summarizerDropdownOpen = true;
         SummarizerCombo.DropDownClosed += (_, _) => _summarizerDropdownOpen = false;
         Loaded += OnLoadedAsync;
-        Closed += (_, _) =>
+        Closed += async (_, _) =>
         {
+            try
+            {
+                await _svc.ModelSessions.StopActiveModelAsync().ConfigureAwait(false);
+            }
+            catch
+            {
+                // Best effort on window close.
+            }
+
             _activityTimer.Stop();
             _catalogSearchTimer.Stop();
             _testResultsSearchTimer.Stop();
@@ -231,6 +240,8 @@ public partial class MainWindow : Window
         _activityTimer.Start();
         RefreshDiagnosticsLog();
         _ = ScheduleLogScanAsync();
+        InitLaunchAiToolsPanel();
+        _ = CheckForUpdatesOnStartupAsync();
     }
 
     private void InitCategoryFilter()
@@ -340,6 +351,7 @@ public partial class MainWindow : Window
         }
 
         _testOperations++;
+        _svc.WorkQueue.TryEnterTestSuiteLock();
         _testLogStickToBottom = true;
         UpdateStopTestButtonUi();
 
@@ -409,11 +421,21 @@ public partial class MainWindow : Window
 
         if (_testOperations == 0)
         {
+            _svc.WorkQueue.ExitTestSuiteLock();
+            DismissTestSpinUpUi();
             _testProgressAnimator.SetActive(false);
             _testProgressAnimator.SetActiveModeBar(null);
             _testCts?.Dispose();
             _testCts = null;
         }
+    }
+
+    private void DismissTestSpinUpUi()
+    {
+        StopTestSpinUpCreep();
+        TestProgressPanel.Visibility = Visibility.Collapsed;
+        _testProgressAnimator.SetImmediate(TestOverallProgress, 0);
+        TestOverallLabel.Text = "Overall: Ready";
     }
 
     private void BeginTestProgressSession()
@@ -1475,12 +1497,28 @@ public partial class MainWindow : Window
 
         try
         {
+            await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Checking Ollama API…")).ConfigureAwait(true);
+            ct.ThrowIfCancellationRequested();
+
+            var startup = await EnsureOllamaApiReadyAsync(
+                ct, "Retest Failed requires Ollama", timeoutSec: 90).ConfigureAwait(true);
+            if (!startup.Success)
+            {
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    AppendTestLog($"ABORT: {startup.Message}");
+                    TestStatusLabel.Text = "Retest Failed aborted — Ollama API not reachable.";
+                    FinishTestOperation(sender, success: false, cancelled: false);
+                }).ConfigureAwait(true);
+                return;
+            }
+
             await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Building failed-mode retest queue…"))
                 .ConfigureAwait(true);
             ct.ThrowIfCancellationRequested();
 
-            var summaries = await _svc.Profiles.GetAllSummariesAsync(ct).ConfigureAwait(true);
-            var failed = summaries
+            var build = await _svc.Profiles.BuildLocalRetestQueueAsync(ct).ConfigureAwait(true);
+            var failed = build.Queue
                 .Where(BenchmarkCompletion.HasFailedModeResults)
                 .Select(s => s.Model)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -3659,6 +3697,11 @@ public partial class MainWindow : Window
             var ct = linked.Token;
             try
             {
+                var beforeNames = (await _svc.CatalogStore.GetEntriesAsync(cancellationToken: ct)
+                        .ConfigureAwait(false))
+                    .Select(e => e.Name)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
                 await _svc.CatalogStore.RefreshFromWebAsync(cancellationToken: ct).ConfigureAwait(false);
                 _svc.CatalogStore.ClearCache();
 
@@ -3690,6 +3733,7 @@ public partial class MainWindow : Window
                 await UiDispatcher.InvokeAsync(async () =>
                 {
                     await RefreshCatalogUiAsync().ConfigureAwait(true);
+                    HighlightNewCatalogRows(beforeNames);
                     _catalogRowAnimator.Stop();
                     ScrollCatalogGridToTop();
                     CatalogStatusLabel.Text = "Catalog refreshed.";
@@ -3914,6 +3958,108 @@ public partial class MainWindow : Window
             fromAiSettings: MainTabs.SelectedItem == AiSettingsTab,
             sender: sender,
             resetCategoriesFirst: true).ConfigureAwait(true);
+
+    private async void CategorizeSelected_Click(object sender, RoutedEventArgs e)
+    {
+        var selected = CatalogGrid.SelectedItems.Cast<CatalogRowViewModel>().Select(r => r.Name).ToList();
+        if (selected.Count == 0)
+        {
+            MessageBox.Show("Select one or more catalog models first.", "Categorize Selected",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (sender is Button categorizeBtn
+            && !_flashButtons.TryBegin(categorizeBtn, FlashColorScheme.YellowBlack))
+        {
+            return;
+        }
+
+        await RunClassificationSelectedAsync(selected, sender).ConfigureAwait(true);
+    }
+
+    private async Task RunClassificationSelectedAsync(IReadOnlyList<string> libraryNames, object? sender)
+    {
+        if (!await _svc.AiSettings.IsFeatureEnabledAsync(AiFeatureKeys.CatalogCategorization).ConfigureAwait(true))
+        {
+            CatalogStatusLabel.Text = "Catalog categorization is disabled in AI Settings.";
+            if (sender is not null)
+            {
+                EndTaskFlashIdle(sender);
+            }
+
+            return;
+        }
+
+        if (!TryBeginCatalogToolbarOperation(
+                CatalogToolbarOperationType.Categorize, sender!, out _, out var generation))
+        {
+            if (sender is not null)
+            {
+                EndTaskFlashIdle(sender);
+            }
+
+            CatalogStatusLabel.Text = "Another catalog operation is already running.";
+            return;
+        }
+
+        CatalogStatusLabel.Text = $"Classifying {libraryNames.Count} selected model(s)...";
+        await _svc.WorkQueue.EnqueueAsync(async workCt =>
+        {
+            using var linked = _catalogOps.CreateLinkedTokenSource(workCt)!;
+            var ct = linked.Token;
+            EnterAiActivity();
+            try
+            {
+                var progress = new Progress<string>(msg =>
+                    UiDispatcher.InvokeFireAndForget(() => CatalogStatusLabel.Text = msg));
+                var count = await _svc.Classification.ClassifySelectedAsync(
+                    libraryNames, recategorize: true, progress, ct).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    _svc.CategoryStore.ClearCache();
+                    _svc.CatalogStore.ClearCache();
+                    CatalogStatusLabel.Text = count == 0
+                        ? "No selected models needed categorization."
+                        : $"Done — AI classified {count} selected model(s).";
+                    await RefreshCategoryFilterComboAsync().ConfigureAwait(true);
+                    await RefreshCatalogUiAsync(force: true).ConfigureAwait(true);
+                    if (sender is not null)
+                    {
+                        EndTaskFlashSuccess(sender, "Categorized", 10);
+                    }
+                }).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    CatalogStatusLabel.Text = "Classification cancelled.";
+                    if (sender is not null)
+                    {
+                        EndTaskFlashIdle(sender);
+                    }
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    CatalogStatusLabel.Text = msg;
+                    if (sender is not null)
+                    {
+                        EndTaskFlashIdle(sender);
+                    }
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                ExitAiActivity();
+                await EndCatalogToolbarOperationScopeAsync(generation).ConfigureAwait(false);
+            }
+        }).ConfigureAwait(true);
+    }
 
     private async void RecategorizeAll_Click(object sender, RoutedEventArgs e)
     {
@@ -4526,28 +4672,56 @@ public partial class MainWindow : Window
         }).ConfigureAwait(true);
     }
 
-    private async void UninstallCatalogModel_Click(object sender, RoutedEventArgs e)
+    private async void UninstallCatalogModel_Click(object sender, RoutedEventArgs e) =>
+        await UninstallModelsCoreAsync(
+            CatalogGrid.SelectedItems.Cast<CatalogRowViewModel>().ToList(),
+            sender,
+            row => row.Installed || row.InstalledDisplay.Equals("Yes", StringComparison.OrdinalIgnoreCase),
+            row => row.Name,
+            row => row.DefaultPullTag,
+            row => row.IsCloudOnly,
+            status => CatalogStatusLabel.Text = status).ConfigureAwait(true);
+
+    private async void UninstallModels_Click(object sender, RoutedEventArgs e) =>
+        await UninstallModelsCoreAsync(
+            ModelsGrid.SelectedItems.Cast<ModelLaunchRowViewModel>().ToList(),
+            sender,
+            _ => true,
+            row => row.Model,
+            _ => string.Empty,
+            _ => false,
+            _ => { }).ConfigureAwait(true);
+
+    private async Task UninstallModelsCoreAsync<T>(
+        IReadOnlyList<T> rows,
+        object sender,
+        Func<T, bool> isInstalled,
+        Func<T, string> getName,
+        Func<T, string> getDefaultPullTag,
+        Func<T, bool> isCloudOnly,
+        Action<string> setStatus)
     {
         try
         {
-            if (CatalogGrid.SelectedItem is not CatalogRowViewModel row)
+            if (rows.Count == 0)
             {
-                MessageBox.Show("Select an installed catalog model first.", "Uninstall",
+                MessageBox.Show("Select at least one installed model first.", "Uninstall",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            if (!row.Installed && !row.InstalledDisplay.Equals("Yes", StringComparison.OrdinalIgnoreCase))
+            var targets = rows.Where(isInstalled).ToList();
+            if (targets.Count == 0)
             {
-                MessageBox.Show($"{row.Name} is not installed locally.", "Uninstall",
+                MessageBox.Show("None of the selected models are installed locally.", "Uninstall",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            var model = $"{row.Name}:latest";
+            var label = targets.Count == 1 ? getName(targets[0]) : $"{targets.Count} models";
             if (!ToolkitConfirmDialog.ShowAccept(
                     this,
-                    $"Remove {model} from this PC? Benchmark data in the toolkit will be kept.",
+                    $"Remove {label} from this PC? Benchmark data in the toolkit will be kept.",
                     "Uninstall LLM"))
             {
                 return;
@@ -4560,16 +4734,37 @@ public partial class MainWindow : Window
 
             await _svc.WorkQueue.EnqueueAsync(async ct =>
             {
+                var removed = 0;
                 try
                 {
-                    await _svc.ModelSessions.UninstallModelAsync(model, ct).ConfigureAwait(false);
+                    foreach (var row in targets)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        var libraryName = getName(row);
+                        var resolution = !string.IsNullOrWhiteSpace(getDefaultPullTag(row))
+                            ? new CatalogPullResolution
+                            {
+                                PullTag = getDefaultPullTag(row),
+                                Resolved = true,
+                                IsCloudOnly = isCloudOnly(row)
+                            }
+                            : await _svc.CatalogStore.ResolvePullTagAsync(libraryName, ct).ConfigureAwait(false);
+
+                        var pullTag = resolution.Resolved
+                            ? resolution.PullTag
+                            : libraryName.Contains(':')
+                                ? libraryName
+                                : $"{libraryName}:latest";
+
+                        await _svc.ModelSessions.UninstallModelAsync(pullTag, ct).ConfigureAwait(false);
+                        removed++;
+                    }
+
                     _svc.ApiClient.InvalidateCaches();
                     _svc.Profiles.ClearCache();
                     await UiDispatcher.InvokeAsync(async () =>
                     {
-                        row.Installed = false;
-                        row.InstalledDisplay = "No";
-                        CatalogStatusLabel.Text = $"Uninstalled {model}.";
+                        setStatus($"Uninstalled {removed} model(s).");
                         await RefreshModelsUiAsync().ConfigureAwait(true);
                         await RefreshCatalogUiAsync().ConfigureAwait(true);
                         EndTaskFlashSuccess(sender, "Removed", 10);
@@ -4580,7 +4775,7 @@ public partial class MainWindow : Window
                     var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                     await UiDispatcher.InvokeAsync(() =>
                     {
-                        CatalogStatusLabel.Text = msg;
+                        setStatus(msg);
                         EndTaskFlashIdle(sender);
                     }).ConfigureAwait(false);
                 }
@@ -4589,7 +4784,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             _svc.Diagnostics.Write("Catalog", $"Uninstall failed: {ex.Message}");
-            CatalogStatusLabel.Text = ex.Message;
+            setStatus(ex.Message);
         }
     }
 
@@ -4688,6 +4883,9 @@ public partial class MainWindow : Window
                 {
                     Model = row.Model,
                     Category = row.Category ?? string.Empty,
+                    RecommendedCtx = row.RecommendedCtx,
+                    ContextDisplay = row.ContextDisplay,
+                    FileSizeSortKey = row.FileSizeSortKey,
                     BenchmarkKind = string.IsNullOrWhiteSpace(row.BenchmarkKind)
                         ? BenchmarkKinds.Generate
                         : row.BenchmarkKind,
@@ -6627,5 +6825,439 @@ public partial class MainWindow : Window
                 _svc.Diagnostics.Write("LogScan", $"Background log scan failed: {ex.Message}");
             }
         }).ConfigureAwait(true);
+    }
+
+    private void HighlightNewCatalogRows(IReadOnlySet<string> namesBeforeRefresh)
+    {
+        foreach (var row in _catalogRows)
+        {
+            if (!namesBeforeRefresh.Contains(row.Name))
+            {
+                row.RefreshHighlight = CatalogRowRefreshHighlight.NewModel;
+                row.RefreshState = CatalogRowRefreshState.Complete;
+            }
+        }
+    }
+
+    private void ClearNewHighlights_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var row in _catalogRows)
+        {
+            if (row.RefreshHighlight == CatalogRowRefreshHighlight.NewModel)
+            {
+                row.RefreshHighlight = CatalogRowRefreshHighlight.None;
+                row.RefreshState = CatalogRowRefreshState.None;
+            }
+        }
+
+        CatalogStatusLabel.Text = "New model highlights cleared.";
+    }
+
+    private void ClearTestResultSelection_Click(object sender, RoutedEventArgs e)
+    {
+        TestResultsGrid.SelectedItem = null;
+        TestResultsGrid.UnselectAll();
+        TestResultDetail.Text = string.Empty;
+        SafeUpdateTestResultsActionButtons();
+    }
+
+    private async void DiscoverCatalog_Click(object sender, RoutedEventArgs e)
+    {
+        if (!BeginTaskFlash(sender))
+        {
+            return;
+        }
+
+        if (!TryBeginCatalogToolbarOperation(
+                CatalogToolbarOperationType.RefreshCatalog, sender, out _, out var generation))
+        {
+            EndTaskFlashIdle(sender);
+            CatalogStatusLabel.Text = "Another catalog operation is already running.";
+            return;
+        }
+
+        CatalogStatusLabel.Text = "Discovering community models on ollama.com...";
+        await _svc.WorkQueue.EnqueueAsync(async workCt =>
+        {
+            using var linked = _catalogOps.CreateLinkedTokenSource(workCt)!;
+            var ct = linked.Token;
+            try
+            {
+                var queries = new[]
+                {
+                    "llm", "chat", "code", "embedding", "vision", "reasoning",
+                    "powershell", "codex", "tools", "mixture"
+                };
+                var progress = new Progress<string>(msg =>
+                    UiDispatcher.InvokeFireAndForget(() => CatalogStatusLabel.Text = msg));
+                var merge = await _svc.CatalogStore.DiscoverFromSearchTermsAsync(queries, progress, ct)
+                    .ConfigureAwait(false);
+                _svc.CatalogStore.ClearCache();
+                await UiDispatcher.InvokeAsync(async () =>
+                {
+                    await RefreshCatalogUiAsync(force: true).ConfigureAwait(true);
+                    foreach (var name in merge.AddedNames)
+                    {
+                        if (_catalogRowByName.TryGetValue(name, out var row))
+                        {
+                            row.RefreshHighlight = CatalogRowRefreshHighlight.NewModel;
+                            row.RefreshState = CatalogRowRefreshState.Complete;
+                        }
+                    }
+
+                    CatalogStatusLabel.Text = merge.AddedNames.Count == 0
+                        ? $"Discovery complete — catalog has {merge.TotalCatalogCount} model(s), no new entries."
+                        : $"Discovery added {merge.AddedNames.Count} model(s) — catalog now {merge.TotalCatalogCount}.";
+                    EndTaskFlashSuccess(sender, "Discovered", 10);
+                }).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    CatalogStatusLabel.Text = "Model discovery cancelled.";
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    CatalogStatusLabel.Text = msg;
+                    EndTaskFlashIdle(sender);
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                await EndCatalogToolbarOperationScopeAsync(generation).ConfigureAwait(false);
+            }
+        }).ConfigureAwait(true);
+    }
+
+    private async Task CheckForUpdatesOnStartupAsync()
+    {
+        if (CheckForUpdatesCheck is not { IsChecked: true })
+        {
+            return;
+        }
+
+        try
+        {
+            var result = await _svc.ReleaseCheck.CheckForNewerReleaseAsync().ConfigureAwait(true);
+            if (!result.UpdateAvailable || string.IsNullOrWhiteSpace(result.ReleasePageUrl))
+            {
+                return;
+            }
+
+            await UiDispatcher.InvokeAsync(() =>
+            {
+                var message =
+                    $"A newer release is available: v{result.LatestVersion} (you have v{result.CurrentVersion}).\n\n"
+                    + "Open the GitHub releases page?";
+                if (MessageBox.Show(message, "Update Available", MessageBoxButton.YesNo,
+                        MessageBoxImage.Information) == MessageBoxResult.Yes)
+                {
+                    Process.Start(new ProcessStartInfo(result.ReleasePageUrl) { UseShellExecute = true });
+                }
+            }).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            _svc.Diagnostics.Write("App", $"Startup update check failed: {ex.Message}");
+        }
+    }
+
+    private static readonly (string Label, string Tool)[] LaunchAiTools =
+    [
+        ("Claude", "claude"),
+        ("Codex App", "codex-app"),
+        ("Hermes", "hermes"),
+        ("OpenClaw", "openclaw"),
+        ("OpenCode", "opencode"),
+        ("Codex", "codex"),
+        ("Copilot", "copilot"),
+        ("Droid", "droid"),
+        ("Pi", "pi")
+    ];
+
+    private void InitLaunchAiToolsPanel()
+    {
+        LaunchAiToolsPanel.Children.Clear();
+        foreach (var (label, tool) in LaunchAiTools)
+        {
+            var button = new Button
+            {
+                Content = label,
+                Margin = new Thickness(0, 0, 8, 8),
+                Tag = tool
+            };
+            button.SetResourceReference(StyleProperty, "ToolkitButton");
+            button.Click += LaunchAiTool_Click;
+            LaunchAiToolsPanel.Children.Add(button);
+        }
+    }
+
+    private async void RefreshLaunchAiModels_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var snapshot = await _svc.ApiClient.FetchTagsSnapshotAsync(forceRefresh: true).ConfigureAwait(true);
+            LaunchAiModelCombo.ItemsSource = snapshot.Tags.Select(t => t.Name).OrderBy(n => n).ToList();
+            if (LaunchAiModelCombo.Items.Count > 0)
+            {
+                LaunchAiModelCombo.SelectedIndex = 0;
+            }
+
+            LaunchAiToolsStatus.Text = $"Loaded {snapshot.Tags.Count} installed model(s).";
+        }
+        catch (Exception ex)
+        {
+            LaunchAiToolsStatus.Text = ex.Message;
+        }
+    }
+
+    private async void LaunchAiTool_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string tool })
+        {
+            return;
+        }
+
+        var model = LaunchAiModelCombo.SelectedItem as string;
+        var args = new List<string> { "launch", tool };
+        if (!string.IsNullOrWhiteSpace(model))
+        {
+            args.Add("--model");
+            args.Add(model);
+        }
+
+        LaunchAiToolsStatus.Text = $"Running: ollama {string.Join(' ', args)}";
+        try
+        {
+            var result = await _svc.OllamaCli.ExecuteAsync(args).ConfigureAwait(true);
+            var output = string.IsNullOrWhiteSpace(result.StandardOutput)
+                ? result.StandardError
+                : result.StandardOutput;
+            LaunchAiToolsStatus.Text = string.IsNullOrWhiteSpace(output)
+                ? $"Launched {tool} (exit {result.ExitCode})."
+                : output.Trim();
+        }
+        catch (Exception ex)
+        {
+            LaunchAiToolsStatus.Text = ex.Message;
+        }
+    }
+
+    private async void UpgradeOllama_Click(object sender, RoutedEventArgs e)
+    {
+        LaunchAiToolsStatus.Text = "Upgrading Ollama...";
+        try
+        {
+            var result = await _svc.OllamaCli.ExecuteAsync(["upgrade"]).ConfigureAwait(true);
+            var output = string.IsNullOrWhiteSpace(result.StandardOutput)
+                ? result.StandardError
+                : result.StandardOutput;
+            LaunchAiToolsStatus.Text = string.IsNullOrWhiteSpace(output)
+                ? $"Ollama upgrade finished (exit {result.ExitCode})."
+                : output.Trim();
+        }
+        catch (Exception ex)
+        {
+            LaunchAiToolsStatus.Text = ex.Message;
+        }
+    }
+
+    private void ExportSettings_Click(object sender, RoutedEventArgs e) =>
+        ExportConfigZip_Click(sender, "Export toolkit settings", "ollama-toolkit-settings.zip");
+
+    private void ImportSettings_Click(object sender, RoutedEventArgs e) =>
+        ImportConfigZip_Click(sender, "Import toolkit settings");
+
+    private void ResetSettings_Click(object sender, RoutedEventArgs e) =>
+        ResetSettingsFiles_Click(sender);
+
+    private void ExportAiActivityLog_Click(object sender, RoutedEventArgs e) =>
+        ExportSingleFile_Click(sender, ConfigPaths.GuiAiActivityLog, "AI activity log");
+
+    private void ExportDiagnosticsLog_Click(object sender, RoutedEventArgs e) =>
+        ExportSingleFile_Click(sender, ConfigPaths.ToolkitDiagnosticsLog, "Diagnostics log");
+
+    private void ResetAiActivityLog_Click(object sender, RoutedEventArgs e) =>
+        ResetSingleFile_Click(sender, ConfigPaths.GuiAiActivityLog, "AI activity log");
+
+    private void ResetDiagnosticsLog_Click(object sender, RoutedEventArgs e) =>
+        ResetSingleFile_Click(sender, ConfigPaths.ToolkitDiagnosticsLog, "Diagnostics log");
+
+    private void ExportConfigZip_Click(object sender, string title, string defaultName)
+    {
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = title,
+            Filter = "Zip archive|*.zip",
+            FileName = defaultName
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            ConfigPaths.EnsureConfigDirectory();
+            if (File.Exists(dialog.FileName))
+            {
+                File.Delete(dialog.FileName);
+            }
+
+            System.IO.Compression.ZipFile.CreateFromDirectory(
+                ConfigPaths.ConfigDirectory,
+                dialog.FileName,
+                System.IO.Compression.CompressionLevel.Optimal,
+                includeBaseDirectory: false);
+            DataManagementStatus.Text = $"Exported settings to {dialog.FileName}";
+        }
+        catch (Exception ex)
+        {
+            DataManagementStatus.Text = ex.Message;
+        }
+    }
+
+    private void ImportConfigZip_Click(object sender, string title)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = title,
+            Filter = "Zip archive|*.zip"
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            ConfigPaths.EnsureConfigDirectory();
+            System.IO.Compression.ZipFile.ExtractToDirectory(
+                dialog.FileName,
+                ConfigPaths.ConfigDirectory,
+                overwriteFiles: true);
+            _svc.AiSettings.ClearCache();
+            _svc.CatalogStore.ClearCache();
+            _svc.CategoryStore.ClearCache();
+            _svc.Profiles.ClearCache();
+            DataManagementStatus.Text = $"Imported settings from {dialog.FileName}";
+        }
+        catch (Exception ex)
+        {
+            DataManagementStatus.Text = ex.Message;
+        }
+    }
+
+    private void ResetSettingsFiles_Click(object sender)
+    {
+        if (MessageBox.Show(
+                "Reset toolkit settings (not logs)? This cannot be undone.",
+                "Reset Settings",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        var files = new[]
+        {
+            ConfigPaths.AiSettingsFile,
+            ConfigPaths.EnvBackupFile,
+            ConfigPaths.LibraryCatalogStoreFile,
+            ConfigPaths.ModelDescriptionsFile,
+            ConfigPaths.ModelUsageCategoriesFile,
+            ConfigPaths.ModelBenchmarkInsightsFile,
+            ConfigPaths.ModelBenchmarkSettingsFile,
+            ConfigPaths.ModelComparisonCacheFile,
+            ConfigPaths.NlSearchCacheFile,
+            ConfigPaths.AiLlmRecommendationsFile,
+            ConfigPaths.LogAnomaliesFile,
+            ConfigPaths.VulkanWorkaroundFile
+        };
+
+        try
+        {
+            foreach (var path in files)
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+
+            _svc.AiSettings.ClearCache();
+            _svc.CatalogStore.ClearCache();
+            _svc.CategoryStore.ClearCache();
+            _svc.Profiles.ClearCache();
+            DataManagementStatus.Text = "Toolkit settings reset (logs unchanged).";
+        }
+        catch (Exception ex)
+        {
+            DataManagementStatus.Text = ex.Message;
+        }
+    }
+
+    private void ExportSingleFile_Click(object sender, string sourcePath, string label)
+    {
+        if (!File.Exists(sourcePath))
+        {
+            DataManagementStatus.Text = $"{label} file not found.";
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = $"Export {label}",
+            FileName = Path.GetFileName(sourcePath)
+        };
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            File.Copy(sourcePath, dialog.FileName, overwrite: true);
+            DataManagementStatus.Text = $"Exported {label} to {dialog.FileName}";
+        }
+        catch (Exception ex)
+        {
+            DataManagementStatus.Text = ex.Message;
+        }
+    }
+
+    private void ResetSingleFile_Click(object sender, string path, string label)
+    {
+        if (MessageBox.Show($"Reset {label}?", "Reset Log", MessageBoxButton.YesNo, MessageBoxImage.Warning)
+            != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            ConfigPaths.EnsureConfigDirectory();
+            File.WriteAllText(path, string.Empty);
+            if (string.Equals(path, ConfigPaths.GuiAiActivityLog, StringComparison.OrdinalIgnoreCase))
+            {
+                RefreshActivityLog();
+            }
+            else if (string.Equals(path, ConfigPaths.ToolkitDiagnosticsLog, StringComparison.OrdinalIgnoreCase))
+            {
+                RefreshDiagnosticsLog();
+            }
+
+            DataManagementStatus.Text = $"{label} cleared.";
+        }
+        catch (Exception ex)
+        {
+            DataManagementStatus.Text = ex.Message;
+        }
     }
 }

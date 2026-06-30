@@ -14,6 +14,8 @@ public sealed class ModelLaunchRowViewModel : INotifyPropertyChanged
     public string BenchmarkKind { get; init; } = BenchmarkKinds.Generate;
     public double SizeGB { get; init; }
     public string FileSize => OllamaToolkit.Core.ModelSizeFormatter.FormatGb(SizeGB);
+    public long FileSizeSortKey => SizeGB > 0 ? (long)(SizeGB * 1_073_741_824.0) : long.MaxValue;
+    public string ContextDisplay => RecommendedCtx > 0 ? RecommendedCtx.ToString() : "-";
     public string Quantization { get; init; } = "-";
     public string ParameterSize { get; init; } = "-";
     public string Digest { get; init; } = string.Empty;

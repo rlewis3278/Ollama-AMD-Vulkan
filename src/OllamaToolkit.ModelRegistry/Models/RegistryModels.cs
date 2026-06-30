@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using OllamaToolkit.ModelCatalog;
 
 namespace OllamaToolkit.ModelRegistry.Models;
 
@@ -23,7 +24,8 @@ public enum CatalogRowRefreshHighlight
     Installed,
     Description,
     Testing,
-    TestedUndownload
+    TestedUndownload,
+    NewModel
 }
 
 public sealed class CatalogRowViewModel : INotifyPropertyChanged
@@ -36,6 +38,8 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     private string _category = string.Empty;
     private string _parameterSize = "-";
     private string _fileSize = "-";
+    private long _fileSizeSortKey = long.MaxValue;
+    private string _contextDisplay = "-";
     private string _tags = string.Empty;
     private bool _installed;
     private string _installedDisplay = "Unknown";
@@ -97,7 +101,30 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     public string FileSize
     {
         get => _fileSize;
-        set => SetField(ref _fileSize, value);
+        set
+        {
+            if (EqualityComparer<string>.Default.Equals(_fileSize, value))
+            {
+                return;
+            }
+
+            _fileSize = value;
+            _fileSizeSortKey = CatalogFileSizeResolver.GetSortBytesFromDisplayLabel(value);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(FileSize)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(FileSizeSortKey)));
+        }
+    }
+
+    public long FileSizeSortKey
+    {
+        get => _fileSizeSortKey;
+        set => SetField(ref _fileSizeSortKey, value);
+    }
+
+    public string ContextDisplay
+    {
+        get => _contextDisplay;
+        set => SetField(ref _contextDisplay, value);
     }
 
     public string Tags
@@ -192,6 +219,9 @@ public sealed class TestResultRowViewModel
 {
     public required string Model { get; init; }
     public string Category { get; init; } = string.Empty;
+    public int RecommendedCtx { get; init; }
+    public string ContextDisplay { get; init; } = "-";
+    public long FileSizeSortKey { get; init; } = long.MaxValue;
     public string BenchmarkKind { get; init; } = "Generate";
     public string BestMode { get; init; } = string.Empty;
     public double BestTps { get; init; }
