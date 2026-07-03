@@ -78,12 +78,16 @@ public static partial class OllamaLibraryTagsParser
             sizeLabel = $"{match.Groups[2].Value.Trim()}{match.Groups[3].Value.ToUpperInvariant()}";
         }
 
+        var (sizeUsage, contextWindow, inputModalities) = ParseRowMetadataColumns(match.Value);
         tag = new LibraryTagInfo
         {
             PullTag = pullTag,
-            FileSizeLabel = sizeLabel,
-            FileSizeBytes = TryParseSizeBytes(sizeLabel),
-            IsCloud = IsCloudPullTag(pullTag, sizeLabel)
+            FileSizeLabel = sizeLabel ?? sizeUsage,
+            FileSizeBytes = TryParseSizeBytes(sizeLabel ?? sizeUsage),
+            SizeUsage = sizeUsage,
+            ContextWindow = contextWindow,
+            InputModalities = inputModalities,
+            IsCloud = IsCloudPullTag(pullTag, sizeLabel ?? sizeUsage)
         };
         return true;
     }
@@ -108,16 +112,56 @@ public static partial class OllamaLibraryTagsParser
         var length = Math.Min(TagRowScanLength, html.Length - start);
         var window = length > 0 ? html[start..(start + length)] : string.Empty;
         var sizeLabel = TryParseNearbySizeLabel(window);
+        var (sizeUsage, contextWindow, inputModalities) = ParseRowMetadataColumns(window);
 
         tag = new LibraryTagInfo
         {
             PullTag = pullTag,
-            FileSizeLabel = sizeLabel,
-            FileSizeBytes = TryParseSizeBytes(sizeLabel),
-            IsCloud = IsCloudPullTag(pullTag, sizeLabel)
+            FileSizeLabel = sizeLabel ?? sizeUsage,
+            FileSizeBytes = TryParseSizeBytes(sizeLabel ?? sizeUsage),
+            SizeUsage = sizeUsage ?? sizeLabel,
+            ContextWindow = contextWindow,
+            InputModalities = inputModalities,
+            IsCloud = IsCloudPullTag(pullTag, sizeLabel ?? sizeUsage)
         };
         return true;
     }
+
+    private static (string? SizeUsage, string? ContextWindow, string? InputModalities) ParseRowMetadataColumns(
+        string window)
+    {
+        var columnValues = new List<string>();
+        foreach (Match match in MetadataColumnParagraph().Matches(window))
+        {
+            var value = match.Groups[1].Value.Trim();
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                columnValues.Add(value);
+            }
+        }
+
+        if (MetadataColumnDiv().Match(window) is { Success: true } divMatch)
+        {
+            var inputValue = divMatch.Groups[1].Value.Trim();
+            if (!string.IsNullOrWhiteSpace(inputValue))
+            {
+                columnValues.Add(inputValue);
+            }
+        }
+
+        if (columnValues.Count == 0)
+        {
+            return (null, null, null);
+        }
+
+        var sizeUsage = columnValues[0];
+        var context = columnValues.Count > 1 ? NormalizeContextLabel(columnValues[1]) : null;
+        var inputModalities = columnValues.Count > 2 ? columnValues[2] : null;
+        return (sizeUsage, context, inputModalities);
+    }
+
+    private static string NormalizeContextLabel(string value) =>
+        value.Replace(" context window", string.Empty, StringComparison.OrdinalIgnoreCase).Trim();
 
     private static bool IsCloudPullTag(string pullTag, string? sizeLabel = null) =>
         pullTag.EndsWith(":cloud", StringComparison.OrdinalIgnoreCase)
@@ -206,4 +250,10 @@ public static partial class OllamaLibraryTagsParser
 
     [GeneratedRegex(@"\b(\d+(?:\.\d+)?[BKM]?)\s+(?:total\s+)?parameters\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
     private static partial Regex DescriptionParamToken();
+
+    [GeneratedRegex(@"<p class=""col-span-2[^""]*"">\s*([^<]+?)\s*</p>", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex MetadataColumnParagraph();
+
+    [GeneratedRegex(@"<div class=""col-span-2[^""]*""[^>]*>\s*([^<]+?)\s*</div>", RegexOptions.IgnoreCase | RegexOptions.Compiled)]
+    private static partial Regex MetadataColumnDiv();
 }

@@ -37,9 +37,13 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     private string _displayDescription = string.Empty;
     private string _category = string.Empty;
     private string _parameterSize = "-";
+    private string _sizeUsage = "-";
     private string _fileSize = "-";
     private long _fileSizeSortKey = long.MaxValue;
     private string _contextDisplay = "-";
+    private int _contextSortKey;
+    private string _inputModalities = "-";
+    private long _bestMetricSortKey;
     private string _tags = string.Empty;
     private bool _installed;
     private string _installedDisplay = "Unknown";
@@ -53,6 +57,7 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     private bool _isTesting;
 
     public required string Name { get; init; }
+    public string LibraryName { get; init; } = string.Empty;
     public string DefaultPullTag { get; init; } = string.Empty;
     public bool IsCloudOnly { get; init; }
 
@@ -98,6 +103,12 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
         init => SetField(ref _parameterSize, value);
     }
 
+    public string SizeUsage
+    {
+        get => _sizeUsage;
+        set => SetField(ref _sizeUsage, value);
+    }
+
     public string FileSize
     {
         get => _fileSize;
@@ -125,6 +136,18 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
     {
         get => _contextDisplay;
         set => SetField(ref _contextDisplay, value);
+    }
+
+    public int ContextSortKey
+    {
+        get => _contextSortKey;
+        set => SetField(ref _contextSortKey, value);
+    }
+
+    public string InputModalities
+    {
+        get => _inputModalities;
+        set => SetField(ref _inputModalities, value);
     }
 
     public string Tags
@@ -187,6 +210,12 @@ public sealed class CatalogRowViewModel : INotifyPropertyChanged
         set => SetField(ref _bestTps, value);
     }
 
+    public long BestMetricSortKey
+    {
+        get => _bestMetricSortKey;
+        set => SetField(ref _bestMetricSortKey, value);
+    }
+
     public bool IsTesting
     {
         get => _isTesting;
@@ -219,9 +248,13 @@ public sealed class TestResultRowViewModel
 {
     public required string Model { get; init; }
     public string Category { get; init; } = string.Empty;
+    public string SizeUsage { get; init; } = "-";
     public int RecommendedCtx { get; init; }
+    public int ContextSortKey { get; init; }
     public string ContextDisplay { get; init; } = "-";
+    public string InputModalities { get; init; } = "-";
     public long FileSizeSortKey { get; init; } = long.MaxValue;
+    public long MetricSortKey { get; init; }
     public string BenchmarkKind { get; init; } = "Generate";
     public string BestMode { get; init; } = string.Empty;
     public double BestTps { get; init; }

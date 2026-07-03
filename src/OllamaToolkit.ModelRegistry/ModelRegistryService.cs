@@ -55,8 +55,10 @@ public sealed class ModelRegistryService
         var rows = new List<CatalogRowViewModel>();
         foreach (var e in entries)
         {
+            var libraryName = CatalogEntryNames.LibraryName(e);
+            var pullTag = CatalogEntryNames.PullTag(e);
             string category;
-            if (categoryDoc.Models.TryGetValue(e.Name, out var catEntry)
+            if (categoryDoc.Models.TryGetValue(libraryName, out var catEntry)
                 && !string.IsNullOrWhiteSpace(catEntry.Category))
             {
                 category = CategoryNormalizer.FormatDisplay(catEntry.Category, catEntry.Subcategory);
@@ -67,12 +69,12 @@ public sealed class ModelRegistryService
             }
             else
             {
-                category = CategoryNormalizer.HeuristicCategory(e.Name, e.Description, e.Tags);
+                category = CategoryNormalizer.HeuristicCategory(libraryName, e.Description, e.Tags);
             }
             var downloadDescription = string.IsNullOrWhiteSpace(e.Description)
                 ? string.Empty
                 : e.Description.Trim();
-            var aiDescription = descriptionDoc.Models.TryGetValue(e.Name, out var aiEntry)
+            var aiDescription = descriptionDoc.Models.TryGetValue(libraryName, out var aiEntry)
                 && !string.IsNullOrWhiteSpace(aiEntry.ListDescription)
                 ? aiEntry.ListDescription!.Trim()
                 : string.Empty;
@@ -85,20 +87,47 @@ public sealed class ModelRegistryService
 
             var fileSize = CatalogFileSizeDisplay.GetDisplayLabel(e);
             if ((fileSize == "-" || string.IsNullOrWhiteSpace(fileSize))
-                && installedSizes.TryGetValue(e.Name, out var installedSize))
+                && installedSizes.TryGetValue(pullTag, out var installedTagSize))
             {
-                fileSize = installedSize;
+                fileSize = installedTagSize;
+            }
+            else if ((fileSize == "-" || string.IsNullOrWhiteSpace(fileSize))
+                     && installedSizes.TryGetValue(libraryName, out var installedLibrarySize))
+            {
+                fileSize = installedLibrarySize;
             }
 
             var isInstalled = tagsSnapshot.Reachable
-                && ModelInstallMatcher.IsLibraryInstalled(e.Name, installed);
-            var (bestMode, bestTps) = ResolveCatalogBenchmarkDisplay(e.Name, profileDoc);
+                && (installed.Contains(pullTag) || installed.Contains(e.Name));
+            var (bestMode, bestTps) = ResolveCatalogBenchmarkDisplay(pullTag, profileDoc);
+            if (bestMode == "-")
+            {
+                (bestMode, bestTps) = ResolveCatalogBenchmarkDisplay(libraryName, profileDoc);
+            }
+
             var hasTestedProfile = bestMode != "-";
+            var benchmarkCtx = ResolveBenchmarkContext(pullTag, profileDoc);
+            if (benchmarkCtx <= 0)
+            {
+                benchmarkCtx = ResolveBenchmarkContext(libraryName, profileDoc);
+            }
+
+            var formattedSize = ModelSizeFormatter.FormatSizeLabel(fileSize);
+            var sizeUsage = CatalogMetadataLookup.ResolveSizeUsage(e, formattedSize);
+            var contextDisplay = CatalogMetadataLookup.ResolveContext(e, benchmarkCtx);
+            var (_, _, benchmarkKind, bestTpsValue, bestEmbedMs) =
+                ResolveCatalogBenchmarkMetrics(pullTag, profileDoc);
+            if (bestTpsValue <= 0 && bestEmbedMs <= 0)
+            {
+                (_, _, benchmarkKind, bestTpsValue, bestEmbedMs) =
+                    ResolveCatalogBenchmarkMetrics(libraryName, profileDoc);
+            }
 
             rows.Add(new CatalogRowViewModel
             {
-                Name = e.Name,
-                DefaultPullTag = e.DefaultPullTag,
+                Name = pullTag,
+                LibraryName = libraryName,
+                DefaultPullTag = pullTag,
                 IsCloudOnly = e.IsCloudOnly,
                 Description = e.Description,
                 ListDescription = listDesc,
@@ -107,9 +136,12 @@ public sealed class ModelRegistryService
                 DisplayDescription = displayDescription,
                 Category = category,
                 ParameterSize = e.ParameterSize,
-                FileSize = ModelSizeFormatter.FormatSizeLabel(fileSize),
-                FileSizeSortKey = CatalogFileSizeResolver.GetSortBytes(e),
-                ContextDisplay = ResolveContextDisplay(e.Name, profileDoc),
+                SizeUsage = sizeUsage,
+                FileSize = formattedSize,
+                FileSizeSortKey = CatalogMetadataLookup.ResolveFileSizeSortKey(e, sizeUsage),
+                ContextDisplay = contextDisplay,
+                ContextSortKey = CatalogMetadataLookup.ResolveContextSortKey(e, benchmarkCtx),
+                InputModalities = CatalogMetadataLookup.ResolveInput(e),
                 Tags = e.Tags,
                 Installed = isInstalled,
                 InstalledDisplay = tagsSnapshot.Reachable
@@ -117,6 +149,8 @@ public sealed class ModelRegistryService
                     : "Unknown",
                 BestMode = bestMode,
                 BestTps = bestTps,
+                BestMetricSortKey = CatalogMetadataLookup.ResolveMetricSortKey(
+                    benchmarkKind, bestTpsValue, bestEmbedMs),
                 RefreshHighlight = !isInstalled && hasTestedProfile
                     ? CatalogRowRefreshHighlight.TestedUndownload
                     : CatalogRowRefreshHighlight.None,
@@ -126,15 +160,7 @@ public sealed class ModelRegistryService
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var q = search.Trim();
-            rows = rows.Where(r =>
-                r.Name.Contains(q, StringComparison.OrdinalIgnoreCase)
-                || r.Description.Contains(q, StringComparison.OrdinalIgnoreCase)
-                || r.DownloadDescription.Contains(q, StringComparison.OrdinalIgnoreCase)
-                || r.AiDescription.Contains(q, StringComparison.OrdinalIgnoreCase)
-                || r.DisplayDescription.Contains(q, StringComparison.OrdinalIgnoreCase)
-                || r.Category.Contains(q, StringComparison.OrdinalIgnoreCase)
-                || r.Tags.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
+            rows = rows.Where(r => CatalogRowSearch.Matches(r, search)).ToList();
         }
 
         if (!string.IsNullOrWhiteSpace(categoryFilter) && categoryFilter != "All")
@@ -155,6 +181,8 @@ public sealed class ModelRegistryService
         var categoryDoc = await _categories.LoadAsync(cancellationToken).ConfigureAwait(false);
         categoryDoc.Models ??= new Dictionary<string, UsageCategoryEntry>(StringComparer.OrdinalIgnoreCase);
         var (_, installed) = await GetInstalledNameSetAsync(cancellationToken).ConfigureAwait(false);
+        var catalogIndex = CatalogMetadataLookup.BuildPullTagIndex(
+            (await _catalogStore.GetEntriesAsync(cancellationToken: cancellationToken).ConfigureAwait(false)).ToList());
 
         return summaries
             .Where(s => s.Results is { Count: > 0 })
@@ -183,13 +211,21 @@ public sealed class ModelRegistryService
                 var context = s.RecommendedCtx > 0
                     ? s.RecommendedCtx
                     : ProfileStoreService.GetRecommendedBenchmarkNumCtx(s.SizeGB);
+                CatalogMetadataLookup.TryGetForModel(catalogIndex, s.Model, out var catalogEntry);
+                var installedSize = s.SizeGB > 0 ? ModelSizeFormatter.FormatGb(s.SizeGB) : null;
 
+                var contextDisplay = CatalogMetadataLookup.ResolveContext(catalogEntry, context);
                 return new TestResultRowViewModel
                 {
                     Model = s.Model,
                     Category = category,
+                    SizeUsage = CatalogMetadataLookup.ResolveSizeUsage(catalogEntry, installedSize),
                     RecommendedCtx = context,
-                    ContextDisplay = context > 0 ? context.ToString() : "-",
+                    ContextSortKey = CatalogMetadataLookup.ResolveContextSortKey(catalogEntry, context),
+                    ContextDisplay = contextDisplay,
+                    InputModalities = CatalogMetadataLookup.ResolveInput(catalogEntry),
+                    MetricSortKey = CatalogMetadataLookup.ResolveMetricSortKey(
+                        benchmarkKind, s.BestTps, s.BestEmbedMs),
                     FileSizeSortKey = s.SizeGB > 0
                         ? (long)(s.SizeGB * 1_073_741_824.0)
                         : long.MaxValue,
@@ -306,13 +342,16 @@ public sealed class ModelRegistryService
         var candidates = new List<UndownloadTestCandidate>();
         foreach (var entry in entries)
         {
-            var isInstalled = ModelInstallMatcher.IsLibraryInstalled(entry.Name, installed);
+            var libraryName = CatalogEntryNames.LibraryName(entry);
+            var pullTag = CatalogEntryNames.PullTag(entry);
+            var isInstalled = installed.Contains(pullTag) || installed.Contains(entry.Name);
             if (isInstalled)
             {
                 continue;
             }
 
-            var profile = ProfileResolver.ResolveForLibrary(entry.Name, profileDoc);
+            var profile = ProfileResolver.ResolveForLibrary(pullTag, profileDoc)
+                ?? ProfileResolver.ResolveForLibrary(libraryName, profileDoc);
             if (!BenchmarkCompletion.ShouldRetest(profile))
             {
                 continue;
@@ -320,13 +359,9 @@ public sealed class ModelRegistryService
 
             var (bytes, hasKnownFileSize) = CatalogFileSizeResolver.GetSortBytesWithKnown(entry);
 
-            var pullTag = !string.IsNullOrWhiteSpace(entry.DefaultPullTag)
-                ? entry.DefaultPullTag
-                : $"{entry.Name}:latest";
-
             candidates.Add(new UndownloadTestCandidate
             {
-                LibraryName = entry.Name,
+                LibraryName = libraryName,
                 PullTag = pullTag,
                 FileSizeBytes = bytes,
                 HasKnownFileSize = hasKnownFileSize
@@ -334,6 +369,25 @@ public sealed class ModelRegistryService
         }
 
         return SortUndownloadCandidates(candidates);
+    }
+
+    private static (string BestMode, string BestTps, string BenchmarkKind, double BestTpsValue, double BestEmbedMs)
+        ResolveCatalogBenchmarkMetrics(string modelOrLibrary, ModelProfileStoreDocument profileDoc)
+    {
+        var profile = ProfileResolver.ResolveForLibrary(modelOrLibrary, profileDoc);
+        if (profile is null
+            || string.IsNullOrEmpty(profile.BestMode)
+            || !ProfileSanitizer.IsSupportedMode(profile.BestMode))
+        {
+            return ("-", "-", BenchmarkKinds.Generate, 0, 0);
+        }
+
+        var (bestMode, bestTps) = ResolveCatalogBenchmarkDisplay(modelOrLibrary, profileDoc);
+        var benchmarkKind = string.IsNullOrWhiteSpace(profile.BenchmarkKind)
+            ? BenchmarkKinds.Generate
+            : profile.BenchmarkKind;
+
+        return (bestMode, bestTps, benchmarkKind, profile.BestTps, profile.BestEmbedMs);
     }
 
     private static (string BestMode, string BestTps) ResolveCatalogBenchmarkDisplay(
@@ -382,14 +436,24 @@ public sealed class ModelRegistryService
             .ThenBy(c => c.LibraryName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-    private static string ResolveContextDisplay(string libraryName, ModelProfileStoreDocument profileDoc)
+    private static int ResolveBenchmarkContext(string modelOrLibrary, ModelProfileStoreDocument profileDoc) =>
+        ProfileResolver.ResolveForLibrary(modelOrLibrary, profileDoc) is { NumCtx: > 0 } profile
+            ? profile.NumCtx
+            : 0;
+
+    private static (string BenchmarkKind, long MetricSortKey) ResolveCatalogMetricSort(
+        string modelOrLibrary,
+        ModelProfileStoreDocument profileDoc)
     {
-        if (ProfileResolver.ResolveForLibrary(libraryName, profileDoc) is { } profile
-            && profile.NumCtx > 0)
+        var profile = ProfileResolver.ResolveForLibrary(modelOrLibrary, profileDoc);
+        if (profile is null)
         {
-            return profile.NumCtx.ToString();
+            return (BenchmarkKinds.Generate, 0);
         }
 
-        return "-";
+        var kind = string.IsNullOrWhiteSpace(profile.BenchmarkKind)
+            ? BenchmarkKinds.Generate
+            : profile.BenchmarkKind;
+        return (kind, CatalogMetadataLookup.ResolveMetricSortKey(kind, profile.BestTps, profile.BestEmbedMs));
     }
 }

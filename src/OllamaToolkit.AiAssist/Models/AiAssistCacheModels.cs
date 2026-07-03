@@ -78,7 +78,10 @@ public sealed class AiRecommendedLlmEntry
     public string PullTag { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public string ParameterSize { get; set; } = "-";
+    public string SizeUsage { get; set; } = "-";
     public string FileSize { get; set; } = "-";
+    public string ContextDisplay { get; set; } = "-";
+    public string InputModalities { get; set; } = "-";
     public int AiRank { get; set; }
     public double BenchmarkScore { get; set; }
     public double CompositeScore { get; set; }
@@ -86,4 +89,7 @@ public sealed class AiRecommendedLlmEntry
     public string MetricDisplay { get; set; } = "-";
     public string? AiNote { get; set; }
     public int DisplayRank { get; set; }
+    public int ContextSortKey { get; set; }
+    public long FileSizeSortKey { get; set; } = long.MaxValue;
+    public long MetricSortKey { get; set; }
 }

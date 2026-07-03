@@ -13,6 +13,7 @@ public sealed class LibraryCatalogStoreService
     private readonly SemaphoreSlim _enrichGate = new(1, 1);
     private CancellationTokenSource? _enrichCts;
     private LibraryCatalogStoreDocument? _cache;
+    private Dictionary<string, LibraryCatalogEntry>? _pendingVariantPreservation;
 
     public LibraryCatalogStoreService(HttpClient? httpClient = null)
     {
@@ -52,8 +53,26 @@ public sealed class LibraryCatalogStoreService
             ?? new LibraryCatalogStoreDocument();
 
         _cache.Items ??= new List<LibraryCatalogEntry>();
-        MigrateFileSizeFields(_cache);
+        MigrateStoreDocument(_cache);
         return _cache;
+    }
+
+    private static void MigrateStoreDocument(LibraryCatalogStoreDocument store)
+    {
+        if (store.Version < 2)
+        {
+            foreach (var entry in store.Items)
+            {
+                if (string.IsNullOrWhiteSpace(entry.LibraryName))
+                {
+                    entry.LibraryName = CatalogEntryNames.LibraryName(entry);
+                }
+            }
+
+            store.Version = 2;
+        }
+
+        MigrateFileSizeFields(store);
     }
 
     private static void MigrateFileSizeFields(LibraryCatalogStoreDocument store)
@@ -124,11 +143,16 @@ public sealed class LibraryCatalogStoreService
         var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(search))
         {
-            var preserved = store.Items.ToDictionary(e => e.Name, StringComparer.OrdinalIgnoreCase);
+            var preservedByLibrary = store.Items
+                .GroupBy(CatalogEntryNames.LibraryName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+            var preservedVariants = store.Items
+                .Where(CatalogEntryNames.IsVariantRow)
+                .ToDictionary(e => e.Name, StringComparer.OrdinalIgnoreCase);
             store.Items = items;
             foreach (var item in store.Items)
             {
-                if (!preserved.TryGetValue(item.Name, out var previous))
+                if (!preservedByLibrary.TryGetValue(item.Name, out var previous))
                 {
                     continue;
                 }
@@ -174,6 +198,7 @@ public sealed class LibraryCatalogStoreService
                 item.IsCloudOnly = previous.IsCloudOnly;
             }
 
+            _pendingVariantPreservation = preservedVariants;
             store.CatalogFetchedAt = DateTimeOffset.Now.ToString("o");
         }
 
@@ -315,7 +340,14 @@ public sealed class LibraryCatalogStoreService
         CancellationToken cancellationToken = default)
     {
         var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
-        var entry = store.Items.FirstOrDefault(e => e.Name.Equals(libraryName, StringComparison.OrdinalIgnoreCase));
+        var entry = store.Items.FirstOrDefault(e =>
+                e.Name.Equals(libraryName, StringComparison.OrdinalIgnoreCase)
+                || CatalogEntryNames.LibraryName(e).Equals(libraryName, StringComparison.OrdinalIgnoreCase));
+        if (entry is not null && CatalogEntryNames.IsVariantRow(entry))
+        {
+            return CatalogPullTagResolver.ResolveFromEntry(entry);
+        }
+
         if (entry is not null && !string.IsNullOrWhiteSpace(entry.DefaultPullTag))
         {
             return CatalogPullTagResolver.ResolveFromEntry(entry);
@@ -338,16 +370,35 @@ public sealed class LibraryCatalogStoreService
         CancellationToken cancellationToken)
     {
         var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
-        var missing = store.Items
-            .Where(NeedsTagMetadataEnrichment)
+        var libraries = store.Items
+            .Select(CatalogEntryNames.LibraryName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(CatalogEntryNames.CanExpandFromOfficialLibrary)
             .ToList();
-        if (missing.Count == 0)
+
+        if (libraries.Count == 0)
         {
             return 0;
         }
 
-        var enriched = 0;
-        for (var i = 0; i < missing.Count; i++)
+        var templates = store.Items
+            .GroupBy(CatalogEntryNames.LibraryName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.FirstOrDefault(e => e.Name.Equals(g.Key, StringComparison.OrdinalIgnoreCase)) ?? g.First(),
+                StringComparer.OrdinalIgnoreCase);
+
+        var preserved = _pendingVariantPreservation
+            ?? store.Items.ToDictionary(e => e.Name, StringComparer.OrdinalIgnoreCase);
+        _pendingVariantPreservation = null;
+        var communityEntries = store.Items
+            .Where(e => !CatalogEntryNames.CanExpandFromOfficialLibrary(CatalogEntryNames.LibraryName(e)))
+            .ToList();
+
+        var expandedVariants = new List<LibraryCatalogEntry>();
+        var expandedLibraries = 0;
+
+        for (var i = 0; i < libraries.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (shouldAbort?.Invoke() == true)
@@ -355,26 +406,32 @@ public sealed class LibraryCatalogStoreService
                 break;
             }
 
-            var entry = missing[i];
-            progress?.Report($"Fetching catalog tags ({i + 1}/{missing.Count}): {entry.Name}");
+            var libraryName = libraries[i];
+            if (!templates.TryGetValue(libraryName, out var template))
+            {
+                continue;
+            }
+
+            progress?.Report($"Expanding catalog variants ({i + 1}/{libraries.Count}): {libraryName}");
 
             try
             {
-                var tags = await FetchTagsAsync(entry.Name, cancellationToken).ConfigureAwait(false);
-                if (tags.Count == 0)
+                var tags = await FetchTagsAsync(libraryName, cancellationToken).ConfigureAwait(false);
+                var variants = CatalogVariantExpander.Expand(template, tags);
+                foreach (var variant in variants)
                 {
-                    continue;
+                    if (preserved.TryGetValue(variant.Name, out var previous))
+                    {
+                        CatalogVariantExpander.PreserveVariantMetadata(variant, previous);
+                    }
+
+                    expandedVariants.Add(variant);
                 }
 
-                var resolution = CatalogPullTagResolver.Resolve(entry.Name, tags);
-                if (!resolution.Resolved)
+                if (variants.Count > 0)
                 {
-                    continue;
+                    expandedLibraries++;
                 }
-
-                ApplyResolution(entry, resolution);
-                enriched++;
-                await SaveAsync(store, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -382,11 +439,17 @@ public sealed class LibraryCatalogStoreService
             }
             catch
             {
-                // Best-effort enrichment; skip models that fail or time out.
+                expandedVariants.Add(template);
             }
         }
 
-        return enriched;
+        store.Items = communityEntries
+            .Concat(expandedVariants)
+            .OrderBy(e => CatalogEntryNames.LibraryName(e), StringComparer.OrdinalIgnoreCase)
+            .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        await SaveAsync(store, cancellationToken).ConfigureAwait(false);
+        return expandedLibraries;
     }
 
     private async Task<IReadOnlyList<LibraryTagInfo>> FetchTagsAsync(
@@ -406,13 +469,6 @@ public sealed class LibraryCatalogStoreService
         var html = await response.Content.ReadAsStringAsync(timeoutCts.Token).ConfigureAwait(false);
         return OllamaLibraryTagsParser.ParseTagsHtml(html, libraryName);
     }
-
-    private static bool NeedsTagMetadataEnrichment(LibraryCatalogEntry entry) =>
-        string.IsNullOrWhiteSpace(entry.DefaultPullTag)
-        || string.IsNullOrWhiteSpace(entry.EstimatedFileSize)
-        || entry.EstimatedFileSize == "-"
-        || string.IsNullOrWhiteSpace(entry.ParameterSize)
-        || entry.ParameterSize == "-";
 
     private static void ApplyResolution(LibraryCatalogEntry entry, CatalogPullResolution resolution)
     {
@@ -474,7 +530,10 @@ public sealed class LibraryCatalogStoreService
         }
 
         var store = await LoadAsync(cancellationToken).ConfigureAwait(false);
-        var entry = store.Items.FirstOrDefault(e => e.Name.Equals(libraryName, StringComparison.OrdinalIgnoreCase));
+        var entry = store.Items.FirstOrDefault(e =>
+            e.Name.Equals(libraryName, StringComparison.OrdinalIgnoreCase)
+            || CatalogEntryNames.PullTag(e).Equals(libraryName, StringComparison.OrdinalIgnoreCase)
+            || CatalogEntryNames.LibraryName(e).Equals(libraryName, StringComparison.OrdinalIgnoreCase));
         if (entry is null)
         {
             return false;
@@ -522,7 +581,7 @@ public sealed class LibraryCatalogStoreService
         {
             var store = await LoadAsync(enrichToken).ConfigureAwait(false);
             var targets = store.Items
-                .Where(e => !e.IsCloudOnly)
+                .Where(e => !e.IsCloudOnly && !e.FileSizeConfirmed && e.FileSizeBytes <= 0)
                 .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
@@ -542,8 +601,9 @@ public sealed class LibraryCatalogStoreService
                     var resolution = !string.IsNullOrWhiteSpace(entry.DefaultPullTag)
                         ? CatalogPullTagResolver.ResolveFromEntry(entry)
                         : CatalogPullTagResolver.Resolve(
-                            entry.Name,
-                            await FetchTagsAsync(entry.Name, enrichToken).ConfigureAwait(false));
+                            CatalogEntryNames.LibraryName(entry),
+                            await FetchTagsAsync(CatalogEntryNames.LibraryName(entry), enrichToken)
+                                .ConfigureAwait(false));
 
                     if (!resolution.Resolved)
                     {
@@ -633,7 +693,7 @@ public sealed class LibraryCatalogStoreService
         {
             cancellationToken.ThrowIfCancellationRequested();
             var entry = items[i];
-            var isInstalled = IsModelInstalled(entry.Name, installedModelNames);
+            var isInstalled = IsVariantInstalled(entry, installedModelNames);
 
             progress?.Report($"Refreshing catalog {i + 1}/{items.Count}: {entry.Name}");
 
@@ -656,6 +716,12 @@ public sealed class LibraryCatalogStoreService
         }
     }
 
-    private static bool IsModelInstalled(string libraryName, IReadOnlySet<string> installedModelNames) =>
-        OllamaToolkit.Core.Ollama.ModelInstallMatcher.IsLibraryInstalled(libraryName, installedModelNames);
+    private static bool IsVariantInstalled(LibraryCatalogEntry entry, IReadOnlySet<string> installedModelNames)
+    {
+        var pullTag = CatalogEntryNames.PullTag(entry);
+        return installedModelNames.Contains(pullTag)
+            || installedModelNames.Contains(entry.Name)
+            || (CatalogEntryNames.IsVariantRow(entry)
+                && installedModelNames.Contains(entry.Name, StringComparer.OrdinalIgnoreCase));
+    }
 }

@@ -6,4 +6,6 @@ public sealed class ModelPullProgress
     public int? Percent { get; init; }
     public long? CompletedBytes { get; init; }
     public long? TotalBytes { get; init; }
+    public double? BytesPerSecond { get; init; }
+    public TimeSpan? EstimatedTimeRemaining { get; init; }
 }

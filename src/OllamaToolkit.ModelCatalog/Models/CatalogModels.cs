@@ -2,7 +2,7 @@ namespace OllamaToolkit.ModelCatalog.Models;
 
 public sealed class LibraryCatalogStoreDocument
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
     public string LastUpdated { get; set; } = DateTimeOffset.Now.ToString("o");
     public string? CatalogFetchedAt { get; set; }
     public string? SortGeneratedAt { get; set; }
@@ -13,9 +13,13 @@ public sealed class LibraryCatalogStoreDocument
 public sealed class LibraryCatalogEntry
 {
     public string Name { get; set; } = string.Empty;
+    public string LibraryName { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Tags { get; set; } = string.Empty;
     public string ParameterSize { get; set; } = "-";
+    public string SizeUsage { get; set; } = "-";
+    public string ContextWindow { get; set; } = "-";
+    public string InputModalities { get; set; } = "-";
     public string FileSize { get; set; } = "-";
     public string EstimatedFileSize { get; set; } = "-";
     public long FileSizeBytes { get; set; }

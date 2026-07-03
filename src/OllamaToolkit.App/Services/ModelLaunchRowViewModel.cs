@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using OllamaToolkit.BenchmarkStore;
 using OllamaToolkit.BenchmarkStore.Models;
+using OllamaToolkit.ModelCatalog;
 
 namespace OllamaToolkit.App.Services;
 
@@ -14,8 +15,11 @@ public sealed class ModelLaunchRowViewModel : INotifyPropertyChanged
     public string BenchmarkKind { get; init; } = BenchmarkKinds.Generate;
     public double SizeGB { get; init; }
     public string FileSize => OllamaToolkit.Core.ModelSizeFormatter.FormatGb(SizeGB);
+    public string SizeUsage { get; init; } = "-";
     public long FileSizeSortKey => SizeGB > 0 ? (long)(SizeGB * 1_073_741_824.0) : long.MaxValue;
-    public string ContextDisplay => RecommendedCtx > 0 ? RecommendedCtx.ToString() : "-";
+    public string ContextDisplay { get; init; } = "-";
+    public int ContextSortKey { get; init; }
+    public string InputModalities { get; init; } = "-";
     public string Quantization { get; init; } = "-";
     public string ParameterSize { get; init; } = "-";
     public string Digest { get; init; } = string.Empty;
@@ -24,6 +28,7 @@ public sealed class ModelLaunchRowViewModel : INotifyPropertyChanged
     public double BestTps { get; init; }
     public double BestEmbedMs { get; init; }
     public string BestMetricDisplay { get; init; } = "-";
+    public long MetricSortKey { get; init; }
     public string LastTested { get; init; } = string.Empty;
     public bool NeedsRetest { get; init; } = true;
     public int RecommendedCtx { get; init; }
@@ -65,7 +70,12 @@ public sealed class ModelLaunchRowViewModel : INotifyPropertyChanged
             Results = summary.Results
         };
 
-    public static ModelLaunchRowViewModel FromSummary(ModelProfileSummary summary, string? displayDescription = null) =>
+    public static ModelLaunchRowViewModel FromSummary(
+        ModelProfileSummary summary,
+        string? displayDescription = null,
+        string? sizeUsage = null,
+        string? contextDisplay = null,
+        string? inputModalities = null) =>
         new()
         {
             Model = summary.Model,
@@ -73,6 +83,7 @@ public sealed class ModelLaunchRowViewModel : INotifyPropertyChanged
             SizeGB = summary.SizeGB,
             Quantization = summary.Quantization,
             ParameterSize = summary.ParameterSize,
+            SizeUsage = sizeUsage ?? (summary.SizeGB > 0 ? OllamaToolkit.Core.ModelSizeFormatter.FormatGb(summary.SizeGB) : "-"),
             Digest = summary.Digest,
             Status = summary.Status,
             BestMode = summary.BestMode,
@@ -80,9 +91,16 @@ public sealed class ModelLaunchRowViewModel : INotifyPropertyChanged
             BestEmbedMs = summary.BestEmbedMs,
             BestMetricDisplay = BenchmarkMetricFormatter.Format(
                 summary.BenchmarkKind, summary.BestTps, summary.BestEmbedMs),
+            MetricSortKey = CatalogMetadataLookup.ResolveMetricSortKey(
+                summary.BenchmarkKind, summary.BestTps, summary.BestEmbedMs),
             LastTested = summary.LastTested,
             NeedsRetest = summary.NeedsRetest,
             RecommendedCtx = summary.RecommendedCtx,
+            ContextDisplay = contextDisplay ?? (summary.RecommendedCtx > 0 ? summary.RecommendedCtx.ToString() : "-"),
+            ContextSortKey = summary.RecommendedCtx > 0
+                ? summary.RecommendedCtx
+                : CatalogMetadataLookup.ParseContextSortKey(contextDisplay),
+            InputModalities = inputModalities ?? "-",
             Category = summary.Category,
             DisplayDescription = displayDescription ?? string.Empty,
             Results = summary.Results

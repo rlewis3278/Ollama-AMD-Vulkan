@@ -655,6 +655,9 @@ public sealed class OllamaApiClient : IDisposable
     private sealed class PullProgressTracker
     {
         private readonly Dictionary<string, LayerProgress> _layers = new(StringComparer.Ordinal);
+        private long _lastCompletedBytes;
+        private DateTime _lastSampleUtc = DateTime.MinValue;
+        private double _smoothedBytesPerSecond;
 
         public ModelPullProgress Update(PullChunk chunk)
         {
@@ -679,13 +682,63 @@ public sealed class OllamaApiClient : IDisposable
             }
 
             var (completedBytes, totalBytes, percent) = ComputeAggregateProgress(chunk);
+            var (bytesPerSecond, eta) = ComputeSpeedAndEta(completedBytes, totalBytes);
             return new ModelPullProgress
             {
                 Status = chunk.Status ?? string.Empty,
                 Percent = percent,
                 CompletedBytes = completedBytes,
-                TotalBytes = totalBytes
+                TotalBytes = totalBytes,
+                BytesPerSecond = bytesPerSecond,
+                EstimatedTimeRemaining = eta
             };
+        }
+
+        private (double? BytesPerSecond, TimeSpan? Eta) ComputeSpeedAndEta(long? completedBytes, long? totalBytes)
+        {
+            if (completedBytes is not >= 0)
+            {
+                return (null, null);
+            }
+
+            var now = DateTime.UtcNow;
+            if (_lastSampleUtc != DateTime.MinValue)
+            {
+                var elapsed = (now - _lastSampleUtc).TotalSeconds;
+                if (elapsed >= 0.25)
+                {
+                    var delta = completedBytes.Value - _lastCompletedBytes;
+                    if (delta > 0)
+                    {
+                        var instant = delta / elapsed;
+                        _smoothedBytesPerSecond = _smoothedBytesPerSecond <= 0
+                            ? instant
+                            : _smoothedBytesPerSecond * 0.7 + instant * 0.3;
+                    }
+
+                    _lastCompletedBytes = completedBytes.Value;
+                    _lastSampleUtc = now;
+                }
+            }
+            else
+            {
+                _lastCompletedBytes = completedBytes.Value;
+                _lastSampleUtc = now;
+            }
+
+            if (_smoothedBytesPerSecond <= 0)
+            {
+                return (null, null);
+            }
+
+            TimeSpan? eta = null;
+            if (totalBytes is > 0 && completedBytes.Value < totalBytes.Value)
+            {
+                var remaining = totalBytes.Value - completedBytes.Value;
+                eta = TimeSpan.FromSeconds(remaining / _smoothedBytesPerSecond);
+            }
+
+            return (_smoothedBytesPerSecond, eta);
         }
 
         private (long? CompletedBytes, long? TotalBytes, int? Percent) ComputeAggregateProgress(PullChunk chunk)

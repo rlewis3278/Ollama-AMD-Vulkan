@@ -31,7 +31,9 @@ public static class RetestQueueBuilder
         IReadOnlyList<OllamaModelTag> localModels,
         IReadOnlyList<ModelProfileSummary> summaries)
     {
-        var summaryByModel = summaries.ToDictionary(s => s.Model, StringComparer.OrdinalIgnoreCase);
+        var summaryByModel = summaries
+            .GroupBy(s => s.Model, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var decisions = new List<RetestQueueModelDecision>();
         var queue = new List<ModelProfileSummary>();
 

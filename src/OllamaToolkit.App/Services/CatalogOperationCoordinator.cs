@@ -50,6 +50,8 @@ public sealed class CatalogOperationCoordinator
     public void ForceReset()
     {
         _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
         _active = CatalogToolbarOperationType.None;
         ActiveFlashSender = null;
         _generation++;
@@ -62,6 +64,8 @@ public sealed class CatalogOperationCoordinator
             return;
         }
 
+        _cts?.Dispose();
+        _cts = null;
         _active = CatalogToolbarOperationType.None;
         ActiveFlashSender = null;
     }

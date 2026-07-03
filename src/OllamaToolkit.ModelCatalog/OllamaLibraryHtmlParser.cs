@@ -89,6 +89,7 @@ public static partial class OllamaLibraryHtmlParser
             results.Add(new LibraryCatalogEntry
             {
                 Name = name,
+                LibraryName = name,
                 Description = description,
                 Tags = string.Join(' ', capabilities),
                 ParameterSize = parameterSize,

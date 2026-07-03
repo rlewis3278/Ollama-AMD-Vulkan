@@ -12,6 +12,11 @@ public sealed class CatalogRowRefreshAnimator
 
     public void BeginRow(CatalogRowViewModel row)
     {
+        if (row.IsTesting)
+        {
+            return;
+        }
+
         row.RefreshHighlight = CatalogRowRefreshHighlight.None;
         row.RefreshState = CatalogRowRefreshState.Processing;
         row.RefreshFlashPhase = _clock.IsAccentPhase;
@@ -23,6 +28,11 @@ public sealed class CatalogRowRefreshAnimator
         CatalogRowViewModel row,
         CatalogRowRefreshHighlight highlight = CatalogRowRefreshHighlight.None)
     {
+        if (row.IsTesting)
+        {
+            return;
+        }
+
         row.RefreshHighlight = highlight;
         row.RefreshState = highlight != CatalogRowRefreshHighlight.None
             ? CatalogRowRefreshState.Complete
@@ -47,6 +57,11 @@ public sealed class CatalogRowRefreshAnimator
     {
         foreach (var row in rows)
         {
+            if (row.IsTesting)
+            {
+                continue;
+            }
+
             row.RefreshState = CatalogRowRefreshState.None;
             row.RefreshHighlight = CatalogRowRefreshHighlight.None;
             row.RefreshFlashPhase = false;

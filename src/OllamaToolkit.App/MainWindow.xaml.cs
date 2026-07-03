@@ -21,6 +21,7 @@ using OllamaToolkit.Core.Settings;
 using OllamaToolkit.ModelCatalog;
 using OllamaToolkit.ModelCatalog.Models;
 using OllamaToolkit.ModelCategory;
+using OllamaToolkit.ModelRegistry;
 using OllamaToolkit.ModelRegistry.Models;
 
 namespace OllamaToolkit.App;
@@ -33,6 +34,9 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _chatCts;
     private CancellationTokenSource? _benchmarkCts;
     private CancellationTokenSource? _testCts;
+    private int _chatSession;
+    private int _catalogSearchGeneration;
+    private readonly GlobalDownloadIndicator _globalDownload;
     private CancellationTokenSource? _undownloadCts;
     private int _progressSession;
     private volatile bool _acceptProgressUpdates;
@@ -87,10 +91,13 @@ public partial class MainWindow : Window
     private object? _generateRecommendationsFlashSender;
     private int _catalogToolbarOperations;
     private bool _suppressReportImport;
+    private readonly List<CodingToolRowControls> _codingToolRows = new();
+    private bool _codingToolsOperationInProgress;
 
     public MainWindow()
     {
         InitializeComponent();
+        _globalDownload = new GlobalDownloadIndicator(GlobalDownloadStatusText);
         _startupSplash = new StartupSplashPresenter(StartupSplashOverlay, MainContentRoot, SplashRevisionText);
         _flashButtons = new FlashButtonRegistry(this, _svc.FlashClock);
         _aiProcessingFlash = new AiProcessingFlashPresenter(AiStatusButton, this, _svc.FlashClock);
@@ -119,13 +126,11 @@ public partial class MainWindow : Window
         _catalogSearchTimer.Tick += async (_, _) =>
         {
             _catalogSearchTimer.Stop();
+            var generation = _catalogSearchGeneration;
             try
             {
-                if (_catalogDownloadInProgress)
-                {
-                    ApplyCatalogFilterInMemory();
-                }
-                else if (!_catalogOps.IsToolbarBusy)
+                ApplyCatalogFilterInMemory();
+                if (!_catalogDownloadInProgress && !_catalogOps.IsToolbarBusy && generation == _catalogSearchGeneration)
                 {
                     await RefreshCatalogUiAsync().ConfigureAwait(true);
                 }
@@ -170,11 +175,15 @@ public partial class MainWindow : Window
         };
         DataGridColumnHelper.AttachAutoFit(ModelsGrid, FitGridColumns);
         DataGridColumnHelper.AttachAutoFit(CatalogGrid, FitGridColumns);
+        DataGridColumnHelper.AttachAutoFit(TestResultsGrid, FitGridColumns);
+        SizeChanged += (_, _) => RefitAllGridColumns();
         SummarizerCombo.DropDownOpened += (_, _) => _summarizerDropdownOpen = true;
         SummarizerCombo.DropDownClosed += (_, _) => _summarizerDropdownOpen = false;
         Loaded += OnLoadedAsync;
         Closed += async (_, _) =>
         {
+            CancelAllOperations();
+            _globalDownload.ForceEndAll();
             try
             {
                 await _svc.ModelSessions.StopActiveModelAsync().ConfigureAwait(false);
@@ -243,6 +252,7 @@ public partial class MainWindow : Window
         RefreshDiagnosticsLog();
         _ = ScheduleLogScanAsync();
         InitLaunchAiToolsPanel();
+        InitCodingToolsPanel();
         _ = CheckForUpdatesOnStartupAsync();
     }
 
@@ -353,7 +363,13 @@ public partial class MainWindow : Window
         }
 
         _testOperations++;
-        _svc.WorkQueue.TryEnterTestSuiteLock();
+        if (!_svc.WorkQueue.TryEnterTestSuiteLock())
+        {
+            _testOperations--;
+            UpdateStopTestButtonUi();
+            return false;
+        }
+
         _testLogStickToBottom = true;
         UpdateStopTestButtonUi();
 
@@ -365,6 +381,7 @@ public partial class MainWindow : Window
         if (!_flashButtons.TryBegin(button, scheme))
         {
             _testOperations--;
+            _svc.WorkQueue.ExitTestSuiteLock();
             UpdateStopTestButtonUi();
             return false;
         }
@@ -427,8 +444,12 @@ public partial class MainWindow : Window
             DismissTestSpinUpUi();
             _testProgressAnimator.SetActive(false);
             _testProgressAnimator.SetActiveModeBar(null);
+            _testCts?.Cancel();
             _testCts?.Dispose();
             _testCts = null;
+            _benchmarkCts?.Cancel();
+            _benchmarkCts?.Dispose();
+            _benchmarkCts = null;
         }
     }
 
@@ -520,6 +541,9 @@ public partial class MainWindow : Window
         _testCts?.Cancel();
         _testCts?.Dispose();
         _testCts = null;
+        _benchmarkCts?.Cancel();
+        _benchmarkCts?.Dispose();
+        _benchmarkCts = null;
         UpdateStopTestButtonUi();
         ClearCatalogTestingHighlights();
     }
@@ -563,16 +587,29 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ClearCatalogTestingHighlights()
+    private void ClearCatalogTestingHighlights() =>
+        _testingHighlight.ForceResetAllTestingHighlights();
+
+    private void ResetCatalogRowHighlights()
     {
-        _testingHighlight.ClearAll();
-        foreach (var row in _catalogRows)
+        ResetCatalogRowHighlights();
+        if (_testingHighlight.HasActiveTests)
         {
-            if (row.IsDownloading)
-            {
-                row.IsDownloading = false;
-            }
+            _testingHighlight.ReapplyActive();
         }
+    }
+
+    private void CancelAllOperations()
+    {
+        _chatCts?.Cancel();
+        _testCts?.Cancel();
+        _benchmarkCts?.Cancel();
+        _undownloadCts?.Cancel();
+        _catalogDownloadCts?.Cancel();
+        _catalogFileSizesCts?.Cancel();
+        _aiRecommendationsCts?.Cancel();
+        _testResultsDetailCts?.Cancel();
+        _catalogOps.Cancel();
     }
 
     private void AppendTestLog(string line)
@@ -996,8 +1033,8 @@ public partial class MainWindow : Window
 
         var summaries = await _svc.Profiles.GetInstalledSummariesAsync().ConfigureAwait(true);
         var categories = await GetCategoryMapAsync().ConfigureAwait(true);
-        var catalogEntries = (await _svc.CatalogStore.GetEntriesAsync().ConfigureAwait(true))
-            .ToDictionary(e => e.Name, StringComparer.OrdinalIgnoreCase);
+        var catalogEntries = CatalogMetadataLookup.BuildPullTagIndex(
+            (await _svc.CatalogStore.GetEntriesAsync().ConfigureAwait(true)).ToList());
         var descriptionDoc = await _svc.Descriptions.LoadAsync().ConfigureAwait(true);
         var enriched = summaries.Select(s =>
         {
@@ -1011,7 +1048,14 @@ public partial class MainWindow : Window
         {
             var lib = s.Model.Split(':')[0];
             var displayDescription = ResolveLaunchDisplayDescription(lib, catalogEntries, descriptionDoc);
-            return ModelLaunchRowViewModel.FromSummary(s, displayDescription);
+            CatalogMetadataLookup.TryGetForModel(catalogEntries, s.Model, out var catalogEntry);
+            var installedSize = s.SizeGB > 0 ? ModelSizeFormatter.FormatGb(s.SizeGB) : null;
+            return ModelLaunchRowViewModel.FromSummary(
+                s,
+                displayDescription,
+                CatalogMetadataLookup.ResolveSizeUsage(catalogEntry, installedSize),
+                CatalogMetadataLookup.ResolveContext(catalogEntry, s.RecommendedCtx),
+                CatalogMetadataLookup.ResolveInput(catalogEntry));
         }).ToList();
         ModelsGrid.ItemsSource = rows;
         TestModelCombo.ItemsSource = enriched.Select(s => s.Model).ToList();
@@ -1125,9 +1169,7 @@ public partial class MainWindow : Window
 
     private void EnterAiActivity(bool allowDuringTests = false)
     {
-        if (!allowDuringTests
-            && _svc.WorkQueue.IsTestSuiteLocked
-            && _svc.AiSettings.LoadAsync().GetAwaiter().GetResult().BlockProgramAiDuringTests)
+        if (!allowDuringTests && _svc.WorkQueue.IsTestSuiteLocked)
         {
             return;
         }
@@ -1793,7 +1835,7 @@ public partial class MainWindow : Window
         await UiDispatcher.InvokeAsync(() => AppendTestSpinUpStatus("Building local retest queue…")).ConfigureAwait(true);
         ct.ThrowIfCancellationRequested();
 
-        var build = await _svc.Profiles.BuildLocalRetestQueueAsync().ConfigureAwait(true);
+        var build = await _svc.Profiles.BuildLocalRetestQueueAsync(ct).ConfigureAwait(true);
         ct.ThrowIfCancellationRequested();
         var names = build.Queue.Select(u => u.Model).ToList();
 
@@ -2094,6 +2136,7 @@ public partial class MainWindow : Window
 
     private void BuildTestModeProgressRows(IReadOnlyList<string> modes, bool includeDownloadRow = false)
     {
+        _testProgressAnimator.Halt();
         TestModeProgressPanel.Children.Clear();
         _testModeProgress.Clear();
 
@@ -2180,22 +2223,27 @@ public partial class MainWindow : Window
 
     private static string FormatDownloadProgressStatus(ModelPullProgress update)
     {
+        string baseText;
         if (update.TotalBytes is > 0 && update.CompletedBytes is >= 0)
         {
             var pct = update.Percent ?? (int)Math.Clamp(
                 100.0 * update.CompletedBytes.Value / update.TotalBytes.Value,
                 0,
                 100);
-            return
+            baseText =
                 $"{ModelSizeFormatter.FormatBytes(update.CompletedBytes.Value)} / {ModelSizeFormatter.FormatBytes(update.TotalBytes.Value)} ({pct}%)";
         }
-
-        if (update.Percent is int percent)
+        else if (update.Percent is int percent)
         {
-            return $"{percent}%";
+            baseText = $"{percent}%";
+        }
+        else
+        {
+            baseText = string.IsNullOrWhiteSpace(update.Status) ? "Downloading…" : update.Status;
         }
 
-        return string.IsNullOrWhiteSpace(update.Status) ? "Downloading…" : update.Status;
+        var speedEta = DownloadProgressFormatter.FormatSpeedEta(update);
+        return string.IsNullOrWhiteSpace(speedEta) ? baseText : $"{baseText} · {speedEta}";
     }
 
     private void ResetTestProgressUi(
@@ -2421,7 +2469,10 @@ public partial class MainWindow : Window
 
         _svc.Diagnostics.Write("Testing",
             $"Benchmark queue starting ({models.Count} model(s)): {string.Join(", ", models)}");
-        _benchmarkCts = new CancellationTokenSource();
+        _benchmarkCts?.Cancel();
+        _benchmarkCts?.Dispose();
+        _benchmarkCts = CancellationTokenSource.CreateLinkedTokenSource(
+            _testCts?.Token ?? CancellationToken.None);
         var ct = _benchmarkCts.Token;
         var workTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _activeTestWork = workTcs.Task;
@@ -2676,6 +2727,7 @@ public partial class MainWindow : Window
 
                         var lastPullLogPercent = -1;
                         long peakPullBytes = 0;
+                        await UiDispatcher.InvokeAsync(() => _globalDownload.Begin(pullTag)).ConfigureAwait(false);
                         var pullProgress = new Progress<ModelPullProgress>(update =>
                         {
                             if (update.TotalBytes is > 0)
@@ -2685,6 +2737,7 @@ public partial class MainWindow : Window
 
                             UiDispatcher.InvokeAsync(() =>
                             {
+                                _globalDownload.Update(pullTag, update);
                                 ApplyDownloadProgressUpdate(update);
                                 if (update.Percent is int percent)
                                 {
@@ -2724,6 +2777,7 @@ public partial class MainWindow : Window
 
                         await UiDispatcher.InvokeAsync(() =>
                         {
+                            _globalDownload.End();
                             if (_testModeProgress.TryGetValue("Download", out var row))
                             {
                                 _testProgressAnimator.SetAuthoritative(row.Bar, 100);
@@ -2833,11 +2887,13 @@ public partial class MainWindow : Window
                     }
                 }
 
-                await UiDispatcher.InvokeAsync(() =>
+                await UiDispatcher.InvokeAsync(async () =>
                 {
                     TestStatusLabel.Text = cancelled
                         ? "Undownload test queue stopped."
                         : "Undownload test queue complete.";
+                    await RefreshModelsUiAsync().ConfigureAwait(true);
+                    await RefreshCatalogUiAsync().ConfigureAwait(true);
                     ClearCatalogTestingHighlights();
                     FinishTestOperation(flashSender, success: !cancelled, cancelled);
                 }).ConfigureAwait(false);
@@ -3075,7 +3131,9 @@ public partial class MainWindow : Window
         ChatHistory.Text += $"You: {text}{Environment.NewLine}";
 
         _chatCts?.Cancel();
+        _chatCts?.Dispose();
         _chatCts = new CancellationTokenSource();
+        var session = ++_chatSession;
         var ct = _chatCts.Token;
 
         ChatHistory.Text += "Assistant: ";
@@ -3088,10 +3146,20 @@ public partial class MainWindow : Window
                 await foreach (var chunk in _svc.ApiClient.ChatStreamAsync(_runModel!, _chatMessages, ct)
                                    .ConfigureAwait(false))
                 {
+                    if (session != _chatSession || ct.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
                     streamBuffer += chunk;
                     var captured = streamBuffer;
                     await UiDispatcher.InvokeAsync(() =>
                     {
+                        if (session != _chatSession)
+                        {
+                            return;
+                        }
+
                         _chatUpdater.Append(chunk, _ =>
                         {
                             var prefix = ChatHistory.Text;
@@ -3103,6 +3171,11 @@ public partial class MainWindow : Window
                             }
                         }, () => ChatHistory.Text, v => ChatHistory.Text = v);
                     }).ConfigureAwait(false);
+                }
+
+                if (session != _chatSession || ct.IsCancellationRequested)
+                {
+                    return;
                 }
 
                 _chatMessages.Add(new ChatMessage { Role = "assistant", Content = streamBuffer.Trim() });
@@ -3129,6 +3202,7 @@ public partial class MainWindow : Window
 
     private async void StopChat_Click(object sender, RoutedEventArgs e)
     {
+        _chatSession++;
         _chatCts?.Cancel();
         try
         {
@@ -3192,6 +3266,14 @@ public partial class MainWindow : Window
         else if (MainTabs.SelectedItem == ModelsLaunchTab)
         {
             DataGridColumnHelper.ScheduleAutoFit(ModelsGrid);
+            if (_testingHighlight.HasActiveTests)
+            {
+                _testingHighlight.ReapplyActive();
+            }
+            else
+            {
+                _testingHighlight.ForceResetAllTestingHighlights();
+            }
         }
         else if (MainTabs.SelectedItem == TestResultsTab)
         {
@@ -3202,6 +3284,10 @@ public partial class MainWindow : Window
             await RefreshAiSettingsUiAsync().ConfigureAwait(true);
             RefreshActivityLog();
         }
+        else if (MainTabs.SelectedItem == CodingToolsTab)
+        {
+            await RefreshCodingToolsModelsAsync().ConfigureAwait(true);
+        }
     }
 
     private void ScheduleFitGridColumns(DataGrid grid)
@@ -3209,8 +3295,21 @@ public partial class MainWindow : Window
         DataGridColumnHelper.ScheduleAutoFit(grid);
     }
 
+    private void RefitAllGridColumns()
+    {
+        DataGridColumnHelper.QueueFit(ModelsGrid);
+        DataGridColumnHelper.QueueFit(CatalogGrid);
+        DataGridColumnHelper.QueueFit(TestResultsGrid);
+    }
+
     private void FitGridColumns(DataGrid grid)
     {
+        if (ReferenceEquals(grid, TestResultsGrid))
+        {
+            DataGridColumnHelper.AutoFitColumnsDense(grid);
+            return;
+        }
+
         if (ReferenceEquals(grid, ModelsGrid))
         {
             var modelsStar = DataGridColumnHelper.IndexOfStarColumn(grid, "Description");
@@ -3407,7 +3506,7 @@ public partial class MainWindow : Window
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     _catalogRowAnimator.Stop();
-                    CatalogRowRefreshAnimator.ResetAll(_catalogRows);
+                    ResetCatalogRowHighlights();
                     CatalogStatusLabel.Text = "Description refresh cancelled.";
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
@@ -3421,7 +3520,7 @@ public partial class MainWindow : Window
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     _catalogRowAnimator.Stop();
-                    CatalogRowRefreshAnimator.ResetAll(_catalogRows);
+                    ResetCatalogRowHighlights();
                     CatalogStatusLabel.Text = msg;
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
@@ -3434,6 +3533,18 @@ public partial class MainWindow : Window
         }).ConfigureAwait(true);
     }
 
+    private static void ApplyCatalogRowSizeLabel(CatalogRowViewModel row, string label, LibraryCatalogEntry? entry = null)
+    {
+        if (string.IsNullOrWhiteSpace(label) || label == "-")
+        {
+            return;
+        }
+
+        var formattedLabel = ModelSizeFormatter.FormatSizeLabel(label);
+        row.SizeUsage = formattedLabel;
+        row.FileSizeSortKey = CatalogMetadataLookup.ResolveFileSizeSortKey(entry, formattedLabel);
+    }
+
     private async Task ApplyCatalogFileSizesToRowsAsync(CancellationToken cancellationToken)
     {
         var entries = await _svc.CatalogStore.GetEntriesAsync(cancellationToken: cancellationToken)
@@ -3442,18 +3553,15 @@ public partial class MainWindow : Window
         {
             foreach (var entry in entries)
             {
-                if (!_catalogRowByName.TryGetValue(entry.Name, out var row))
+                var pullTag = CatalogEntryNames.PullTag(entry);
+                if (!_catalogRowByName.TryGetValue(pullTag, out var row)
+                    && !_catalogRowByName.TryGetValue(entry.Name, out row))
                 {
                     continue;
                 }
 
                 var label = CatalogFileSizeDisplay.GetDisplayLabel(entry);
-                if (label == "-")
-                {
-                    continue;
-                }
-
-                row.FileSize = OllamaToolkit.Core.ModelSizeFormatter.FormatSizeLabel(label);
+                ApplyCatalogRowSizeLabel(row, label, entry);
             }
         }).ConfigureAwait(false);
     }
@@ -3466,9 +3574,36 @@ public partial class MainWindow : Window
             _catalogRows.Add(row);
         }
 
-        _catalogRowByName = _catalogRows.ToDictionary(r => r.Name, StringComparer.OrdinalIgnoreCase);
+        var index = new Dictionary<string, CatalogRowViewModel>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in _catalogRows)
+        {
+            TryAddCatalogRowKey(index, row.Name, row);
+            if (!string.IsNullOrWhiteSpace(row.LibraryName))
+            {
+                TryAddCatalogRowKey(index, row.LibraryName, row);
+            }
+
+            if (!string.IsNullOrWhiteSpace(row.DefaultPullTag))
+            {
+                TryAddCatalogRowKey(index, row.DefaultPullTag, row);
+            }
+        }
+
+        _catalogRowByName = index;
+        CatalogGrid.ItemsSource = _catalogRows;
         ScheduleFitGridColumns(CatalogGrid);
         _testingHighlight.ReapplyActive();
+    }
+
+    private static void TryAddCatalogRowKey(
+        Dictionary<string, CatalogRowViewModel> index,
+        string key,
+        CatalogRowViewModel row)
+    {
+        if (!index.ContainsKey(key))
+        {
+            index[key] = row;
+        }
     }
 
     private async Task BindFullCatalogGridAsync(
@@ -3522,13 +3657,13 @@ public partial class MainWindow : Window
 
     private void FinishDescriptionRefreshHoldover()
     {
-        CatalogRowRefreshAnimator.ResetAll(_catalogRows);
+        ResetCatalogRowHighlights();
         _ = RefreshCatalogUiAsync();
     }
 
     private void FinishCatalogRefreshHoldover()
     {
-        CatalogRowRefreshAnimator.ResetAll(_catalogRows);
+        ResetCatalogRowHighlights();
         _ = RefreshCatalogUiAsync();
     }
 
@@ -3556,7 +3691,7 @@ public partial class MainWindow : Window
             row.InstalledDisplay = progress.IsInstalled ? "Yes" : "No";
             if (!string.IsNullOrWhiteSpace(progress.FileSize))
             {
-                row.FileSize = OllamaToolkit.Core.ModelSizeFormatter.FormatSizeLabel(progress.FileSize);
+                ApplyCatalogRowSizeLabel(row, progress.FileSize);
             }
 
             if (!string.IsNullOrWhiteSpace(progress.Description))
@@ -3665,7 +3800,7 @@ public partial class MainWindow : Window
         await UiDispatcher.InvokeAsync(() =>
         {
             _catalogRowAnimator.Stop();
-            CatalogRowRefreshAnimator.ResetAll(_catalogRows);
+            ResetCatalogRowHighlights();
             HideCatalogDownloadProgress();
             if (flashSender is not null)
             {
@@ -3695,24 +3830,32 @@ public partial class MainWindow : Window
     {
         var search = CatalogSearchBox.Text?.Trim() ?? string.Empty;
         var category = CategoryFilterCombo.SelectedItem as string ?? "All";
-        var rows = _catalogRows.AsEnumerable();
+        IEnumerable<CatalogRowViewModel> rows = _catalogRows;
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            rows = rows.Where(r =>
-                r.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.Category.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.DisplayDescription.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.BestMode.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || r.BestTps.Contains(search, StringComparison.OrdinalIgnoreCase));
+            rows = rows.Where(r => CatalogRowSearch.Matches(r, search));
         }
 
         if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            rows = rows.Where(r => r.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
+            rows = rows.Where(r =>
+                CategoryNormalizer.ExtractMajorCategory(r.Category)
+                    .Equals(category, StringComparison.OrdinalIgnoreCase));
         }
 
         var filtered = rows.ToList();
+        if (_nlRankedCatalog.Count > 0)
+        {
+            var rankMap = _nlRankedCatalog
+                .Select((name, i) => (name, i))
+                .ToDictionary(x => x.name, x => x.i, StringComparer.OrdinalIgnoreCase);
+            filtered = filtered
+                .OrderBy(r => rankMap.TryGetValue(r.Name, out var i) ? i : 999)
+                .ThenBy(r => r.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
         CatalogGrid.ItemsSource = filtered;
         CatalogStatusLabel.Text = _catalogDownloadInProgress
             ? $"Downloading — showing {filtered.Count} filtered model(s)."
@@ -3783,8 +3926,15 @@ public partial class MainWindow : Window
         }
     }
 
-    private void CatalogSearchBox_KeyUp(object sender, KeyEventArgs e)
+    private void CatalogSearchBox_KeyUp(object sender, KeyEventArgs e) =>
+        RestartCatalogSearchDebounce();
+
+    private void CatalogSearchBox_TextChanged(object sender, TextChangedEventArgs e) =>
+        RestartCatalogSearchDebounce();
+
+    private void RestartCatalogSearchDebounce()
     {
+        _catalogSearchGeneration++;
         _catalogSearchTimer.Stop();
         _catalogSearchTimer.Start();
     }
@@ -3886,7 +4036,7 @@ public partial class MainWindow : Window
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     _catalogRowAnimator.Stop();
-                    CatalogRowRefreshAnimator.ResetAll(_catalogRows);
+                    ResetCatalogRowHighlights();
                     CatalogStatusLabel.Text = "Catalog refresh cancelled.";
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
@@ -3900,7 +4050,7 @@ public partial class MainWindow : Window
                 await UiDispatcher.InvokeAsync(() =>
                 {
                     _catalogRowAnimator.Stop();
-                    CatalogRowRefreshAnimator.ResetAll(_catalogRows);
+                    ResetCatalogRowHighlights();
                     CatalogStatusLabel.Text = msg;
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
@@ -4050,7 +4200,7 @@ public partial class MainWindow : Window
                 await UiDispatcher.InvokeAsync(async () =>
                 {
                     _catalogRowAnimator.Stop();
-                    CatalogRowRefreshAnimator.ResetAll(_catalogRows);
+                    ResetCatalogRowHighlights();
                     _catalogRows.Clear();
                     _catalogRowByName = new Dictionary<string, CatalogRowViewModel>(StringComparer.OrdinalIgnoreCase);
                     InitCategoryFilter();
@@ -4584,6 +4734,7 @@ public partial class MainWindow : Window
         var detail = FormatDownloadProgressStatus(update);
         CatalogDownloadProgressLabel.Text = $"{model} — {detail}";
         CatalogStatusLabel.Text = CatalogDownloadProgressLabel.Text;
+        _globalDownload.Update(model, update);
     }
 
     private void HideCatalogDownloadProgress()
@@ -4722,7 +4873,10 @@ public partial class MainWindow : Window
                     }).ConfigureAwait(false);
 
                     await UiDispatcher.InvokeAsync(() =>
-                        BeginCatalogDownloadProgressUi(pullTag, "Downloading…")).ConfigureAwait(false);
+                    {
+                        _globalDownload.Begin(pullTag);
+                        BeginCatalogDownloadProgressUi(pullTag, "Downloading…");
+                    }).ConfigureAwait(false);
 
                     var progress = new Progress<ModelPullProgress>(update =>
                     {
@@ -4748,6 +4902,7 @@ public partial class MainWindow : Window
                     _svc.ActivityLog.Write("Task", $"Downloaded {pullTag}.");
                     await UiDispatcher.InvokeAsync(async () =>
                     {
+                        _globalDownload.End();
                         EndCatalogDownloadRow(row, installed: true);
                         if (i == rows.Count - 1)
                         {
@@ -4778,6 +4933,7 @@ public partial class MainWindow : Window
             {
                 await UiDispatcher.InvokeAsync(() =>
                 {
+                    _globalDownload.ForceEndAll();
                     foreach (var row in rows)
                     {
                         EndCatalogDownloadRow(row, row.Installed);
@@ -4794,6 +4950,7 @@ public partial class MainWindow : Window
                 var msg = await ExplainErrorAsync(ex.Message, token).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
+                    _globalDownload.ForceEndAll();
                     foreach (var row in rows)
                     {
                         EndCatalogDownloadRow(row, row.Installed);
@@ -4807,7 +4964,11 @@ public partial class MainWindow : Window
             finally
             {
                 _catalogDownloadInProgress = false;
-                await UiDispatcher.InvokeAsync(UpdateCatalogDownloadButtonUi).ConfigureAwait(false);
+                await UiDispatcher.InvokeAsync(() =>
+                {
+                    _globalDownload.ForceEndAll();
+                    UpdateCatalogDownloadButtonUi();
+                }).ConfigureAwait(false);
             }
         }).ConfigureAwait(true);
     }
@@ -5023,8 +5184,12 @@ public partial class MainWindow : Window
                 {
                     Model = row.Model,
                     Category = row.Category ?? string.Empty,
+                    SizeUsage = row.SizeUsage,
                     RecommendedCtx = row.RecommendedCtx,
+                    ContextSortKey = row.ContextSortKey,
                     ContextDisplay = row.ContextDisplay,
+                    InputModalities = row.InputModalities,
+                    MetricSortKey = row.MetricSortKey,
                     FileSizeSortKey = row.FileSizeSortKey,
                     BenchmarkKind = string.IsNullOrWhiteSpace(row.BenchmarkKind)
                         ? BenchmarkKinds.Generate
@@ -5133,6 +5298,9 @@ public partial class MainWindow : Window
             filtered = filtered.Where(r =>
                 TestResultFieldMatches(r.Model, search)
                 || TestResultFieldMatches(r.Category, search)
+                || TestResultFieldMatches(r.SizeUsage, search)
+                || TestResultFieldMatches(r.ContextDisplay, search)
+                || TestResultFieldMatches(r.InputModalities, search)
                 || TestResultFieldMatches(r.Insight, search)
                 || TestResultFieldMatches(r.BestMode, search)
                 || TestResultFieldMatches(r.CpuResult, search)
@@ -5170,6 +5338,7 @@ public partial class MainWindow : Window
             _suppressTestResultsSelectionEvents = false;
         }
 
+        ScheduleFitGridColumns(TestResultsGrid);
         SafeUpdateTestResultsActionButtons();
     }
 
@@ -5243,8 +5412,25 @@ public partial class MainWindow : Window
 
         TestResultsSearchBox.Text = libraryOrModelName.Split(':')[0];
         ApplyTestResultsFilter();
-        TestResultsGrid.SelectedItem = match;
-        TestResultsGrid.CurrentItem = match;
+        var visible = TestResultsGrid.ItemsSource as IEnumerable<TestResultRowViewModel> ?? _testResultsRows;
+        var visibleMatch = visible.FirstOrDefault(r =>
+            r.Model.Equals(match.Model, StringComparison.OrdinalIgnoreCase));
+        if (visibleMatch is null)
+        {
+            TestResultsCategoryFilterCombo.SelectedIndex = 0;
+            TestResultsSearchBox.Text = string.Empty;
+            ApplyTestResultsFilter();
+            visibleMatch = _testResultsRows.FirstOrDefault(r =>
+                r.Model.Equals(match.Model, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (visibleMatch is null)
+        {
+            return;
+        }
+
+        TestResultsGrid.SelectedItem = visibleMatch;
+        TestResultsGrid.CurrentItem = visibleMatch;
         if (TestResultsGrid.SelectedItem is TestResultRowViewModel selected)
         {
             TestResultsGrid.ScrollIntoView(selected);
@@ -5318,8 +5504,13 @@ public partial class MainWindow : Window
                 }
 
                 var pullTag = resolution.PullTag;
+                await UiDispatcher.InvokeAsync(() => _globalDownload.Begin(pullTag)).ConfigureAwait(false);
                 var progress = new Progress<ModelPullProgress>(update =>
-                    _ = UiDispatcher.InvokeAsync(() => TestResultDetail.Text = $"Downloading {pullTag}: {update.Status}"));
+                    _ = UiDispatcher.InvokeAsync(() =>
+                    {
+                        _globalDownload.Update(pullTag, update);
+                        TestResultDetail.Text = $"Downloading {pullTag}: {FormatDownloadProgressStatus(update)}";
+                    }));
 
                 await _svc.ApiClient.PullAsync(pullTag, progress, ct).ConfigureAwait(false);
                 _svc.ApiClient.InvalidateCaches();
@@ -5327,6 +5518,7 @@ public partial class MainWindow : Window
 
                 await UiDispatcher.InvokeAsync(async () =>
                 {
+                    _globalDownload.End();
                     TestResultDetail.Text = $"Downloaded {pullTag}.";
                     await RefreshModelsUiAsync().ConfigureAwait(true);
                     await RefreshTestResultsUiAsync().ConfigureAwait(true);
@@ -5338,6 +5530,7 @@ public partial class MainWindow : Window
             {
                 await UiDispatcher.InvokeAsync(() =>
                 {
+                    _globalDownload.End();
                     TestResultDetail.Text = "Download cancelled.";
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
@@ -5347,6 +5540,7 @@ public partial class MainWindow : Window
                 var msg = await ExplainErrorAsync(ex.Message, ct).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
+                    _globalDownload.End();
                     TestResultDetail.Text = msg;
                     EndTaskFlashIdle(sender);
                 }).ConfigureAwait(false);
@@ -5964,7 +6158,53 @@ public partial class MainWindow : Window
     private async Task BindAiRecommendationsFromCacheAsync()
     {
         var doc = await _svc.AiLlmRecommendations.LoadAsync().ConfigureAwait(true);
+        if (doc is not null)
+        {
+            await EnrichAiRecommendationsFromCatalogAsync(doc).ConfigureAwait(true);
+        }
+
         BindAiRecommendationsDocument(doc);
+    }
+
+    private async Task EnrichAiRecommendationsFromCatalogAsync(AiLlmRecommendationsDocument doc)
+    {
+        var catalogIndex = CatalogMetadataLookup.BuildPullTagIndex(
+            (await _svc.CatalogStore.GetEntriesAsync().ConfigureAwait(true)).ToList());
+
+        foreach (var entry in doc.Installed.Concat(doc.Uninstalled))
+        {
+            var model = string.IsNullOrWhiteSpace(entry.PullTag) ? entry.ModelOrLibrary : entry.PullTag;
+            if (!CatalogMetadataLookup.TryGetForModel(catalogIndex, model, out var catalogEntry))
+            {
+                continue;
+            }
+
+            if (entry.SizeUsage is "-" or "")
+            {
+                entry.SizeUsage = CatalogMetadataLookup.ResolveSizeUsage(
+                    catalogEntry, entry.FileSize is "-" or "" ? null : entry.FileSize);
+            }
+
+            if (entry.ContextDisplay is "-" or "")
+            {
+                entry.ContextDisplay = CatalogMetadataLookup.ResolveContext(catalogEntry);
+            }
+
+            if (entry.InputModalities is "-" or "")
+            {
+                entry.InputModalities = CatalogMetadataLookup.ResolveInput(catalogEntry);
+            }
+
+            if (entry.ContextSortKey == 0)
+            {
+                entry.ContextSortKey = CatalogMetadataLookup.ResolveContextSortKey(catalogEntry);
+            }
+
+            if (entry.FileSizeSortKey == long.MaxValue)
+            {
+                entry.FileSizeSortKey = CatalogMetadataLookup.ResolveFileSizeSortKey(catalogEntry, entry.SizeUsage);
+            }
+        }
     }
 
     private void BindAiRecommendationsDocument(AiLlmRecommendationsDocument? doc)
@@ -6015,9 +6255,11 @@ public partial class MainWindow : Window
         _aiRecommendationsCts?.Dispose();
         _aiRecommendationsCts = new CancellationTokenSource();
 
-        await _svc.WorkQueue.EnqueueAsync(async _ =>
+        await _svc.WorkQueue.EnqueueAsync(async workCt =>
         {
-            var ct = _aiRecommendationsCts!.Token;
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                workCt, _aiRecommendationsCts!.Token);
+            var ct = linked.Token;
             EnterAiActivity();
             try
             {
@@ -6438,6 +6680,7 @@ public partial class MainWindow : Window
 
         MainTabs.SelectedItem = ModelLibraryTab;
         CatalogSearchBox.Text = row.Model.Split(':')[0];
+        ApplyCatalogFilterInMemory();
         SetAiRecommendationsActionStatus($"Opened Model Library for {row.Model}.");
     }
 
@@ -6469,19 +6712,20 @@ public partial class MainWindow : Window
                     throw new InvalidOperationException(startup.Message);
                 }
 
+                await UiDispatcher.InvokeAsync(() => _globalDownload.Begin(pullTag)).ConfigureAwait(false);
                 var progress = new Progress<ModelPullProgress>(update =>
                 {
                     UiDispatcher.InvokeAsync(() =>
                     {
+                        _globalDownload.Update(pullTag, update);
                         if (update.Percent is int percent)
                         {
                             AiSettingsDownloadProgress.Value = percent;
                         }
 
-                        AiSettingsDownloadProgressLabel.Text = update.Percent is int pct
-                            ? $"{pullTag} — {update.Status} ({pct}%)"
-                            : $"{pullTag} — {update.Status}";
-                        SetAiRecommendationsActionStatus($"Downloading {pullTag}: {update.Status}");
+                        var detail = FormatDownloadProgressStatus(update);
+                        AiSettingsDownloadProgressLabel.Text = $"{pullTag} — {detail}";
+                        SetAiRecommendationsActionStatus($"Downloading {pullTag}: {detail}");
                     });
                 });
 
@@ -6491,6 +6735,7 @@ public partial class MainWindow : Window
                 _svc.AiLlmRecommendations.ClearCache();
                 await UiDispatcher.InvokeAsync(async () =>
                 {
+                    _globalDownload.End();
                     AiSettingsDownloadProgressPanel.Visibility = Visibility.Collapsed;
                     SetAiRecommendationsActionStatus($"Downloaded {pullTag}. Regenerate recommendations to refresh lists.");
                     await RefreshModelsUiAsync().ConfigureAwait(true);
@@ -6505,6 +6750,7 @@ public partial class MainWindow : Window
             {
                 await UiDispatcher.InvokeAsync(() =>
                 {
+                    _globalDownload.End();
                     AiSettingsDownloadProgressPanel.Visibility = Visibility.Collapsed;
                     SetAiRecommendationsActionStatus($"Download cancelled for {pullTag}.");
                     if (flashSender is not null)
@@ -6518,6 +6764,7 @@ public partial class MainWindow : Window
                 var msg = await ExplainErrorAsync(ex.Message, token).ConfigureAwait(false);
                 await UiDispatcher.InvokeAsync(() =>
                 {
+                    _globalDownload.End();
                     AiSettingsDownloadProgressPanel.Visibility = Visibility.Collapsed;
                     SetAiRecommendationsActionStatus(msg);
                     if (flashSender is not null)
@@ -7115,17 +7362,10 @@ public partial class MainWindow : Window
     }
 
     private static readonly (string Label, string Tool, string Icon)[] LaunchAiTools =
-    [
-        ("Claude", "claude", "🟠"),
-        ("Codex App", "codex-app", "📱"),
-        ("Hermes", "hermes", "🦉"),
-        ("OpenClaw", "openclaw", "🦞"),
-        ("OpenCode", "opencode", "⌨"),
-        ("Codex", "codex", "💻"),
-        ("Copilot", "copilot", "🤖"),
-        ("Droid", "droid", "🤖"),
-        ("Pi", "pi", "π")
-    ];
+        OllamaLaunchIntegrations.All
+            .Take(9)
+            .Select(i => (i.Label, i.Id, i.Icon))
+            .ToArray();
 
     private void InitLaunchAiToolsPanel()
     {
@@ -7232,28 +7472,540 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void UpgradeOllama_Click(object sender, RoutedEventArgs e)
+    private void InitCodingToolsPanel()
     {
-        LaunchAiToolsStatus.Text = "Upgrading Ollama...";
-        AppendLaunchAiTerminal("$ ollama upgrade");
-        try
+        CodingToolsPanel.Children.Clear();
+        _codingToolRows.Clear();
+
+        CodingToolsPanel.Children.Add(new TextBlock
         {
-            var progress = new Progress<string>(line =>
-                UiDispatcher.InvokeFireAndForget(() => AppendLaunchAiTerminal(line)));
-            var result = await _svc.OllamaCli.ExecuteAsync(["upgrade"], progress).ConfigureAwait(true);
-            if (result.ExitCode != 0)
+            Text = "Action mirrors ollama launch flags. Extra args are passed after -- (e.g. codex -- --sandbox workspace-write).",
+            Foreground = (Brush)FindResource("Brush.Muted"),
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 8)
+        });
+
+        var header = new Grid { Margin = new Thickness(10, 0, 10, 4) };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 160 });
+        for (var i = 0; i < 5; i++)
+        {
+            header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        }
+
+        void AddHeader(string text, int column, double width = 0)
+        {
+            var block = new TextBlock
             {
-                AppendLaunchAiTerminal($"[exit {result.ExitCode}]");
+                Text = text,
+                Foreground = (Brush)FindResource("Brush.Muted"),
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 8, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            if (width > 0)
+            {
+                block.Width = width;
             }
 
-            LaunchAiToolsStatus.Text = result.ExitCode == 0
-                ? "Ollama upgrade finished."
-                : $"Ollama upgrade finished with exit code {result.ExitCode}.";
+            Grid.SetColumn(block, column);
+            header.Children.Add(block);
+        }
+
+        AddHeader("Integration", 0);
+        AddHeader("Action", 1, 150);
+        AddHeader("Auto-yes", 2, 88);
+        AddHeader("Extra args", 3, 180);
+        AddHeader("Custom", 4, 200);
+        AddHeader("Run", 5);
+        CodingToolsPanel.Children.Add(header);
+
+        foreach (var integration in OllamaLaunchIntegrations.All)
+        {
+            var actionCombo = new ComboBox
+            {
+                Width = 150,
+                Margin = new Thickness(0, 0, 8, 0),
+                ItemsSource = OllamaLaunchIntegrations.ActionChoices,
+                SelectedIndex = 0
+            };
+
+            var yesCombo = new ComboBox
+            {
+                Width = 88,
+                Margin = new Thickness(0, 0, 8, 0),
+                ItemsSource = OllamaLaunchIntegrations.YesChoices,
+                SelectedIndex = 0
+            };
+
+            var extraCombo = new ComboBox
+            {
+                Width = 180,
+                Margin = new Thickness(0, 0, 8, 0),
+                ItemsSource = OllamaLaunchIntegrations.BuildExtraArgChoices(integration),
+                SelectedIndex = 0
+            };
+
+            var customExtraBox = new TextBox
+            {
+                Width = 200,
+                Margin = new Thickness(0, 0, 8, 0),
+                Visibility = Visibility.Collapsed,
+                ToolTip = "Arguments passed after -- (e.g. --sandbox workspace-write)"
+            };
+
+            var runButton = new Button
+            {
+                Content = "Run",
+                Tag = integration.Id
+            };
+            runButton.SetResourceReference(StyleProperty, "ToolkitButton");
+
+            var row = new CodingToolRowControls
+            {
+                Integration = integration,
+                ActionCombo = actionCombo,
+                YesCombo = yesCombo,
+                ExtraArgsCombo = extraCombo,
+                CustomExtraArgsBox = customExtraBox,
+                RunButton = runButton
+            };
+
+            actionCombo.SelectionChanged += (_, _) =>
+            {
+                row.SyncYesEnabled();
+            };
+            extraCombo.SelectionChanged += (_, _) => row.SyncExtraArgsVisibility();
+            runButton.Click += CodingToolRun_Click;
+
+            _codingToolRows.Add(row);
+
+            var card = new Border
+            {
+                BorderBrush = (Brush)FindResource("Brush.PanelBorder"),
+                BorderThickness = new Thickness(1),
+                Background = (Brush)FindResource("Brush.Panel"),
+                Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(0, 0, 0, 8),
+                Child = new Grid
+                {
+                    ColumnDefinitions =
+                    {
+                        new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 160 },
+                        new ColumnDefinition { Width = GridLength.Auto },
+                        new ColumnDefinition { Width = GridLength.Auto },
+                        new ColumnDefinition { Width = GridLength.Auto },
+                        new ColumnDefinition { Width = GridLength.Auto },
+                        new ColumnDefinition { Width = GridLength.Auto }
+                    },
+                    Children =
+                    {
+                        BuildCodingToolTitlePanel(integration),
+                        actionCombo,
+                        yesCombo,
+                        extraCombo,
+                        customExtraBox,
+                        runButton
+                    }
+                }
+            };
+
+            if (card.Child is Grid grid)
+            {
+                Grid.SetColumn(grid.Children[0], 0);
+                Grid.SetColumn(actionCombo, 1);
+                Grid.SetColumn(yesCombo, 2);
+                Grid.SetColumn(extraCombo, 3);
+                Grid.SetColumn(customExtraBox, 4);
+                Grid.SetColumn(runButton, 5);
+                foreach (UIElement child in grid.Children)
+                {
+                    if (child is FrameworkElement fe)
+                    {
+                        fe.VerticalAlignment = VerticalAlignment.Center;
+                    }
+                }
+            }
+
+            CodingToolsPanel.Children.Add(card);
+            row.SyncExtraArgsVisibility();
+            row.SyncYesEnabled();
+        }
+
+        CodingToolsStatus.Text =
+            $"{OllamaLaunchIntegrations.All.Count} integrations from ollama launch — pick a local LLM, then configure or launch.";
+    }
+
+    private static StackPanel BuildCodingToolTitlePanel(OllamaLaunchIntegrations.Integration integration)
+    {
+        var aliasText = integration.Aliases.Count > 0
+            ? $" ({string.Join(", ", integration.Aliases)})"
+            : string.Empty;
+        return new StackPanel
+        {
+            Orientation = Orientation.Vertical,
+            Margin = new Thickness(0, 0, 12, 0),
+            Children =
+            {
+                new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Children =
+                    {
+                        new TextBlock
+                        {
+                            Text = integration.Icon,
+                            FontSize = 16,
+                            Margin = new Thickness(0, 0, 6, 0),
+                            VerticalAlignment = VerticalAlignment.Center
+                        },
+                        new TextBlock
+                        {
+                            Text = integration.Label,
+                            FontWeight = FontWeights.SemiBold,
+                            Foreground = Brushes.White,
+                            VerticalAlignment = VerticalAlignment.Center
+                        },
+                        new TextBlock
+                        {
+                            Text = aliasText,
+                            Foreground = Brushes.Gray,
+                            FontSize = 12,
+                            VerticalAlignment = VerticalAlignment.Center
+                        }
+                    }
+                },
+                new TextBlock
+                {
+                    Text = integration.Description,
+                    Foreground = Brushes.Gray,
+                    FontSize = 12,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(22, 2, 0, 0)
+                }
+            }
+        };
+    }
+
+    private void AppendCodingToolsTerminal(string line)
+    {
+        if (string.IsNullOrEmpty(line))
+        {
+            return;
+        }
+
+        CodingToolsTerminal.AppendText(line + Environment.NewLine);
+        CodingToolsTerminal.CaretIndex = CodingToolsTerminal.Text.Length;
+        CodingToolsTerminal.ScrollToEnd();
+    }
+
+    private async Task RefreshCodingToolsModelsAsync()
+    {
+        try
+        {
+            var snapshot = await _svc.ApiClient.FetchTagsSnapshotAsync(forceRefresh: true).ConfigureAwait(true);
+            var models = snapshot.Tags.Select(t => t.Name).OrderBy(n => n).ToList();
+            CodingToolsModelCombo.ItemsSource = models;
+            if (models.Count > 0 && CodingToolsModelCombo.SelectedIndex < 0)
+            {
+                CodingToolsModelCombo.SelectedIndex = 0;
+            }
+
+            CodingToolsStatus.Text = $"Loaded {models.Count} installed model(s) for coding tool integrations.";
+            await UpdateCodingToolsSettingsLabelAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
-            AppendLaunchAiTerminal(ex.Message);
-            LaunchAiToolsStatus.Text = ex.Message;
+            CodingToolsStatus.Text = ex.Message;
+        }
+    }
+
+    private async void RefreshCodingToolsModels_Click(object sender, RoutedEventArgs e) =>
+        await RefreshCodingToolsModelsAsync().ConfigureAwait(true);
+
+    private async void CodingToolsModelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e) =>
+        await UpdateCodingToolsSettingsLabelAsync().ConfigureAwait(true);
+
+    private async Task UpdateCodingToolsSettingsLabelAsync()
+    {
+        var model = CodingToolsModelCombo.SelectedItem as string;
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            CodingToolsSettingsLabel.Text = "Select a local LLM to view optimized benchmark settings.";
+            return;
+        }
+
+        try
+        {
+            var settings = await GetBenchmarkSettingsForModelAsync(model).ConfigureAwait(true);
+            var summaries = await _svc.Profiles.GetAllSummariesAsync().ConfigureAwait(true);
+            var summary = summaries.FirstOrDefault(s => s.Model.Equals(model, StringComparison.OrdinalIgnoreCase));
+            var mode = summary is { BestMode: { Length: > 0 } best } ? best : "GPU (default)";
+            var metric = summary?.BestMetricDisplay ?? "not benchmarked";
+            CodingToolsSettingsLabel.Text =
+                $"Optimized settings for {model}: num_ctx={settings.NumCtx}, num_predict={settings.NumPredict}, " +
+                $"best mode={mode} ({metric}) | {FormatTestSettingsLabel(settings)}";
+        }
+        catch (Exception ex)
+        {
+            CodingToolsSettingsLabel.Text = ex.Message;
+        }
+    }
+
+    private async Task<BenchmarkSettingsEntry> GetBenchmarkSettingsForModelAsync(
+        string model,
+        CancellationToken cancellationToken = default)
+    {
+        var summaries = await _svc.Profiles.GetAllSummariesAsync(cancellationToken).ConfigureAwait(false);
+        var summary = summaries.FirstOrDefault(s => s.Model.Equals(model, StringComparison.OrdinalIgnoreCase));
+        if (summary is null)
+        {
+            var sizeGb = 4.0;
+            var categories = await GetCategoryMapAsync().ConfigureAwait(false);
+            var lib = model.Split(':')[0];
+            var category = categories.TryGetValue(lib, out var c) ? c : string.Empty;
+            var catalogRows = await _svc.Registry.GetCatalogRowsAsync(cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            var catalogRow = catalogRows.FirstOrDefault(r =>
+                r.Name.Equals(lib, StringComparison.OrdinalIgnoreCase));
+            if (catalogRow is not null
+                && ModelSizeFormatter.TryParseSizeLabelToBytes(catalogRow.FileSize, out var bytes))
+            {
+                sizeGb = bytes / 1_073_741_824.0;
+            }
+
+            summary = new ModelProfileSummary
+            {
+                Model = model,
+                SizeGB = sizeGb,
+                RecommendedCtx = ProfileStoreService.GetRecommendedBenchmarkNumCtx(sizeGb),
+                Category = category
+            };
+        }
+
+        var categoriesMap = await GetCategoryMapAsync().ConfigureAwait(false);
+        var library = model.Split(':')[0];
+        var modelCategory = categoriesMap.TryGetValue(library, out var cat) ? cat : string.Empty;
+        if (CategoryNormalizer.IsEmbeddingModel(model, modelCategory))
+        {
+            return new BenchmarkSettingsEntry
+            {
+                NumCtx = 0,
+                NumPredict = 0,
+                NumParallelByMode = BenchmarkParallelSettings.EmbedDefaults(),
+                Rationale = "Embedding model — not suitable for coding tool launch."
+            };
+        }
+
+        EnterAiActivity(allowDuringTests: true);
+        try
+        {
+            var settings = await _svc.BenchmarkSettingsAdvisor
+                .SuggestAsync(summary, modelCategory, cancellationToken)
+                .ConfigureAwait(false);
+            return BenchmarkSettingsAdvisorService.NormalizeEntry(settings, summary);
+        }
+        finally
+        {
+            ExitAiActivity();
+        }
+    }
+
+    private async Task PrepareModelForCodingToolLaunchAsync(string model, CancellationToken cancellationToken)
+    {
+        var settings = await GetBenchmarkSettingsForModelAsync(model, cancellationToken).ConfigureAwait(false);
+        var summaries = await _svc.Profiles.GetAllSummariesAsync(cancellationToken).ConfigureAwait(false);
+        var summary = summaries.FirstOrDefault(s => s.Model.Equals(model, StringComparison.OrdinalIgnoreCase));
+
+        if (summary is not null
+            && !summary.NeedsRetest
+            && !string.IsNullOrEmpty(summary.BestMode)
+            && Enum.TryParse<ComputeMode>(summary.BestMode, out var bestMode))
+        {
+            await ApplyLaunchParallelAndModeAsync(summary, bestMode, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            var parallelByMode = settings.NumParallelByMode;
+            _svc.ServerTuning.ApplyParallelForMode(ComputeMode.GPU, parallelByMode);
+            await _svc.ModeService.ApplyModeWithRestartAsync(ComputeMode.GPU, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            _svc.ApiClient.InvalidateCaches();
+            await UiDispatcher.InvokeAsync(UpdateFooterComputeModeLabel).ConfigureAwait(false);
+        }
+
+        await _svc.ModelSessions.SwitchToModelAsync(model, warmLoad: true, cancellationToken).ConfigureAwait(false);
+        AppendCodingToolsTerminal(
+            $"Prepared {model}: num_ctx={settings.NumCtx}, num_predict={settings.NumPredict}, model warm-loaded.");
+    }
+
+    private void SetCodingToolsBusy(bool busy)
+    {
+        _codingToolsOperationInProgress = busy;
+        CodingToolsInstallAllBtn.IsEnabled = !busy;
+        foreach (var row in _codingToolRows)
+        {
+            row.RunButton.IsEnabled = !busy;
+        }
+    }
+
+    private async void CodingToolRun_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string toolId })
+        {
+            return;
+        }
+
+        var row = _codingToolRows.FirstOrDefault(r => r.Integration.Id.Equals(toolId, StringComparison.Ordinal));
+        if (row is null)
+        {
+            return;
+        }
+
+        await ExecuteCodingToolRequestAsync(row.ToRequest(CodingToolsModelCombo.SelectedItem as string))
+            .ConfigureAwait(true);
+    }
+
+    private async void CodingToolsInstallAll_Click(object sender, RoutedEventArgs e)
+    {
+        if (_codingToolsOperationInProgress)
+        {
+            return;
+        }
+
+        var model = CodingToolsModelCombo.SelectedItem as string;
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            MessageBox.Show("Select a local LLM first.", "Install All", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        SetCodingToolsBusy(true);
+        CodingToolsStatus.Text = $"Installing all integrations for {model}…";
+        try
+        {
+            await PrepareModelForCodingToolLaunchAsync(model, CancellationToken.None).ConfigureAwait(true);
+            var failures = 0;
+            foreach (var integration in OllamaLaunchIntegrations.All)
+            {
+                var request = new CodingToolLaunchArgsBuilder.Request(
+                    integration.Id,
+                    OllamaLaunchIntegrations.ActionConfigure,
+                    OllamaLaunchIntegrations.YesOn,
+                    model,
+                    OllamaLaunchIntegrations.ExtraNone,
+                    null);
+                var exitCode = await ExecuteCodingToolRequestCoreAsync(request, prepareModel: false)
+                    .ConfigureAwait(true);
+                if (exitCode != 0)
+                {
+                    failures++;
+                }
+            }
+
+            CodingToolsStatus.Text = failures == 0
+                ? $"Installed all {OllamaLaunchIntegrations.All.Count} integrations for {model}."
+                : $"Install finished with {failures} failure(s). See terminal output.";
+        }
+        catch (Exception ex)
+        {
+            CodingToolsStatus.Text = ex.Message;
+            AppendCodingToolsTerminal(ex.Message);
+        }
+        finally
+        {
+            SetCodingToolsBusy(false);
+        }
+    }
+
+    private async Task ExecuteCodingToolRequestAsync(CodingToolLaunchArgsBuilder.Request request)
+    {
+        if (_codingToolsOperationInProgress)
+        {
+            return;
+        }
+
+        var needsModel = !string.Equals(request.Action, OllamaLaunchIntegrations.ActionRestore, StringComparison.Ordinal);
+        if (needsModel && string.IsNullOrWhiteSpace(request.Model))
+        {
+            MessageBox.Show("Select a local LLM first.", "Coding Tools", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        SetCodingToolsBusy(true);
+        try
+        {
+            var prepare = needsModel
+                && (string.Equals(request.Action, OllamaLaunchIntegrations.ActionLaunch, StringComparison.Ordinal)
+                    || string.Equals(request.Action, OllamaLaunchIntegrations.ActionConfigure, StringComparison.Ordinal));
+            var exitCode = await ExecuteCodingToolRequestCoreAsync(request, prepare).ConfigureAwait(true);
+            CodingToolsStatus.Text = exitCode == 0
+                ? $"{request.ToolId} finished successfully."
+                : $"{request.ToolId} finished with exit code {exitCode}.";
+        }
+        catch (Exception ex)
+        {
+            CodingToolsStatus.Text = ex.Message;
+            AppendCodingToolsTerminal(ex.Message);
+        }
+        finally
+        {
+            SetCodingToolsBusy(false);
+        }
+    }
+
+    private async Task<int> ExecuteCodingToolRequestCoreAsync(
+        CodingToolLaunchArgsBuilder.Request request,
+        bool prepareModel)
+    {
+        if (prepareModel && !string.IsNullOrWhiteSpace(request.Model))
+        {
+            await PrepareModelForCodingToolLaunchAsync(request.Model!, CancellationToken.None).ConfigureAwait(true);
+        }
+
+        var args = CodingToolLaunchArgsBuilder.BuildArgs(request);
+        var commandLine = CodingToolLaunchArgsBuilder.FormatCommandLine(args);
+        AppendCodingToolsTerminal($"$ {commandLine}");
+        var progress = new Progress<string>(line =>
+            UiDispatcher.InvokeFireAndForget(() => AppendCodingToolsTerminal(line)));
+        var result = await _svc.OllamaCli.ExecuteAsync(args, progress).ConfigureAwait(true);
+        if (result.ExitCode != 0)
+        {
+            AppendCodingToolsTerminal($"[exit {result.ExitCode}]");
+        }
+
+        return result.ExitCode;
+    }
+
+    private async void UpgradeOllama_Click(object sender, RoutedEventArgs e)
+    {
+        var terminal = MainTabs.SelectedItem == CodingToolsTab
+            ? (Action<string>)AppendCodingToolsTerminal
+            : AppendLaunchAiTerminal;
+        var status = MainTabs.SelectedItem == CodingToolsTab
+            ? (Action<string>)(t => CodingToolsStatus.Text = t)
+            : t => LaunchAiToolsStatus.Text = t;
+
+        status("Upgrading Ollama...");
+        terminal("$ ollama upgrade");
+        try
+        {
+            var progress = new Progress<string>(line =>
+                UiDispatcher.InvokeFireAndForget(() => terminal(line)));
+            var result = await _svc.OllamaCli.ExecuteAsync(["upgrade"], progress).ConfigureAwait(true);
+            if (result.ExitCode != 0)
+            {
+                terminal($"[exit {result.ExitCode}]");
+            }
+
+            status(result.ExitCode == 0
+                ? "Ollama upgrade finished."
+                : $"Ollama upgrade finished with exit code {result.ExitCode}.");
+        }
+        catch (Exception ex)
+        {
+            terminal(ex.Message);
+            status(ex.Message);
         }
     }
 

@@ -18,7 +18,7 @@ public static class DataGridColumnHelper
     private const double ColumnWidthSlack = 14;
     private const double TemplateColumnMinWidth = 92;
     private const double DenseWrapColumnMinWidth = 240;
-    private const double DenseInsightColumnMinWidth = 160;
+    private const double GridWidthPadding = 28;
     private const int MaxRowsToMeasure = 500;
 
     private static readonly ConditionalWeakTable<DataGrid, FitState> FitStates = new();
@@ -100,7 +100,7 @@ public static class DataGridColumnHelper
             {
                 var contentWidth = MeasureColumnContentWidth(grid, column, items);
                 var min = Math.Ceiling(
-                    Math.Max(DenseInsightColumnMinWidth, Math.Max(headerWidth, contentWidth)) + ColumnWidthSlack);
+                    Math.Max(GetResponsiveWrapMin(grid), Math.Max(headerWidth, contentWidth)) + ColumnWidthSlack);
                 column.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
                 column.MinWidth = min;
                 column.MaxWidth = double.PositiveInfinity;
@@ -113,7 +113,7 @@ public static class DataGridColumnHelper
             {
                 var contentWidth = MeasureColumnContentWidth(grid, column, items);
                 required = Math.Max(
-                    DenseWrapColumnMinWidth,
+                    GetResponsiveWrapMin(grid),
                     Math.Max(headerWidth, contentWidth));
             }
             else if (column is DataGridTemplateColumn)
@@ -134,6 +134,7 @@ public static class DataGridColumnHelper
             column.MaxWidth = double.PositiveInfinity;
         }
 
+        ApplyWidthBudget(grid, starIndices: [GetInsightColumnIndex(grid)]);
         grid.UpdateLayout();
     }
 
@@ -161,7 +162,7 @@ public static class DataGridColumnHelper
                 var min = Math.Max(MinColumnWidth, headerWidth);
                 if (IsWrappingColumn(column))
                 {
-                    min = Math.Max(min, 160);
+                    min = Math.Max(min, GetResponsiveWrapMin(grid));
                 }
 
                 column.MinWidth = min;
@@ -170,7 +171,7 @@ public static class DataGridColumnHelper
 
             if (IsWrappingColumn(column))
             {
-                var wrapWidth = Math.Max(MinColumnWidth, headerWidth);
+                var wrapWidth = Math.Max(GetResponsiveWrapMin(grid), headerWidth);
                 column.Width = new DataGridLength(wrapWidth);
                 column.MinWidth = wrapWidth;
                 continue;
@@ -190,6 +191,7 @@ public static class DataGridColumnHelper
             column.MinWidth = required;
         }
 
+        ApplyWidthBudget(grid, starColumnIndices);
         grid.UpdateLayout();
     }
 
@@ -232,6 +234,96 @@ public static class DataGridColumnHelper
                 merged.Setters.Add(new Setter(TextBlock.TextTrimmingProperty, TextTrimming.None));
                 column.ElementStyle = merged;
             }
+        }
+    }
+
+    private static int GetInsightColumnIndex(DataGrid grid) =>
+        IndexOfStarColumn(grid, "Insight");
+
+    private static double GetAvailableGridWidth(DataGrid grid)
+    {
+        if (grid.ActualWidth <= 0)
+        {
+            return double.PositiveInfinity;
+        }
+
+        return Math.Max(320, grid.ActualWidth - GridWidthPadding);
+    }
+
+    private static double GetResponsiveWrapMin(DataGrid grid)
+    {
+        var available = GetAvailableGridWidth(grid);
+        if (double.IsPositiveInfinity(available))
+        {
+            return 160;
+        }
+
+        if (available < 1000)
+        {
+            return 72;
+        }
+
+        if (available < 1300)
+        {
+            return 100;
+        }
+
+        return 160;
+    }
+
+    private static void ApplyWidthBudget(DataGrid grid, params int[] starIndices)
+    {
+        var budget = GetAvailableGridWidth(grid);
+        if (double.IsPositiveInfinity(budget))
+        {
+            return;
+        }
+
+        var starSet = starIndices.Where(i => i >= 0).ToHashSet();
+        var fixedColumns = new List<(DataGridColumn Column, double Width)>();
+        var fixedTotal = 0.0;
+
+        for (var i = 0; i < grid.Columns.Count; i++)
+        {
+            var column = grid.Columns[i];
+            if (starSet.Contains(i) || column.Width.IsStar)
+            {
+                continue;
+            }
+
+            var width = column.MinWidth > 0 ? column.MinWidth : column.Width.DisplayValue;
+            if (width <= 0)
+            {
+                width = MinColumnWidth;
+            }
+
+            fixedColumns.Add((column, width));
+            fixedTotal += width;
+        }
+
+        var starReserve = budget * 0.32;
+        var fixedBudget = Math.Max(budget - starReserve, MinColumnWidth * 2);
+        if (fixedTotal > fixedBudget && fixedColumns.Count > 0)
+        {
+            var scale = fixedBudget / fixedTotal;
+            foreach (var (column, width) in fixedColumns)
+            {
+                var target = Math.Max(MinColumnWidth, Math.Floor(width * scale));
+                column.Width = new DataGridLength(target);
+                column.MinWidth = target;
+            }
+        }
+
+        foreach (var starIndex in starSet)
+        {
+            if (starIndex < 0 || starIndex >= grid.Columns.Count)
+            {
+                continue;
+            }
+
+            var column = grid.Columns[starIndex];
+            column.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
+            column.MinWidth = Math.Min(column.MinWidth, Math.Max(GetResponsiveWrapMin(grid), 64));
         }
     }
 

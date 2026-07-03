@@ -58,6 +58,8 @@ public static partial class OllamaSearchHtmlParser
             results.Add(new LibraryCatalogEntry
             {
                 Name = name,
+                LibraryName = name.Split(':')[0],
+                DefaultPullTag = name,
                 Description = description,
                 Tags = string.Join(' ', capabilities),
                 ParameterSize = parameterSize,

@@ -4,7 +4,7 @@
         Title="Ollama AMD Vulkan Manager"
         Icon="/OllamaToolkit.App;component/Assets/ollama_gui_manager_icon.ico"
         Height="820" Width="1180"
-        MinHeight="640" MinWidth="960"
+        MinHeight="600" MinWidth="1024"
         WindowStartupLocation="CenterScreen"
         WindowState="Maximized"
         Background="{StaticResource Brush.Bg}">
@@ -48,15 +48,18 @@
                              VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.LogBg}"
                              Foreground="{StaticResource Brush.Text}" BorderBrush="{StaticResource Brush.PanelBorder}"
                              FontFamily="Segoe UI" FontSize="14" Padding="10" />
-                    <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,8,0,0">
-                        <CheckBox x:Name="RestartCheck" IsChecked="True" Style="{StaticResource ToolkitAiFeatureCheckBox}" Margin="0,0,12,0">
-                            <TextBlock Text="Restart Ollama after applying mode" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" />
-                        </CheckBox>
-                        <CheckBox x:Name="CheckForUpdatesCheck" IsChecked="True" Style="{StaticResource ToolkitAiFeatureCheckBox}" Margin="0,0,12,0">
-                            <TextBlock Text="Check for updates on startup" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" />
-                        </CheckBox>
-                        <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModes_Click" />
-                    </StackPanel>
+                    <ScrollViewer Grid.Row="5" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled" Margin="0,8,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox x:Name="RestartCheck" IsChecked="True" Style="{StaticResource ToolkitAiFeatureCheckBox}" Margin="0,0,12,0">
+                                <TextBlock Text="Restart Ollama after applying mode" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" />
+                            </CheckBox>
+                            <CheckBox x:Name="CheckForUpdatesCheck" IsChecked="True" Style="{StaticResource ToolkitAiFeatureCheckBox}" Margin="0,0,12,0">
+                                <TextBlock Text="Check for updates on startup" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" />
+                            </CheckBox>
+                            <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshModes_Click" />
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </TabItem>
             <TabItem x:Name="LaunchAiToolsTab" Header="Launch AI Tools">
@@ -69,12 +72,15 @@
                     </Grid.RowDefinitions>
                     <TextBlock x:Name="LaunchAiToolsStatus" Grid.Row="0" Margin="0,0,0,8"
                                Foreground="{StaticResource Brush.Muted}" TextWrapping="Wrap" />
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="Model:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,0" />
-                        <ComboBox x:Name="LaunchAiModelCombo" Width="280" Margin="0,0,8,0" />
-                        <Button Content="Refresh Models" Style="{StaticResource ToolkitButton}" Click="RefreshLaunchAiModels_Click" />
-                        <Button Content="Upgrade Ollama" Style="{StaticResource ToolkitButton}" Click="UpgradeOllama_Click" />
-                    </StackPanel>
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Model:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,0" />
+                            <ComboBox x:Name="LaunchAiModelCombo" Width="280" Margin="0,0,8,0" />
+                            <Button Content="Refresh Models" Style="{StaticResource ToolkitButton}" Click="RefreshLaunchAiModels_Click" />
+                            <Button Content="Upgrade Ollama" Style="{StaticResource ToolkitButton}" Click="UpgradeOllama_Click" />
+                        </StackPanel>
+                    </ScrollViewer>
                     <ScrollViewer Grid.Row="2" MaxHeight="120" VerticalScrollBarVisibility="Auto" Margin="0,0,0,8">
                         <WrapPanel x:Name="LaunchAiToolsPanel" />
                     </ScrollViewer>
@@ -84,13 +90,53 @@
                              FontFamily="Consolas" FontSize="13" Padding="10" MinHeight="200" />
                 </Grid>
             </TabItem>
+            <TabItem x:Name="CodingToolsTab" Header="Coding Tools">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock x:Name="CodingToolsStatus" Grid.Row="0" Margin="0,0,0,8"
+                               Foreground="{StaticResource Brush.Muted}" TextWrapping="Wrap" />
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Local LLM:" VerticalAlignment="Center"
+                                       Foreground="{StaticResource Brush.Text}" Margin="0,0,4,0" />
+                            <ComboBox x:Name="CodingToolsModelCombo" Width="280" Margin="0,0,8,0"
+                                      SelectionChanged="CodingToolsModelCombo_SelectionChanged" />
+                            <Button Content="Refresh Models" Style="{StaticResource ToolkitButton}"
+                                    Click="RefreshCodingToolsModels_Click" />
+                            <Button x:Name="CodingToolsInstallAllBtn" Content="Install All"
+                                    Style="{StaticResource ToolkitButton}" Click="CodingToolsInstallAll_Click"
+                                    ToolTip="Configure every integration for the selected model (ollama launch … --config -y)" />
+                            <Button Content="Upgrade Ollama" Style="{StaticResource ToolkitButton}"
+                                    Click="UpgradeOllama_Click" />
+                        </StackPanel>
+                    </ScrollViewer>
+                    <TextBlock x:Name="CodingToolsSettingsLabel" Grid.Row="2" Margin="0,0,0,8"
+                               Foreground="{StaticResource Brush.Muted}" TextWrapping="Wrap" />
+                    <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="CodingToolsPanel" />
+                    </ScrollViewer>
+                    <TextBox x:Name="CodingToolsTerminal" Grid.Row="4" Margin="0,8,0,0"
+                             IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto" MinHeight="140" MaxHeight="220"
+                             Background="{StaticResource Brush.LogBg}" Foreground="{StaticResource Brush.Text}"
+                             FontFamily="Consolas" FontSize="13" Padding="10" />
+                </Grid>
+            </TabItem>
             <TabItem x:Name="ModelsLaunchTab" Header="Models &amp; Launch">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,8">
+                    <StackPanel Orientation="Horizontal">
                         <Button Content="Launch (Best Mode)" Style="{StaticResource ToolkitButton}" Click="LaunchBestMode_Click" />
                         <Button x:Name="AskAiModelsBtn" Content="Ask AI" Style="{StaticResource ToolkitButton}" Click="AskAiModels_Click" />
                         <Button x:Name="CompareModelsBtn" Content="Compare with AI" Style="{StaticResource ToolkitButton}"
@@ -105,6 +151,7 @@
                                 Style="{StaticResource ToolkitButton}" Click="UninstallModels_Click" />
                         <Button Content="Import Reports" Style="{StaticResource ToolkitButton}" Click="ImportReports_Click" />
                     </StackPanel>
+                    </ScrollViewer>
                     <DataGrid x:Name="ModelsGrid" Grid.Row="1" Style="{StaticResource ToolkitDataGrid}"
                               RowStyle="{StaticResource ModelsLaunchRow}"
                               AutoGenerateColumns="False" IsReadOnly="True"
@@ -116,17 +163,19 @@
                             <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="120" />
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
                             <DataGridTextColumn Header="Description" Binding="{Binding DisplayDescription}" Width="*"
-                                                MinWidth="200">
+                                                MinWidth="100">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridWrapCell}" />
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
-                            <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="85"
-                                                SortMemberPath="FileSizeSortKey" />
-                            <DataGridTextColumn Header="Context" Binding="{Binding ContextDisplay}" Width="72" />
+                            <DataGridTextColumn Header="Size / Usage" Binding="{Binding SizeUsage}" Width="90"
+                                                  SortMemberPath="FileSizeSortKey" />
+                            <DataGridTextColumn Header="Context" Binding="{Binding ContextDisplay}" Width="72"
+                                                  SortMemberPath="ContextSortKey" />
+                            <DataGridTextColumn Header="Input" Binding="{Binding InputModalities}" Width="100" />
                             <DataGridTextColumn Header="Fastest Mode" Binding="{Binding BestMode, Mode=OneWay}" Width="90" />
-                            <DataGridTextColumn Header="Best Metric" Binding="{Binding BestMetricDisplay, Mode=OneWay}" Width="85" />
+                            <DataGridTextColumn Header="Best Metric" Binding="{Binding BestMetricDisplay, Mode=OneWay}" Width="85"
+                                                  SortMemberPath="MetricSortKey" />
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>
@@ -138,14 +187,17 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <Grid Margin="0,0,0,8">
+                    <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled" Margin="0,0,0,8">
+                    <Grid Margin="0,0,0,0">
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="220" />
+                            <ColumnDefinition Width="200" MinWidth="140" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="140" />
                             <ColumnDefinition Width="12" />
@@ -159,9 +211,12 @@
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <Grid Grid.Row="0" Grid.Column="0">
-                            <TextBox x:Name="CatalogSearchBox" Padding="6,4" KeyUp="CatalogSearchBox_KeyUp" />
+                            <TextBox x:Name="CatalogSearchBox" Padding="6,4"
+                                     KeyUp="CatalogSearchBox_KeyUp" TextChanged="CatalogSearchBox_TextChanged" />
                             <TextBlock Text="Search" IsHitTestVisible="False"
                                        Foreground="{StaticResource Brush.Muted}"
                                        Margin="8,0,0,0" VerticalAlignment="Center">
@@ -227,16 +282,13 @@
                             <Button x:Name="ClearNewHighlightsBtn" Content="Clear New Highlights"
                                     Style="{StaticResource ToolkitButton}" Margin="0,0,4,0"
                                     Click="ClearNewHighlights_Click" />
-                            <TextBlock Text="Hold CTRL to select more than one LLM"
-                                       VerticalAlignment="Center"
-                                       Foreground="{StaticResource Brush.Muted}"
-                                       Margin="12,0,0,0" />
-                            <TextBlock Text="Hold Shift to select a range of LLMs"
-                                       VerticalAlignment="Center"
-                                       Foreground="{StaticResource Brush.Muted}"
-                                       Margin="8,0,0,0" />
                         </StackPanel>
+                        <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="15"
+                                   Margin="0,4,0,0" TextWrapping="Wrap"
+                                   Foreground="{StaticResource Brush.Muted}" FontSize="12"
+                                   Text="Hold CTRL to select more than one LLM · Hold Shift to select a range of LLMs" />
                     </Grid>
+                    </ScrollViewer>
                     <StackPanel Grid.Row="1" Margin="0,0,0,8">
                         <TextBlock Margin="0,0,0,4" TextWrapping="Wrap" Foreground="{StaticResource Brush.Muted}" FontSize="12"
                                    Text="Green = installed · Blue = tested (not installed) · Yellow = downloading/processing · Red = selected row" />
@@ -273,17 +325,19 @@
                             <DataGridTextColumn Header="Model" Binding="{Binding Name}" Width="120" />
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
                             <DataGridTextColumn Header="Description" Binding="{Binding DisplayDescription}" Width="*"
-                                                MinWidth="200">
+                                                MinWidth="100">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridWrapCell}" />
                                 </DataGridTextColumn.ElementStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
-                            <DataGridTextColumn Header="File Size" Binding="{Binding FileSize}" Width="85"
-                                                SortMemberPath="FileSizeSortKey" />
-                            <DataGridTextColumn Header="Context" Binding="{Binding ContextDisplay}" Width="72" />
+                            <DataGridTextColumn Header="Size / Usage" Binding="{Binding SizeUsage}" Width="90"
+                                                  SortMemberPath="FileSizeSortKey" />
+                            <DataGridTextColumn Header="Context" Binding="{Binding ContextDisplay}" Width="72"
+                                                  SortMemberPath="ContextSortKey" />
+                            <DataGridTextColumn Header="Input" Binding="{Binding InputModalities}" Width="100" />
                             <DataGridTextColumn Header="Fastest Mode" Binding="{Binding BestMode}" Width="90" />
-                            <DataGridTextColumn Header="Best Metric" Binding="{Binding BestTps}" Width="85" />
+                            <DataGridTextColumn Header="Best Metric" Binding="{Binding BestTps}" Width="85"
+                                                  SortMemberPath="BestMetricSortKey" />
                             <DataGridTextColumn Header="Installed" Binding="{Binding InstalledDisplay}" Width="70" />
                         </DataGrid.Columns>
                     </DataGrid>
@@ -301,16 +355,24 @@
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="{StaticResource Brush.Bg}">
                         <TextBlock x:Name="ChatHistory" Margin="12" TextWrapping="Wrap" Foreground="{StaticResource Brush.Text}" />
                     </ScrollViewer>
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
-                        <TextBox x:Name="ChatInput" Width="520" Padding="8,6" KeyDown="ChatInput_KeyDown" />
-                        <Button Content="Send" Style="{StaticResource ToolkitButton}" Margin="8,0,0,0" Click="SendChat_Click" />
-                        <Button x:Name="StopChatBtn" Content="Stop" Style="{StaticResource ToolkitButton}" Click="StopChat_Click" />
-                    </StackPanel>
-                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
-                        <Button x:Name="AskAiRunBtn" Content="Ask AI" Style="{StaticResource ToolkitButton}" Click="AskAiRun_Click" />
-                        <Button Content="Open in PowerShell" Style="{StaticResource ToolkitButton}" Click="OpenPowerShell_Click" />
-                        <Button Content="Clear Chat" Style="{StaticResource ToolkitButton}" Click="ClearChat_Click" />
-                    </StackPanel>
+                    <Grid Grid.Row="2" Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="120" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="ChatInput" Grid.Column="0" Padding="8,6" KeyDown="ChatInput_KeyDown" />
+                        <Button Grid.Column="1" Content="Send" Style="{StaticResource ToolkitButton}" Margin="8,0,0,0" Click="SendChat_Click" />
+                        <Button Grid.Column="2" x:Name="StopChatBtn" Content="Stop" Style="{StaticResource ToolkitButton}" Margin="8,0,0,0" Click="StopChat_Click" />
+                    </Grid>
+                    <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled" Margin="0,8,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="AskAiRunBtn" Content="Ask AI" Style="{StaticResource ToolkitButton}" Click="AskAiRun_Click" />
+                            <Button Content="Open in PowerShell" Style="{StaticResource ToolkitButton}" Click="OpenPowerShell_Click" />
+                            <Button Content="Clear Chat" Style="{StaticResource ToolkitButton}" Click="ClearChat_Click" />
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </TabItem>
             <TabItem x:Name="TestingSuiteTab" Header="Testing Suite">
@@ -322,19 +384,21 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <StackPanel Orientation="Horizontal">
-                        <ComboBox x:Name="TestModelCombo" Width="280" Margin="0,0,8,8" SelectionChanged="TestModelCombo_SelectionChanged" />
-                        <TextBlock Text="Context Window Size:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,8" />
-                        <TextBox x:Name="TestNumCtxBox" Width="64" Margin="0,0,8,8" Text="8192" />
-                        <TextBlock Text="Max Output Frames:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,8" />
-                        <TextBox x:Name="TestNumPredictBox" Width="48" Margin="0,0,8,8" Text="32" />
-                        <Button Content="Test Selected" Style="{StaticResource ToolkitButton}" Click="TestSelected_Click" />
-                        <Button Content="Test Local Untested" Style="{StaticResource ToolkitButton}" Click="TestUntested_Click" />
-                        <Button Content="Retest Failed" Style="{StaticResource ToolkitButton}" Click="RetestFailed_Click" />
-                        <Button x:Name="TestUndownloadBtn" Content="Test Undownload" Style="{StaticResource ToolkitButton}" Click="TestUndownload_Click" />
-                        <Button x:Name="StopTestBtn" Content="Stop Test" Style="{StaticResource ToolkitButton}" Click="StopTest_Click" />
-                        <Button Content="Clear All Test Results" Style="{StaticResource ToolkitButton}" Click="ClearAllTestResults_Click" />
-                    </StackPanel>
+                    <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                        <StackPanel Orientation="Horizontal">
+                            <ComboBox x:Name="TestModelCombo" Width="280" Margin="0,0,8,8" SelectionChanged="TestModelCombo_SelectionChanged" />
+                            <TextBlock Text="Context Window Size:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,8" />
+                            <TextBox x:Name="TestNumCtxBox" Width="64" Margin="0,0,8,8" Text="8192" />
+                            <TextBlock Text="Max Output Frames:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" Margin="0,0,4,8" />
+                            <TextBox x:Name="TestNumPredictBox" Width="48" Margin="0,0,8,8" Text="32" />
+                            <Button Content="Test Selected" Style="{StaticResource ToolkitButton}" Click="TestSelected_Click" />
+                            <Button Content="Test Local Untested" Style="{StaticResource ToolkitButton}" Click="TestUntested_Click" />
+                            <Button Content="Retest Failed" Style="{StaticResource ToolkitButton}" Click="RetestFailed_Click" />
+                            <Button x:Name="TestUndownloadBtn" Content="Test Undownload" Style="{StaticResource ToolkitButton}" Click="TestUndownload_Click" />
+                            <Button x:Name="StopTestBtn" Content="Stop Test" Style="{StaticResource ToolkitButton}" Click="StopTest_Click" />
+                            <Button Content="Clear All Test Results" Style="{StaticResource ToolkitButton}" Click="ClearAllTestResults_Click" />
+                        </StackPanel>
+                    </ScrollViewer>
                     <TextBlock x:Name="TestSettingsLabel" Grid.Row="1" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,4" TextWrapping="Wrap" />
                     <StackPanel x:Name="TestProgressPanel" Grid.Row="2" Margin="0,0,0,8" Visibility="Collapsed">
                         <TextBlock x:Name="TestOverallLabel" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,4" TextWrapping="Wrap" />
@@ -362,10 +426,10 @@
                                Text="Purple = installed locally · Blue row = not installed · Status shows modes passed · Red cells = mode failed · Green highlight = best mode" />
                     <Grid Grid.Row="1" Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="220" />
+                            <ColumnDefinition Width="*" MinWidth="140" MaxWidth="280" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="160" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="160" MinWidth="120" />
+                            <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <Grid Grid.Column="0">
                             <TextBox x:Name="TestResultsSearchBox" Padding="6,4" KeyUp="TestResultsSearchBox_KeyUp" />
@@ -389,7 +453,9 @@
                         <ComboBox x:Name="TestResultsCategoryFilterCombo" Grid.Column="2"
                                   SelectionChanged="TestResultsCategoryFilterCombo_SelectionChanged" />
                     </Grid>
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+                    <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled" Margin="0,0,0,8">
+                    <StackPanel Orientation="Horizontal">
                         <Button Content="Refresh" Style="{StaticResource ToolkitButton}" Click="RefreshTestResults_Click" />
                         <Button x:Name="DownloadFromResultsBtn" Content="Download Selected" Style="{StaticResource ToolkitButton}"
                                 Click="DownloadFromResults_Click" IsEnabled="False" />
@@ -401,6 +467,7 @@
                                 Click="ClearSelectedTestResult_Click" IsEnabled="False" />
                         <Button Content="Clear All Test Results" Style="{StaticResource ToolkitButton}" Click="ClearAllTestResults_Click" />
                     </StackPanel>
+                    </ScrollViewer>
                     <DataGrid x:Name="TestResultsGrid" Grid.Row="3" Style="{StaticResource ToolkitDataGrid}"
                               RowStyle="{StaticResource TestResultsRow}"
                               AutoGenerateColumns="False" IsReadOnly="True"
@@ -422,8 +489,13 @@
                             <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="120" />
                             <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
                             <DataGridTextColumn Header="Best" Binding="{Binding BestMode}" Width="72" />
-                            <DataGridTextColumn Header="Metric" Binding="{Binding BestMetricDisplay}" Width="80" />
-                            <DataGridTextColumn Header="Context" Binding="{Binding ContextDisplay}" Width="72" />
+                            <DataGridTextColumn Header="Metric" Binding="{Binding BestMetricDisplay}" Width="80"
+                                                  SortMemberPath="MetricSortKey" />
+                            <DataGridTextColumn Header="Size / Usage" Binding="{Binding SizeUsage}" Width="90"
+                                                  SortMemberPath="FileSizeSortKey" />
+                            <DataGridTextColumn Header="Context" Binding="{Binding ContextDisplay}" Width="72"
+                                                  SortMemberPath="ContextSortKey" />
+                            <DataGridTextColumn Header="Input" Binding="{Binding InputModalities}" Width="100" />
                             <DataGridTextColumn Header="CPU" Binding="{Binding CpuResult}" Width="55"
                                                 CellStyle="{StaticResource TestResultWinnerCellCpu}" />
                             <DataGridTextColumn Header="APU" Binding="{Binding ApuResult}" Width="55"
@@ -433,7 +505,7 @@
                             <DataGridTextColumn Header="Hybrid" Binding="{Binding HybridResult}" Width="55"
                                                 CellStyle="{StaticResource TestResultWinnerCellHybrid}" />
                             <DataGridTextColumn Header="Insight" Binding="{Binding Insight}" Width="*"
-                                                MinWidth="200">
+                                                MinWidth="100">
                                 <DataGridTextColumn.ElementStyle>
                                     <Style TargetType="TextBlock" BasedOn="{StaticResource DataGridWrapCell}" />
                                 </DataGridTextColumn.ElementStyle>
@@ -451,12 +523,14 @@
                     <StackPanel>
                         <TextBlock Text="Summarizer" FontWeight="SemiBold" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
                         <TextBlock x:Name="AiSettingsStatus" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,8" />
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <TextBlock Text="Summarizer model:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" />
-                            <ComboBox x:Name="SummarizerCombo" Width="240" Margin="8,0,0,0" SelectionChanged="SummarizerCombo_SelectionChanged" />
-                            <Button x:Name="RefreshSummarizerListBtn" Content="Refresh List" Style="{StaticResource ToolkitButton}" Click="RefreshSummarizerList_Click" />
-                            <Button x:Name="TestSummarizerBtn" Content="Test Summarizer" Style="{StaticResource ToolkitButton}" Click="TestSummarizer_Click" />
-                        </StackPanel>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,8">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Summarizer model:" VerticalAlignment="Center" Foreground="{StaticResource Brush.Text}" />
+                                <ComboBox x:Name="SummarizerCombo" Width="240" Margin="8,0,0,0" SelectionChanged="SummarizerCombo_SelectionChanged" />
+                                <Button x:Name="RefreshSummarizerListBtn" Content="Refresh List" Style="{StaticResource ToolkitButton}" Click="RefreshSummarizerList_Click" />
+                                <Button x:Name="TestSummarizerBtn" Content="Test Summarizer" Style="{StaticResource ToolkitButton}" Click="TestSummarizer_Click" />
+                            </StackPanel>
+                        </ScrollViewer>
                         <TextBlock x:Name="AiSettingsActionStatus" TextWrapping="Wrap" Foreground="{StaticResource Brush.Warning}" Margin="0,0,0,8" />
                         <TextBlock x:Name="SummarizerTestResult" TextWrapping="Wrap" Foreground="{StaticResource Brush.Muted}" Margin="0,0,0,16" />
 
@@ -464,16 +538,18 @@
                         <TextBlock Text="Intent (optional):" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,4" />
                         <TextBox x:Name="AiRecommendationsIntentBox" Margin="0,0,0,8"
                                  ToolTip="Leave blank for general chat, coding, and reasoning recommendations." />
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <Button x:Name="GenerateAiRecommendationsBtn" Content="Generate Recommendations"
-                                    Style="{StaticResource ToolkitButton}" Click="GenerateAiRecommendations_Click" />
-                            <Button x:Name="RefreshAiRecommendationsBtn" Content="Refresh Lists"
-                                    Style="{StaticResource ToolkitButton}" Click="RefreshAiRecommendations_Click" />
-                            <Button x:Name="ClearAiRecommendationsBtn" Content="Clear"
-                                    Style="{StaticResource ToolkitButton}" Click="ClearAiRecommendations_Click" />
-                            <Button x:Name="CancelAiRecommendationsBtn" Content="Cancel"
-                                    Style="{StaticResource ToolkitButton}" Click="CancelAiRecommendations_Click" />
-                        </StackPanel>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,8">
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="GenerateAiRecommendationsBtn" Content="Generate Recommendations"
+                                        Style="{StaticResource ToolkitButton}" Click="GenerateAiRecommendations_Click" />
+                                <Button x:Name="RefreshAiRecommendationsBtn" Content="Refresh Lists"
+                                        Style="{StaticResource ToolkitButton}" Click="RefreshAiRecommendations_Click" />
+                                <Button x:Name="ClearAiRecommendationsBtn" Content="Clear"
+                                        Style="{StaticResource ToolkitButton}" Click="ClearAiRecommendations_Click" />
+                                <Button x:Name="CancelAiRecommendationsBtn" Content="Cancel"
+                                        Style="{StaticResource ToolkitButton}" Click="CancelAiRecommendations_Click" />
+                            </StackPanel>
+                        </ScrollViewer>
                         <TextBlock x:Name="AiRecommendationsActionStatus" TextWrapping="Wrap"
                                    Foreground="{StaticResource Brush.Warning}" Margin="0,0,0,8" />
                         <Grid x:Name="AiSettingsDownloadProgressPanel" Margin="0,0,0,8" Visibility="Collapsed">
@@ -489,14 +565,16 @@
                         </Grid>
 
                         <TextBlock Text="Installed recommended LLMs" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,4" />
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                            <Button x:Name="AiUninstallRecommendedBtn" Content="Uninstall Selected"
-                                    Style="{StaticResource ToolkitButton}" Click="AiUninstallRecommended_Click" />
-                            <Button x:Name="AiLaunchRecommendedBtn" Content="Launch Best Mode"
-                                    Style="{StaticResource ToolkitButton}" Click="AiLaunchRecommended_Click" />
-                            <Button x:Name="AiTestRecommendedBtn" Content="Test Selected"
-                                    Style="{StaticResource ToolkitButton}" Click="AiTestRecommended_Click" />
-                        </StackPanel>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,4">
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="AiUninstallRecommendedBtn" Content="Uninstall Selected"
+                                        Style="{StaticResource ToolkitButton}" Click="AiUninstallRecommended_Click" />
+                                <Button x:Name="AiLaunchRecommendedBtn" Content="Launch Best Mode"
+                                        Style="{StaticResource ToolkitButton}" Click="AiLaunchRecommended_Click" />
+                                <Button x:Name="AiTestRecommendedBtn" Content="Test Selected"
+                                        Style="{StaticResource ToolkitButton}" Click="AiTestRecommended_Click" />
+                            </StackPanel>
+                        </ScrollViewer>
                         <DataGrid x:Name="InstalledRecommendedGrid" Height="180" Margin="0,0,0,16"
                                   Style="{StaticResource ToolkitDataGrid}" AutoGenerateColumns="False"
                                   IsReadOnly="True" SelectionMode="Single" HeadersVisibility="Column"
@@ -506,19 +584,27 @@
                                 <DataGridTextColumn Header="#" Binding="{Binding DisplayRank}" Width="36" />
                                 <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*" MinWidth="140" />
                                 <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
+                                <DataGridTextColumn Header="Size / Usage" Binding="{Binding SizeUsage}" Width="90"
+                                                      SortMemberPath="FileSizeSortKey" />
+                                <DataGridTextColumn Header="Context" Binding="{Binding ContextDisplay}" Width="72"
+                                                      SortMemberPath="ContextSortKey" />
+                                <DataGridTextColumn Header="Input" Binding="{Binding InputModalities}" Width="100" />
                                 <DataGridTextColumn Header="Best Mode" Binding="{Binding BestMode, Mode=OneWay}" Width="80" />
-                                <DataGridTextColumn Header="Metric" Binding="{Binding MetricDisplay, Mode=OneWay}" Width="72" />
-                                <DataGridTextColumn Header="Note" Binding="{Binding AiNote}" Width="*" MinWidth="160" />
+                                <DataGridTextColumn Header="Metric" Binding="{Binding MetricDisplay, Mode=OneWay}" Width="72"
+                                                      SortMemberPath="MetricSortKey" />
+                                <DataGridTextColumn Header="Note" Binding="{Binding AiNote}" Width="*" MinWidth="100" />
                             </DataGrid.Columns>
                         </DataGrid>
 
                         <TextBlock Text="Uninstalled recommended LLMs" Foreground="{StaticResource Brush.Text}" Margin="0,0,0,4" />
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                            <Button x:Name="AiDownloadRecommendedBtn" Content="Download Selected"
-                                    Style="{StaticResource ToolkitButton}" Click="AiDownloadRecommended_Click" />
-                            <Button x:Name="AiOpenInCatalogBtn" Content="Open in Model Library"
-                                    Style="{StaticResource ToolkitButton}" Click="AiOpenInCatalog_Click" />
-                        </StackPanel>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,4">
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="AiDownloadRecommendedBtn" Content="Download Selected"
+                                        Style="{StaticResource ToolkitButton}" Click="AiDownloadRecommended_Click" />
+                                <Button x:Name="AiOpenInCatalogBtn" Content="Open in Model Library"
+                                        Style="{StaticResource ToolkitButton}" Click="AiOpenInCatalog_Click" />
+                            </StackPanel>
+                        </ScrollViewer>
                         <DataGrid x:Name="UninstalledRecommendedGrid" Height="180" Margin="0,0,0,16"
                                   Style="{StaticResource ToolkitDataGrid}" AutoGenerateColumns="False"
                                   IsReadOnly="True" SelectionMode="Single" HeadersVisibility="Column"
@@ -528,9 +614,12 @@
                                 <DataGridTextColumn Header="#" Binding="{Binding DisplayRank}" Width="36" />
                                 <DataGridTextColumn Header="Model" Binding="{Binding Model}" Width="*" MinWidth="120" />
                                 <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="110" />
-                                <DataGridTextColumn Header="Params" Binding="{Binding ParameterSize}" Width="70" />
-                                <DataGridTextColumn Header="Size" Binding="{Binding FileSize}" Width="80" />
-                                <DataGridTextColumn Header="Note" Binding="{Binding AiNote}" Width="*" MinWidth="160" />
+                                <DataGridTextColumn Header="Size / Usage" Binding="{Binding SizeUsage}" Width="90"
+                                                      SortMemberPath="FileSizeSortKey" />
+                                <DataGridTextColumn Header="Context" Binding="{Binding ContextDisplay}" Width="72"
+                                                      SortMemberPath="ContextSortKey" />
+                                <DataGridTextColumn Header="Input" Binding="{Binding InputModalities}" Width="100" />
+                                <DataGridTextColumn Header="Note" Binding="{Binding AiNote}" Width="*" MinWidth="100" />
                             </DataGrid.Columns>
                         </DataGrid>
 
@@ -625,10 +714,19 @@
         <Border Grid.Row="2" Background="{StaticResource Brush.Panel}"
                 BorderBrush="{StaticResource Brush.PanelBorder}" BorderThickness="0,1,0,0" Padding="12,8">
             <Grid>
-                <TextBlock HorizontalAlignment="Left" VerticalAlignment="Center"
-                           Foreground="{StaticResource Brush.Muted}" FontSize="14"
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="0" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0"
+                           Foreground="{StaticResource Brush.Muted}" FontSize="14" TextWrapping="Wrap"
                            Text="Model lists load from Ollama API and cached profiles. Start Ollama if lists are empty." />
-                <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="GlobalDownloadStatusText"
+                               VerticalAlignment="Center" Margin="0,0,12,0"
+                               Foreground="{StaticResource Brush.Warning}" FontSize="13"
+                               Visibility="Collapsed" />
                     <TextBlock x:Name="AppVersionFooterText"
                                VerticalAlignment="Center" Margin="0,0,12,0"
                                Foreground="{StaticResource Brush.Muted}" FontSize="13" />
@@ -641,6 +739,7 @@
                     <Button x:Name="AiStatusButton" Style="{StaticResource ToolkitButton}"
                             Content="Program AI Inactive" Click="AiStatusButton_Click" />
                 </StackPanel>
+                </ScrollViewer>
             </Grid>
         </Border>
         </Grid>

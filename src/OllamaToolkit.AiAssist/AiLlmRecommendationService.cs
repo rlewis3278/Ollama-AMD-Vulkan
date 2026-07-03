@@ -104,8 +104,9 @@ public sealed class AiLlmRecommendationService
             .DefaultIfEmpty(0)
             .Max();
 
+        var catalogIndex = CatalogMetadataLookup.BuildPullTagIndex(catalogEntries);
         var installedEntries = BuildInstalledEntries(
-            installedCandidates, installedAiOrder, maxTps);
+            installedCandidates, installedAiOrder, maxTps, catalogIndex);
         var uninstalledEntries = BuildUninstalledEntries(
             uninstalledCandidates, uninstalledAiOrder);
 
@@ -144,7 +145,8 @@ public sealed class AiLlmRecommendationService
                 s.BestTps,
                 s.BestEmbedMs,
                 s.NeedsRetest,
-                s.SizeGB));
+                s.SizeGB,
+                s.RecommendedCtx));
         }
 
         return result;
@@ -158,26 +160,32 @@ public sealed class AiLlmRecommendationService
         var result = new List<UninstalledCandidate>();
         foreach (var e in entries)
         {
-            if (ModelInstallMatcher.IsLibraryInstalled(e.Name, installedTagNames))
+            var libraryName = CatalogEntryNames.LibraryName(e);
+            var pullTag = CatalogEntryNames.PullTag(e);
+            if (installedTagNames.Contains(pullTag) || installedTagNames.Contains(e.Name))
             {
                 continue;
             }
 
             var category = !string.IsNullOrWhiteSpace(e.Category)
                 ? e.Category
-                : categories.TryGetValue(e.Name, out var c)
+                : categories.TryGetValue(libraryName, out var c)
                     ? c
-                    : CategoryNormalizer.HeuristicCategory(e.Name, e.Description, e.Tags);
+                    : CategoryNormalizer.HeuristicCategory(libraryName, e.Description, e.Tags);
 
-            if (CategoryNormalizer.IsEmbeddingModel(e.Name, category))
+            if (CategoryNormalizer.IsEmbeddingModel(libraryName, category))
             {
                 continue;
             }
 
             result.Add(new UninstalledCandidate(
-                e.Name,
+                libraryName,
+                pullTag,
                 string.IsNullOrWhiteSpace(category) ? "-" : category,
                 string.IsNullOrWhiteSpace(e.ParameterSize) ? "-" : e.ParameterSize,
+                CatalogMetadataLookup.ResolveSizeUsage(e),
+                CatalogMetadataLookup.ResolveContext(e),
+                CatalogMetadataLookup.ResolveInput(e),
                 string.IsNullOrWhiteSpace(e.FileSize) ? "-" : e.FileSize,
                 DescriptionStoreService.NormalizeListDescription(e.Description)));
         }
@@ -313,7 +321,8 @@ public sealed class AiLlmRecommendationService
     private static List<AiRecommendedLlmEntry> BuildInstalledEntries(
         IReadOnlyList<InstalledCandidate> candidates,
         IReadOnlyList<string> aiOrder,
-        double maxTps)
+        double maxTps,
+        IReadOnlyDictionary<string, LibraryCatalogEntry> catalogIndex)
     {
         var byModel = candidates.ToDictionary(c => c.Model, StringComparer.OrdinalIgnoreCase);
         var aiRankByModel = aiOrder
@@ -334,11 +343,32 @@ public sealed class AiLlmRecommendationService
                 ? "-"
                 : BenchmarkMetricFormatter.Format(c.BenchmarkKind, c.BestTps, c.BestEmbedMs);
 
+            CatalogMetadataLookup.TryGetForModel(catalogIndex, c.Model, out var catalogEntry);
+            var installedSize = c.SizeGb > 0 ? ModelSizeFormatter.FormatGb(c.SizeGb) : null;
+            var sizeUsage = CatalogMetadataLookup.ResolveSizeUsage(catalogEntry, installedSize);
+            var contextDisplay = CatalogMetadataLookup.ResolveContext(catalogEntry, c.RecommendedCtx);
+            var inputModalities = CatalogMetadataLookup.ResolveInput(catalogEntry);
+            var fileSize = catalogEntry is not null
+                && !string.IsNullOrWhiteSpace(catalogEntry.FileSize)
+                && catalogEntry.FileSize != "-"
+                ? catalogEntry.FileSize
+                : installedSize ?? "-";
+
             scored.Add(new AiRecommendedLlmEntry
             {
                 ModelOrLibrary = c.Model,
                 PullTag = c.Model.Contains(':', StringComparison.Ordinal) ? c.Model : $"{c.Model}:latest",
                 Category = c.Category,
+                SizeUsage = sizeUsage,
+                FileSize = fileSize,
+                ContextDisplay = contextDisplay,
+                InputModalities = inputModalities,
+                ContextSortKey = CatalogMetadataLookup.ResolveContextSortKey(catalogEntry, c.RecommendedCtx),
+                FileSizeSortKey = c.SizeGb > 0
+                    ? (long)(c.SizeGb * 1_073_741_824.0)
+                    : CatalogMetadataLookup.ResolveFileSizeSortKey(catalogEntry, fileSize),
+                MetricSortKey = CatalogMetadataLookup.ResolveMetricSortKey(
+                    c.BenchmarkKind, c.BestTps, c.BestEmbedMs),
                 AiRank = aiRank,
                 BenchmarkScore = benchScore,
                 CompositeScore = composite,
@@ -360,51 +390,41 @@ public sealed class AiLlmRecommendationService
         IReadOnlyList<UninstalledCandidate> candidates,
         IReadOnlyList<string> aiOrder)
     {
-        var byLibrary = candidates.ToDictionary(c => c.LibraryName, StringComparer.OrdinalIgnoreCase);
+        var variantsByLibrary = candidates
+            .GroupBy(c => c.LibraryName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderBy(v => v.PullTag, StringComparer.OrdinalIgnoreCase).ToList(),
+                StringComparer.OrdinalIgnoreCase);
         var maxAiRank = Math.Max(aiOrder.Count, 1);
         var scored = new List<AiRecommendedLlmEntry>();
+        var usedPullTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var (name, index) in aiOrder.Select((n, i) => (n, i)))
         {
-            if (!byLibrary.TryGetValue(name, out var c))
+            if (!variantsByLibrary.TryGetValue(name, out var variants))
             {
                 continue;
             }
 
+            var chosen = variants.FirstOrDefault(v => v.PullTag.EndsWith(":latest", StringComparison.OrdinalIgnoreCase))
+                ?? variants[0];
             var aiRank = index + 1;
             var aiScore = (maxAiRank - aiRank + 1.0) / maxAiRank;
-            scored.Add(new AiRecommendedLlmEntry
-            {
-                ModelOrLibrary = c.LibraryName,
-                PullTag = $"{c.LibraryName}:latest",
-                Category = c.Category,
-                ParameterSize = c.ParameterSize,
-                FileSize = c.FileSize,
-                AiRank = aiRank,
-                BenchmarkScore = 0,
-                CompositeScore = aiScore,
-                AiNote = $"Suggested download for {c.Category.ToLowerInvariant()} workloads."
-            });
+            scored.Add(ToUninstalledRecommendation(chosen, aiRank, aiScore,
+                $"Suggested download for {chosen.Category.ToLowerInvariant()} workloads."));
+            usedPullTags.Add(chosen.PullTag);
         }
 
         foreach (var c in candidates)
         {
-            if (scored.Any(e => e.ModelOrLibrary.Equals(c.LibraryName, StringComparison.OrdinalIgnoreCase)))
+            if (usedPullTags.Contains(c.PullTag))
             {
                 continue;
             }
 
-            scored.Add(new AiRecommendedLlmEntry
-            {
-                ModelOrLibrary = c.LibraryName,
-                PullTag = $"{c.LibraryName}:latest",
-                Category = c.Category,
-                ParameterSize = c.ParameterSize,
-                FileSize = c.FileSize,
-                AiRank = maxAiRank + 1,
-                CompositeScore = 0,
-                AiNote = "Not ranked by AI."
-            });
+            scored.Add(ToUninstalledRecommendation(c, maxAiRank + 1, 0, "Not ranked by AI."));
+            usedPullTags.Add(c.PullTag);
         }
 
         return AssignDisplayRanks(
@@ -454,12 +474,41 @@ public sealed class AiLlmRecommendationService
         double BestTps,
         double BestEmbedMs,
         bool NeedsRetest,
-        double SizeGb);
+        double SizeGb,
+        int RecommendedCtx);
+
+    private static AiRecommendedLlmEntry ToUninstalledRecommendation(
+        UninstalledCandidate candidate,
+        int aiRank,
+        double compositeScore,
+        string note) =>
+        new()
+        {
+            ModelOrLibrary = candidate.PullTag,
+            PullTag = candidate.PullTag,
+            Category = candidate.Category,
+            ParameterSize = candidate.ParameterSize,
+            SizeUsage = candidate.SizeUsage,
+            FileSize = candidate.FileSize,
+            ContextDisplay = candidate.ContextDisplay,
+            InputModalities = candidate.InputModalities,
+            ContextSortKey = CatalogMetadataLookup.ParseContextSortKey(candidate.ContextDisplay),
+            FileSizeSortKey = CatalogMetadataLookup.ResolveFileSizeSortKey(null, candidate.FileSize),
+            MetricSortKey = 0,
+            AiRank = aiRank,
+            BenchmarkScore = 0,
+            CompositeScore = compositeScore,
+            AiNote = note
+        };
 
     private sealed record UninstalledCandidate(
         string LibraryName,
+        string PullTag,
         string Category,
         string ParameterSize,
+        string SizeUsage,
+        string ContextDisplay,
+        string InputModalities,
         string FileSize,
         string Description);
 }
